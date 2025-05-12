@@ -43,7 +43,7 @@ export default function ClientHomePage() {
 
   // 2. 用 useEffect 抓取 API
   useEffect(() => {
-    fetch('/api/products?limit=20')  // 增加獲取的產品數量
+    fetch('/api/products?limit=20&status=active')  // 增加獲取的產品數量，只獲取上架中的商品
       .then(async (res) => {
         if (!res.ok) throw new Error('無法取得商品資料');
         const json = await res.json();
@@ -127,6 +127,38 @@ export default function ClientHomePage() {
     { name: '健康全麥', icon: '🌾', description: '營養豐富，粗糧製作', value: 'wholegrain' },
     { name: '特色吐司', icon: '🍞', description: '鬆軟綿密，百搭美味', value: 'toast' },
   ];
+
+  // 結帳功能
+  const handleCheckout = () => {
+    // 將購物車資料儲存到 localStorage
+    try {
+      localStorage.setItem('bakeryCart', JSON.stringify(cart));
+      // 導向結帳頁面
+      window.location.href = '/client/checkout';
+    } catch (error) {
+      console.error('無法保存購物車資料', error);
+      alert('處理訂單時發生錯誤，請稍後再試');
+    }
+  };
+
+  // 當購物車變化時，保存到 localStorage
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem('bakeryCart', JSON.stringify(cart));
+    }
+  }, [cart]);
+
+  // 從 localStorage 載入購物車
+  useEffect(() => {
+    try {
+      const savedCart = localStorage.getItem('bakeryCart');
+      if (savedCart) {
+        setCart(JSON.parse(savedCart));
+      }
+    } catch (error) {
+      console.error('無法載入購物車資料', error);
+    }
+  }, []);
 
   return (
     <div className="space-y-12">
@@ -304,8 +336,14 @@ export default function ClientHomePage() {
                   <span className="font-bold">總計</span>
                   <span className="font-bold text-amber-600">${calculateTotal().toFixed(2)}</span>
                 </div>
-                <button className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-lg">
-                  結帳
+                <button 
+                  onClick={() => handleCheckout()}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-lg flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  前往結帳
                 </button>
                 {isMobile && (
                   <button 
@@ -399,7 +437,7 @@ export default function ClientHomePage() {
                   setLoading(true);
                   setError(null);
                   // 重新嘗試獲取商品
-                  fetch('/api/products?limit=20')
+                  fetch('/api/products?limit=20&status=active')
                     .then(async (res) => {
                       if (!res.ok) throw new Error('無法取得商品資料');
                       const json = await res.json();

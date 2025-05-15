@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+}
+
+/* 自訂組件樣式 */
+@layer components {
+  .product-card {
+    @apply border border-gray-200 rounded-md overflow-hidden transition-transform duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  .product-image {
+    @apply w-full aspect-square object-cover object-center;
+  }
+
+  .product-info {
+    @apply p-4;
+  }
+
+  .product-title {
+    @apply text-lg font-semibold mb-2 overflow-hidden line-clamp-2 min-h-[3.5rem];
+  }
+
+  .product-price {
+    @apply text-blue-600 font-bold;
+  }
+
+  .form-group {
+    @apply mb-4;
+  }
+
+  .form-label {
+    @apply block text-gray-700 text-sm font-bold mb-2;
+  }
+
+  .form-input {
+    @apply shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring focus:border-blue-300;
+  }
+
+  .form-error {
+    @apply text-red-500 text-xs italic mt-1;
+  }
+
+  .form-button {
+    @apply bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring focus:ring-blue-300;
+  }
+  
+  /* 步驟指示器樣式 */
+  .step-item {
+    @apply flex flex-col items-center relative flex-1;
+    z-index: 1;
+  }
+  
+  .step-number {
+    @apply flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 font-semibold transition-all duration-300 mb-2 text-base;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  }
+  
+  .step-item.active .step-number {
+    @apply bg-blue-600 text-white;
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
+    transform: scale(1.05);
+  }
+  
+  .step-item.completed .step-number {
+    @apply bg-green-500 text-white;
+    box-shadow: 0 3px 8px rgba(34, 197, 94, 0.4);
+  }
+  
+  .step-item.completed .step-number::after {
+    content: '✓';
+    position: absolute;
+    font-size: 14px;
+  }
+  
+  .step-label {
+    @apply text-sm font-medium text-gray-500 transition-colors duration-300;
+    white-space: nowrap;
+  }
+  
+  .step-item.active .step-label {
+    @apply text-blue-600 font-semibold;
+  }
+  
+  .step-item.completed .step-label {
+    @apply text-green-600 font-semibold;
+  }
+  
+  .step-connector {
+    @apply flex-1 h-1 bg-gray-200 self-center mx-4;
+    position: relative;
+    top: -15px;
+    z-index: 0;
+    transition: background-color 0.3s ease;
+  }
+  
+  .step-connector.active {
+    @apply bg-blue-600;
+  }
+}

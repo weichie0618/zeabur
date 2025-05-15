@@ -9,10 +9,17 @@ const nextConfig: NextConfig = {
         destination: "/api/upload",
       },
       {
+        source: "/api/sample-request",
+        destination: "/api/sample-request",
+      },
+      {
         source: "/api/:path*",
         destination: "http://localhost:4000/api/:path*",
       },
     ];
+  },
+  images: {
+    domains: ["sunnyhausbakery.com.tw","down-tw.img.susercontent.com"],
   },
 };
 

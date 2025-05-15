@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLiff } from '@/lib/LiffProvider';
 
 // 表單驗證狀態接口
 interface FormValidation {
@@ -31,6 +32,7 @@ interface OrderData {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const { liff, profile, isLoggedIn, isLoading: liffLoading, customerData, updateCustomerData } = useLiff();
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +68,76 @@ export default function CheckoutPage() {
     };
 
     loadCart();
+    
+    // 嘗試從 localStorage 加載客戶數據（不依賴於 LIFF）
+    try {
+      const savedCustomerData = localStorage.getItem('customerData');
+      if (savedCustomerData) {
+        const parsedData = JSON.parse(savedCustomerData);
+        console.log('從 localStorage 讀取到客戶資料:', parsedData);
+        if (parsedData) {
+          setFormData(prev => ({
+            ...prev,
+            customerName: parsedData.name || prev.customerName,
+            email: parsedData.email || prev.email,
+            phone: parsedData.phone || prev.phone,
+            address: parsedData.address || prev.address
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('解析本地客戶資料失敗', e);
+    }
   }, []);
+
+  // 如果有LIFF用戶資料，自動填充表單
+  useEffect(() => {
+    if (isLoggedIn && profile && !liffLoading) {
+      console.log('從 LIFF 獲取到用戶資料:', profile);
+      setFormData(prev => ({
+        ...prev,
+        customerName: profile.displayName || prev.customerName,
+        email: profile.email || prev.email,
+      }));
+    }
+  }, [isLoggedIn, profile, liffLoading]);
+
+  // 如果有客戶資料，自動填充表單
+  useEffect(() => {
+    // 先檢查從 LiffProvider 中獲取的客戶資料
+    if (customerData) {
+      console.log('從 LiffProvider 中獲取的客戶資料:', customerData);
+      setFormData(prev => ({
+        ...prev,
+        customerName: customerData.name || prev.customerName,
+        email: customerData.email || prev.email,
+        phone: customerData.phone || prev.phone,
+        address: customerData.address || prev.address
+      }));
+      console.log('已從 LiffProvider 中獲取的客戶資料自動填充表單', customerData);
+      return;
+    }
+
+    // 如果沒有從 LiffProvider 獲取資料，則檢查本地儲存
+    if (isLoggedIn && !liffLoading && profile && profile.userId) {
+      const savedCustomerData = localStorage.getItem('customerData');
+      if (savedCustomerData) {
+        try {
+          const parsedData = JSON.parse(savedCustomerData);
+          setFormData(prev => ({
+            ...prev,
+            customerName: parsedData.name || prev.customerName,
+            email: parsedData.email || prev.email,
+            phone: parsedData.phone || prev.phone,
+            address: parsedData.address || prev.address
+          }));
+          console.log('已從儲存的客戶資料中自動填充表單', parsedData);
+        } catch (e) {
+          console.error('解析客戶資料失敗', e);
+        }
+      }
+    }
+  }, [isLoggedIn, liffLoading, profile, customerData]);
 
   // 購物車為空時，導回首頁
   useEffect(() => {
@@ -121,6 +192,18 @@ export default function CheckoutPage() {
     setSubmitting(true);
     setPaymentStatus('processing');
 
+    // 將當前客戶資料保存到 Context 和 localStorage
+    const customerDataToSave = {
+      name: formData.customerName,
+      email: formData.email,
+      phone: formData.phone,
+      address: formData.address
+    };
+    
+    // 使用 LiffProvider 提供的方法更新客戶資料
+    updateCustomerData(customerDataToSave);
+    console.log('結帳頁面: 已更新客戶資料', customerDataToSave);
+
     // 準備訂單資料（根據 API 規格調整）
     const orderData: OrderData = {
       items: cart.map(item => ({
@@ -139,6 +222,14 @@ export default function CheckoutPage() {
     };
 
     try {
+      // 如果在LINE瀏覽器中，添加LINE用戶ID
+      if (liff && liff.isInClient() && isLoggedIn && profile) {
+        // 添加LINE用戶ID到訂單數據中
+        orderData.customer_details.name = profile.displayName || orderData.customer_details.name;
+        // 如果API支持，還可以添加LINE特定字段
+        // orderData.line_user_id = profile.userId;
+      }
+
       // 呼叫後端 API 建立訂單
       const response = await fetch('/api/orders/create', {
         method: 'POST',
@@ -333,6 +424,36 @@ export default function CheckoutPage() {
                 {!validation.address && <p className="text-red-500 text-sm mt-1">請輸入收件地址</p>}
               </div>
             </div>
+            
+            {/* 只在開發環境顯示的 Debug 信息 */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-4 bg-gray-100 p-3 rounded-md text-xs">
+                <div className="flex justify-between mb-2">
+                  <span>Debug 模式</span>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      console.log('目前顧客資料狀態:', {
+                        formData,
+                        customerData,
+                        profile,
+                        localStorage: localStorage.getItem('customerData')
+                          ? JSON.parse(localStorage.getItem('customerData') || '{}')
+                          : null
+                      });
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    檢查數據
+                  </button>
+                </div>
+                <div>
+                  <div>Profile: {profile ? '已載入' : '未載入'}</div>
+                  <div>CustomerData: {customerData ? '已載入' : '未載入'}</div>
+                  <div>FormData: {JSON.stringify(formData)}</div>
+                </div>
+              </div>
+            )}
           </form>
         </div>
 
@@ -408,14 +529,14 @@ export default function CheckoutPage() {
               返回購物
             </Link>
             
-            <div className="mt-6 text-xs text-gray-500">
+            {/* <div className="mt-6 text-xs text-gray-500">
               <p>點擊「確認訂單並付款」，即表示您同意我們的</p>
               <div className="flex space-x-1 mt-1">
                 <a href="/terms" className="text-amber-600 hover:underline">服務條款</a>
                 <span>和</span>
                 <a href="/privacy" className="text-amber-600 hover:underline">隱私政策</a>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -1,0 +1,72 @@
+import { getLiffId, getLiffObject } from '@/lib/env';
+
+// 初始化LIFF應用
+export async function initializeLiff(liffId?: string): Promise<any> {
+  try {
+    const liffObject = await getLiffObject();
+    
+    // 如果沒有提供liffId，則使用默認值
+    const targetLiffId = liffId || getLiffId();
+    
+    if (!targetLiffId) {
+      throw new Error('LIFF ID is required');
+    }
+
+    // 初始化LIFF
+    await liffObject.init({
+      liffId: targetLiffId,
+      withLoginOnExternalBrowser: true,
+    });
+    
+    return liffObject;
+  } catch (error) {
+    console.error('Failed to initialize LIFF', error);
+    throw error;
+  }
+}
+
+// 獲取LIFF用戶資料
+export async function getLiffUserProfile(liff: any) {
+  if (!liff.isLoggedIn()) {
+    // 如果用戶未登入，則進行登入
+    liff.login();
+    return null;
+  }
+
+  try {
+    const profile = await liff.getProfile();
+    return profile;
+  } catch (error) {
+    console.error('Failed to get user profile', error);
+    return null;
+  }
+}
+
+// 判斷是否在LINE環境中
+export function isInLiffBrowser(liff: any): boolean {
+  return liff.isInClient();
+}
+
+// 登出LIFF
+export function liffLogout(liff: any): void {
+  if (liff.isLoggedIn()) {
+    liff.logout();
+  }
+}
+
+// 分享訊息（僅在LINE App內有效）
+export function shareLiffMessage(liff: any, message: any): Promise<void> {
+  if (!liff.isInClient()) {
+    console.error('This method is only available in LINE App');
+    return Promise.reject(new Error('Not in LINE client'));
+  }
+
+  return liff.sendMessages(message);
+}
+
+// 關閉LIFF視窗（僅在LINE App內有效）
+export function closeLiff(liff: any): void {
+  if (liff.isInClient()) {
+    liff.closeWindow();
+  }
+} 

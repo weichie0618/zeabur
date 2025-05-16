@@ -1,76 +1,245 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { setCookie } from 'cookies-next';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '../contexts/AuthContext';
+
+// 搜尋參數處理元件
+function SearchParamsHandler({ onParamsProcessed }: { 
+  onParamsProcessed: (expired: boolean, redirectPath: string | null) => void 
+}) {
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    if (searchParams) {
+      // 檢查是否有令牌過期參數
+      const expired = searchParams.get('expired') === 'true';
+      // 保存重定向路徑
+      const redirect = searchParams.get('redirect');
+      
+      // 調用回調函數傳遞參數
+      onParamsProcessed(expired, redirect);
+      
+      // 清除URL參數，避免瀏覽器重新整理時再次觸發
+      if ((expired || redirect) && typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('expired');
+        url.searchParams.delete('redirect');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [searchParams, onParamsProcessed]);
+  
+  return null; // 不渲染任何內容
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
+  const [loginAttempted, setLoginAttempted] = useState(false);
+  const [redirectPath, setRedirectPath] = useState(''); // 存儲重定向路徑
+  const isDev = process.env.NODE_ENV === 'development';
+
+  // 處理搜尋參數回調
+  const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null) => {
+    if (expired) {
+      setError('您的登入已過期，請重新登入');
+      addDebugInfo('檢測到登入過期參數，顯示過期提示');
+    }
+    
+    if (redirect) {
+      setRedirectPath(redirect);
+      addDebugInfo(`儲存重定向路徑: ${redirect}`);
+    }
+  }, []);
+
+  // 監聽認證狀態變更，根據角色進行導航
+  useEffect(() => {
+    // 僅在開發環境執行 cookie 檢查
+    if (isDev) {
+      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) acc[name] = value;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      setDebugInfo(prev => `${prev ? prev + '\n\n' : ''}Cookie狀態檢查:\n`+
+        `- accessToken: ${cookies.accessToken ? '存在' : '不存在'}\n`+
+        `- localStorage token: ${localStorage.getItem('accessToken') ? '存在' : '不存在'}`
+      );
+      
+      if (isAuthenticated && user) {
+        addDebugInfo(`認證狀態變更: isAuthenticated=${isAuthenticated}, 用戶=${JSON.stringify(user)}`);
+        addDebugInfo(`準備根據角色跳轉...`);
+      }
+    }
+    
+    // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況
+    if (isAuthenticated && user && !loginAttempted) {
+      navigateBasedOnRole(user);
+    }
+  }, [isAuthenticated, user, router, isDev, loginAttempted]);
+
+  // 統一處理基於角色的導航邏輯
+  const navigateBasedOnRole = useCallback((userData: any) => {
+    try {
+      if (!userData || !userData.role) {
+        if (isDev) addDebugInfo('無效的用戶數據或角色');
+        return;
+      }
+      
+      // 如果有重定向路徑，優先使用該路徑
+      if (redirectPath) {
+        if (isDev) addDebugInfo(`使用保存的重定向路徑: ${redirectPath}`);
+        router.push(redirectPath);
+        return;
+      }
+      
+      // 否則根據角色導航
+      if (userData.role === 'admin') {
+        if (isDev) addDebugInfo('執行跳轉到管理員頁面: /admin/bakery');
+        router.push('/admin/bakery');
+      } else if (userData.role === 'salesperson') {
+        if (isDev) addDebugInfo('執行跳轉到業務頁面: /sales/dashboard');
+        router.push('/sales/dashboard');
+      } else {
+        if (isDev) addDebugInfo(`未知角色: ${userData.role}，導向首頁`);
+        router.push('/');
+      }
+    } catch (error) {
+      if (isDev) {
+        addDebugInfo(`導航錯誤: ${error}`);
+        console.error('導航錯誤:', error);
+      }
+    }
+  }, [router, isDev, redirectPath]);
+
+  // 統一添加調試信息的函數
+  const addDebugInfo = (info: string) => {
+    if (isDev) {
+      setDebugInfo(prev => prev ? `${prev}\n${info}` : info);
+    }
+  };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
+    // 清除錯誤提示，提供更好的用戶體驗
+    if (error) setError('');
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPassword(e.target.value);
+    // 清除錯誤提示，提供更好的用戶體驗
+    if (error) setError('');
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setLoginAttempted(false); // 重置登入嘗試狀態
+    addDebugInfo('正在處理登入請求...');
 
-    // 簡化的身份驗證邏輯 (實際應用中應透過API進行驗證)
+    // 表單驗證
     if (!email) {
       setError('請輸入電子郵件');
       setLoading(false);
       return;
     }
 
-    // 模擬身份驗證過程
-    setTimeout(() => {
-      // 設置cookie並根據角色重定向
-      setCookie('user_email', email, { maxAge: 60 * 60 * 24 }); // 24小時有效
-
-      // 根據電子郵件判斷角色和重定向地址
-      if (email === 'admin@example.com') {
-        router.push('/admin/bakery');
-      } else if (email.startsWith('sales')) {
-        router.push('/sales/dashboard');
-      } else {
-        setError('帳號不存在或密碼錯誤');
-      }
+    if (!password) {
+      setError('請輸入密碼');
       setLoading(false);
-    }, 500); // 添加模擬延遲以顯示載入效果
+      return;
+    }
+
+    try {
+      // 使用上下文中的登入函數
+      addDebugInfo(`發送登入請求: ${email}`);
+      const result = await login(email, password);
+      
+      if (!result.success) {
+        // 登入失敗處理
+        setLoginAttempted(true); // 標記為登入嘗試失敗
+        addDebugInfo(`登入失敗: ${result.message}`);
+        setError(result.message || '登入失敗');
+        
+        // 設定焦點在密碼欄位，方便用戶重新輸入
+        const passwordField = document.getElementById('password') as HTMLInputElement;
+        if (passwordField) {
+          passwordField.focus();
+          passwordField.select();
+        }
+      } else {
+        // 登入成功
+        addDebugInfo('登入成功!');
+        
+        // 當在開發環境時，顯示令牌信息
+        if (isDev) {
+          const accessToken = localStorage.getItem('accessToken');
+          if (accessToken) {
+            addDebugInfo(`AccessToken: ${accessToken.substring(0, 15)}...`);
+          }
+          
+          // 顯示用戶數據
+          if (result.userData) {
+            addDebugInfo(`用戶信息: ${JSON.stringify(result.userData)}`);
+            addDebugInfo(`用戶角色: ${result.userData?.role}`);
+          }
+        }
+        
+        // 登入成功後，觸發導航 (因為 useEffect 監聽 isAuthenticated 和 user 變化)
+        if (result.userData) {
+          setLoginAttempted(false); // 重置登入嘗試狀態
+          navigateBasedOnRole(result.userData);
+        }
+      }
+    } catch (error: any) {
+      console.error('登入錯誤:', error);
+      addDebugInfo(`登入錯誤: ${error.message || JSON.stringify(error)}`);
+      setError('登入時發生錯誤，請稍後再試');
+      setLoginAttempted(true); // 標記為登入嘗試失敗
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAdminLogin = () => {
-    setEmail('admin@example.com');
-    setPassword('admin123');
-    setCookie('user_email', 'admin@example.com', { maxAge: 60 * 60 * 24 });
-    router.push('/admin/bakery');
-  };
-
-  const handleSalesLogin = () => {
-    setEmail('sales1@example.com');
-    setPassword('sales123');
-    setCookie('user_email', 'sales1@example.com', { maxAge: 60 * 60 * 24 });
-    router.push('/sales/dashboard');
+  // 重設錯誤並允許重新嘗試
+  const handleRetry = () => {
+    setError('');
+    setLoginAttempted(false);
+    setPassword('');
+    // 設定焦點在密碼欄位
+    const passwordField = document.getElementById('password') as HTMLInputElement;
+    if (passwordField) {
+      passwordField.focus();
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      {/* 使用 Suspense 包裹 SearchParamsHandler 組件 */}
+      <Suspense fallback={null}>
+        <SearchParamsHandler onParamsProcessed={handleParamsProcessed} />
+      </Suspense>
+      
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">登入您的帳戶</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            使用預設帳號進行登入，或輸入您的帳號資訊
+            請輸入您的帳號和密碼進行登入
           </p>
+          {/* 如果有重定向路徑，顯示返回提示 */}
+          {redirectPath && (
+            <p className="mt-1 text-center text-xs text-amber-600">
+              登入後將返回您先前的頁面
+            </p>
+          )}
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <input type="hidden" name="remember" value="true" />
@@ -106,7 +275,18 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="text-red-500 text-sm text-center">
+              <p>{error}</p>
+              {loginAttempted && (
+                <button 
+                  type="button"
+                  onClick={handleRetry}
+                  className="mt-1 text-amber-600 hover:text-amber-800 text-xs font-semibold"
+                >
+                  重新嘗試登入
+                </button>
+              )}
+            </div>
           )}
 
           <div className="flex items-center justify-between">
@@ -136,40 +316,26 @@ export default function LoginPage() {
                   <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
                 </svg>
               </span>
-              {loading ? '登入中...' : '使用帳號登入'}
+              {loading ? '登入中...' : '登入'}
             </button>
           </div>
         </form>
 
-        <div className="mt-4 text-center text-sm text-gray-600">
-          <p>或使用以下預設帳號快速登入</p>
-        </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={handleSalesLogin}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
-          >
-            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-              <svg className="h-5 w-5 text-amber-500 group-hover:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-              </svg>
-            </span>
-            業務人員登入 (王小明)
-          </button>
-          
-          <button
-            onClick={handleAdminLogin}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-          >
-            <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-              <svg className="h-5 w-5 text-green-500 group-hover:text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-              </svg>
-            </span>
-            管理員登入
-          </button>
-        </div>
+        {/* 除錯資訊區域 - 僅在開發環境顯示 */}
+        {isDev && (
+          <div className="mt-4 p-3 bg-gray-800 text-white rounded text-xs whitespace-pre-line overflow-auto max-h-48">
+            <div className="flex justify-between mb-1">
+              <h4 className="text-xs font-semibold text-gray-300">除錯資訊 (開發模式)</h4>
+              <button 
+                className="text-xs text-gray-400 hover:text-white" 
+                onClick={() => setDebugInfo('')}
+              >
+                清除
+              </button>
+            </div>
+            <p className="font-mono">{debugInfo || '尚無除錯資訊。請嘗試登入以查看流程。'}</p>
+          </div>
+        )}
 
         {/* 角色說明 */}
         <div className="mt-8 space-y-4 text-sm text-gray-500">
@@ -183,7 +349,7 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <p className="ml-2">
-                  <strong className="text-gray-700">業務人員帳號：</strong> sales1@example.com (王小明) 或 sales2@example.com (李小華)
+                  <strong className="text-gray-700">業務人員帳號：</strong> sales@example.com / password
                 </p>
               </div>
               <div className="flex items-start">
@@ -193,11 +359,11 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <p className="ml-2">
-                  <strong className="text-gray-700">管理員帳號：</strong> admin@example.com
+                  <strong className="text-gray-700">管理員帳號：</strong> admin@example.com / password
                 </p>
               </div>
               <div className="text-xs text-gray-500 mt-2">
-                <p>* 此為示範系統，密碼可輸入任意值</p>
+                <p>* 如忘記密碼，請聯繫系統管理員重置</p>
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BreadCategories } from './BreadCategories';
 import { ShoppingCart } from './ShoppingCart';
 
@@ -27,6 +27,7 @@ interface Product {
   is_new?: boolean;
   quantity?: number;
   category_id: number;
+  specification?: string;
 }
 
 interface Category {
@@ -42,6 +43,9 @@ interface ProductsClientProps {
 }
 
 export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts, breadCategories }) => {
+  // 添加日誌檢查初始產品數據
+  console.log('初始產品數據:', initialProducts);
+  
   // 客戶端狀態管理
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
@@ -52,6 +56,9 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  // 添加模態視窗狀態
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   // 檢測是否是移動設備
   useEffect(() => {
@@ -227,6 +234,22 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     setLoading(false);
   }, [initialProducts, activeCategory, searchQuery]);
 
+  // 顯示商品詳情模態視窗
+  const handleProductClick = useCallback((product: Product) => {
+    setSelectedProduct(product);
+    setShowModal(true);
+    // 模態視窗開啟時禁止捲動
+    document.body.style.overflow = 'hidden';
+  }, []);
+
+  // 關閉商品詳情模態視窗
+  const closeModal = useCallback(() => {
+    setShowModal(false);
+    setSelectedProduct(null);
+    // 模態視窗關閉時恢復捲動
+    document.body.style.overflow = 'auto';
+  }, []);
+
   return (
     <>
       {/* 使用分離的購物車元件 */}
@@ -271,6 +294,98 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
           </div>
         </div>
       </div>
+
+      {/* 商品詳情模態視窗 */}
+      <AnimatePresence>
+        {showModal && selectedProduct && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeModal}
+          >
+            <motion.div 
+              className="relative bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-auto"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10"
+                onClick={closeModal}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
+              <div className="relative h-64 bg-gray-100">
+                <Image
+                  src={selectedProduct.images}
+                  alt={selectedProduct.name}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                  className="object-cover"
+                />
+              </div>
+              
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900">{selectedProduct.name}</h3>
+                  {selectedProduct.is_new && (
+                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">新品</span>
+                  )}
+                </div>
+                
+                <p className="text-amber-600 text-xl font-bold mb-4">
+                  ${selectedProduct.price}
+                  {selectedProduct.original_price && (
+                    <span className="text-gray-400 text-base line-through ml-2">
+                      ${selectedProduct.original_price}
+                    </span>
+                  )}
+                </p>
+                
+                {selectedProduct.description && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-1">商品描述</h4>
+                    <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
+                  </div>
+                )}
+                
+                {selectedProduct.specification && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-1 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
+                      </svg>
+                      商品規格
+                    </h4>
+                    <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                      <p className="text-gray-600 text-sm whitespace-pre-line">{selectedProduct.specification}</p>
+                    </div>
+                  </div>
+                )}
+                
+                <button 
+                  onClick={() => {
+                    addToCart(selectedProduct);
+                    closeModal();
+                  }}
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors font-medium flex items-center justify-center"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  加入購物車
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 商品區塊 - 注意在這裡優化手機顯示為兩列 */}
       <section id="products-section">
@@ -327,7 +442,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                 transition={{ delay: 0.05 * (index % 8), duration: 0.5 }}
                 whileHover={{ y: -5 }}
               >
-                <div className="relative h-48 bg-gray-200 overflow-hidden">
+                <div 
+                  className="relative h-48 bg-gray-200 overflow-hidden cursor-pointer"
+                  onClick={() => handleProductClick(product)}
+                >
                   {/* 顯示商品圖片 */}
                   <Image
                     src={product.images}
@@ -340,7 +458,12 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                 </div>
                 <div className="p-4">
                   <div className="flex justify-between items-start">
-                    <h3 className="font-medium text-gray-900">{product.name.trim()}</h3>
+                    <h3 
+                      className="font-medium text-gray-900 cursor-pointer hover:text-amber-600 transition-colors"
+                      onClick={() => handleProductClick(product)}
+                    >
+                      {product.name.trim()}
+                    </h3>
                     {product.is_new && (
                       <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">新品</span>
                     )}
@@ -351,6 +474,19 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       <span className="text-gray-400 text-sm line-through ml-2">${product.original_price}</span>
                     )}
                   </p>
+                  {product.specification && (
+                    <div className="flex justify-between items-center">
+                      <p className="text-gray-500 text-xs mt-1 truncate" title={product.specification}>
+                        <span className="font-medium">規格:</span> {product.specification}
+                      </p>
+                      <button 
+                        onClick={() => handleProductClick(product)}
+                        className="text-amber-600 hover:text-amber-800 text-xs mt-1"
+                      >
+                        查看
+                      </button>
+                    </div>
+                  )}
                   <button 
                     onClick={() => addToCart(product)}
                     className="w-full mt-3 bg-amber-100 hover:bg-amber-200 text-amber-800 py-2 rounded-md transition-colors flex items-center justify-center group"

@@ -15,7 +15,7 @@ interface FlexMessageOptions {
  * @param expiryDate 服務到期日
  * @returns LINE Flex 消息物件數組
  */
-export function createActivationSuccessMessage(storeValue: string, lineUsername: string, expiryDate: string) {
+export function createActivationSuccessMessage(storeValue: string, lineUsername: string, ) {
   return [
     {
       type: "flex",
@@ -39,7 +39,7 @@ export function createActivationSuccessMessage(storeValue: string, lineUsername:
           ],
           backgroundColor: "#0367D3",
           paddingTop: "lg",
-          paddingAll: "12px",
+          paddingAll: "md",
           paddingBottom: "xs",
         },
         body: {
@@ -57,15 +57,8 @@ export function createActivationSuccessMessage(storeValue: string, lineUsername:
                   flex: 5,
                   weight: "bold",
                   text: storeValue,
-                },
-                {
-                  type: "text",
-                  text: "到期日:",
-                  flex: 3,
-                  size: "xxs",
-                  gravity: "bottom",
-                  color: "#877f7f",
-                },
+                  wrap: true
+                }
               ],
               spacing: "none",
               cornerRadius: "30px",
@@ -82,14 +75,8 @@ export function createActivationSuccessMessage(storeValue: string, lineUsername:
                   size: "sm",
                   flex: 5,
                   weight: "bold",
-                },
-                {
-                  type: "text",
-                  text: expiryDate,
-                  flex: 3,
-                  size: "sm",
-                  color: "#877f7f",
-                },
+                  wrap: true
+                }
               ],
               spacing: "lg",
               cornerRadius: "30px",
@@ -120,60 +107,22 @@ export function createActivationSuccessMessage(storeValue: string, lineUsername:
                       layout: "horizontal",
                       contents: [
                         {
-                          type: "text",
-                          text: "📚",
-                          flex: 1,
-                          size: "sm",
+                          "type": "text",
+                          "text": "🥖",
+                          "flex": 1,
+                          "size": "xl"
                         },
                         {
-                          type: "text",
-                          text: "文宣品申購(服務即將上線)",
-                          flex: 5,
-                          size: "sm",
-                          color: "#555555",
+                          "type": "text",
+                          "text": "烘焙麵包訂購",
+                          "flex": 5,
+                          "size": "lg",
+                          "color": "#555555",
+                          "wrap": true,
+                          "weight": "bold"
                         },
                       ],
-                    },
-                    {
-                      type: "box",
-                      layout: "horizontal",
-                      contents: [
-                        {
-                          type: "text",
-                          text: "🎥",
-                          flex: 1,
-                          size: "sm",
-                        },
-                        {
-                          type: "text",
-                          text: "教學影片觀看",
-                          flex: 5,
-                          size: "sm",
-                          color: "#555555",
-                        },
-                      ],
-                      margin: "md",
-                    },
-                    {
-                      type: "box",
-                      layout: "horizontal",
-                      contents: [
-                        {
-                          type: "text",
-                          text: "🤖",
-                          flex: 1,
-                          size: "sm",
-                        },
-                        {
-                          type: "text",
-                          text: "LINE機器人",
-                          flex: 5,
-                          size: "sm",
-                          color: "#555555",
-                        },
-                      ],
-                      margin: "md",
-                    },
+                    }
                   ],
                   margin: "lg",
                 },
@@ -193,7 +142,7 @@ export function createActivationSuccessMessage(storeValue: string, lineUsername:
               action: {
                 type: "uri",
                 label: "使用方式",
-                uri: process.env.NEXT_PUBLIC_HOWTOUSE_URL || "#",
+                uri:"https://example.com",
               },
             },
           ],

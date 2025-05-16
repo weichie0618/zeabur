@@ -7,24 +7,28 @@ interface Product {
   id: number;
   name: string;
   description: string;
-  price: number;
-  image_url: string;
+  price: string | number;
+  images?: string;
+  image_url?: string;
+  specification?: string;
 }
 
 interface OrderItem {
   id: number;
+  order_id: number;
+  product_id: number;
   quantity: number;
-  price: number;
+  price: string | number;
   product: Product;
 }
 
 interface Address {
   id: number;
-  recipient_name: string;
-  phone: string;
-  address1: string;
-  city: string;
-  postal_code: string;
+  recipient_name?: string;
+  phone?: string;
+  address1?: string;
+  city?: string;
+  postal_code?: string;
 }
 
 interface Order {
@@ -34,11 +38,16 @@ interface Order {
   customer_email: string;
   customer_phone: string;
   status: string;
-  total_amount: number;
+  total_amount: string | number;
   created_at: string;
   updated_at: string;
-  items: OrderItem[];
-  address: Address;
+  orderItems?: OrderItem[]; // API返回的訂單項目字段
+  items?: OrderItem[]; // 兼容舊版接口
+  address: Address | null;
+  payment_method?: string;
+  payment_status?: string;
+  shipping_method?: string;
+  shipping_status?: string;
 }
 
 interface OrderListProps {
@@ -107,6 +116,12 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
     );
   }
 
+  // 格式化數字為價格
+  const formatPrice = (price: string | number): string => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(numPrice) ? '0' : numPrice.toLocaleString();
+  };
+
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">
@@ -136,7 +151,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                   </span>
                 </div>
                 <div className="sm:col-span-3 text-right">
-                  <div className="font-bold">NT$ {order.total_amount.toLocaleString()}</div>
+                  <div className="font-bold">NT$ {formatPrice(order.total_amount)}</div>
                 </div>
               </div>
               <div className="mt-3 text-right text-sm text-blue-600">
@@ -150,7 +165,9 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                 {/* 訂單明細 */}
                 <div className="mb-6">
                   <h3 className="text-md font-semibold mb-3">訂單明細</h3>
-                  <div className="overflow-x-auto">
+                  
+                  {/* 桌面版表格 - 在中大型螢幕上顯示 */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
@@ -169,32 +186,66 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {Array.isArray(order.items) && order.items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <img 
-                                  src={item.product?.image_url || '/placeholder-image.jpg'}
-                                  alt={item.product?.name || '商品'}
-                                  className="w-10 h-10 mr-3 object-cover rounded"
-                                />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900">{item.product?.name || '未知商品'}</div>
+                        {/* 使用 orderItems 或 items 顯示訂單項目 */}
+                        {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
+                          order.orderItems.map((item) => (
+                            <tr key={item.id}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <img 
+                                    src={item.product?.images || item.product?.image_url || '/placeholder-image.jpg'}
+                                    alt={item.product?.name || '商品'}
+                                    className="w-10 h-10 mr-3 object-cover rounded"
+                                  />
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{item.product?.name || '未知商品'}</div>
+                                    {item.product?.specification && (
+                                      <div className="text-xs text-gray-500">{item.product.specification}</div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
-                              NT$ {item.price?.toLocaleString() || '0'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
-                              {item.quantity || 0}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
-                              NT$ {((item.price || 0) * (item.quantity || 0)).toLocaleString()}
-                            </td>
-                          </tr>
-                        ))}
-                        {(!Array.isArray(order.items) || order.items.length === 0) && (
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                                NT$ {formatPrice(item.price)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                                {item.quantity || 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
+                                NT$ {formatPrice(parseFloat(item.price.toString()) * item.quantity)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : Array.isArray(order.items) && order.items.length > 0 ? (
+                          order.items.map((item) => (
+                            <tr key={item.id}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <img 
+                                    src={item.product?.image_url || item.product?.images || '/placeholder-image.jpg'}
+                                    alt={item.product?.name || '商品'}
+                                    className="w-10 h-10 mr-3 object-cover rounded"
+                                  />
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{item.product?.name || '未知商品'}</div>
+                                    {item.product?.specification && (
+                                      <div className="text-xs text-gray-500">{item.product.specification}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                                NT$ {formatPrice(item.price)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500">
+                                {item.quantity || 0}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900 font-medium">
+                                NT$ {formatPrice(parseFloat(item.price.toString()) * item.quantity)}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
                           <tr>
                             <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                               此訂單沒有商品項目
@@ -206,46 +257,133 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                             總計
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
-                            NT$ {order.total_amount?.toLocaleString() || '0'}
+                            NT$ {formatPrice(order.total_amount)}
                           </td>
                         </tr>
                       </tbody>
                     </table>
+                  </div>
+                  
+                  {/* 手機版卡片 - 僅在小型螢幕上顯示 */}
+                  <div className="md:hidden space-y-3">
+                    {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
+                      order.orderItems.map((item) => (
+                        <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+                          <div className="flex items-start">
+                            <img 
+                              src={item.product?.images || item.product?.image_url || '/placeholder-image.jpg'}
+                              alt={item.product?.name || '商品'}
+                              className="w-16 h-16 object-cover rounded mr-3 flex-shrink-0"
+                            />
+                            <div className="flex-grow">
+                              <h4 className="font-medium text-gray-900 mb-1">{item.product?.name || '未知商品'}</h4>
+                              {item.product?.specification && (
+                                <p className="text-xs text-gray-500 mb-1">{item.product.specification}</p>
+                              )}
+                              <div className="flex justify-between items-center mt-2">
+                                <div className="text-sm font-medium text-gray-500">
+                                  單價: NT$ {formatPrice(item.price)}
+                                </div>
+                                <div className="text-sm font-medium text-gray-500">
+                                  數量: {item.quantity || 0}
+                                </div>
+                              </div>
+                              <div className="text-right mt-2">
+                                <div className="text-sm font-bold text-gray-900">
+                                  小計: NT$ {formatPrice(parseFloat(item.price.toString()) * item.quantity)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : Array.isArray(order.items) && order.items.length > 0 ? (
+                      order.items.map((item) => (
+                        <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
+                          <div className="flex items-start">
+                            <img 
+                              src={item.product?.image_url || item.product?.images || '/placeholder-image.jpg'}
+                              alt={item.product?.name || '商品'}
+                              className="w-16 h-16 object-cover rounded mr-3 flex-shrink-0"
+                            />
+                            <div className="flex-grow">
+                              <h4 className="font-medium text-gray-900 mb-1">{item.product?.name || '未知商品'}</h4>
+                              {item.product?.specification && (
+                                <p className="text-xs text-gray-500 mb-1">{item.product.specification}</p>
+                              )}
+                              <div className="flex justify-between items-center mt-2">
+                                <div className="text-sm font-medium text-gray-500">
+                                  單價: NT$ {formatPrice(item.price)}
+                                </div>
+                                <div className="text-sm font-medium text-gray-500">
+                                  數量: {item.quantity || 0}
+                                </div>
+                              </div>
+                              <div className="text-right mt-2">
+                                <div className="text-sm font-bold text-gray-900">
+                                  小計: NT$ {formatPrice(parseFloat(item.price.toString()) * item.quantity)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-white rounded-lg border border-gray-200 p-4 text-center text-gray-500">
+                        此訂單沒有商品項目
+                      </div>
+                    )}
+                    
+                    {/* 手機版總計 */}
+                    <div className="bg-amber-50 rounded-lg p-4 text-right">
+                      <span className="font-bold text-gray-900">總計: NT$ {formatPrice(order.total_amount)}</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* 分隔線 */}
                 <hr className="my-6" />
                 
-                {/* 配送資訊和訂單狀態 */}
+                {/* 配送資訊和訂單狀態 - 響應式調整 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-md font-semibold mb-3">寄送資訊</h3>
-                    <div className="space-y-2 text-sm">
-                      {order.address ? (
-                        <>
-                          <p>收件人：{order.address.recipient_name || '未提供'}</p>
-                          <p>電話：{order.address.phone || '未提供'}</p>
-                          <p>地址：{order.address.postal_code} {order.address.city} {order.address.address1}</p>
-                        </>
-                      ) : (
-                        <p>無寄送資訊</p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-md font-semibold mb-3">訂單狀態</h3>
+                  {/*  */}
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h3 className="text-md font-semibold mb-3 text-amber-700">收件人資訊</h3>
                     <div className="space-y-2 text-sm">
                       <p>
-                        訂單狀態：
-                        <span className={`ml-2 inline-block px-2 py-1 text-xs font-medium rounded-full ${statusClasses[order.status] || 'bg-gray-100 text-gray-800'}`}>
-                          {statusTranslation[order.status] || order.status || '未知狀態'}
+                        <span className="text-gray-500 inline-block w-20">姓名:</span>
+                        <span className="font-medium">{order.customer_name || '未提供'}</span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500 inline-block w-20">電話:</span>
+                        <span className="font-medium">{order.customer_phone || '未提供'}</span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500 inline-block w-20">電子郵件:</span>
+                        <span className="font-medium">{order.customer_email || '未提供'}</span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500 inline-block w-20">地址:</span>
+                        <span className="font-medium">
+                          {order.address ? (
+                            `${order.address.postal_code} ${order.address.city} ${order.address.address1}`
+                          ) : (
+                            '未提供'
+                          )}
                         </span>
                       </p>
-                      <p>訂單時間：{formatDate(order.created_at)}</p>
-                      <p>最後更新：{formatDate(order.updated_at)}</p>
                     </div>
                   </div>
+                </div>
+                
+                {/* 手機版操作按鈕 */}
+                <div className="mt-6 md:hidden">
+                  <button 
+                    onClick={() => toggleOrder(order.id)}
+                    className="w-full py-3 bg-amber-100 text-amber-800 rounded-lg font-medium text-center hover:bg-amber-200 transition-colors"
+                  >
+                    收起詳情
+                  </button>
                 </div>
               </div>
             )}
@@ -254,4 +392,48 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
       </div>
     </div>
   );
+}
+
+// 定義付款方式翻譯
+function translatePaymentMethod(method?: string): string {
+  const methodMap: Record<string, string> = {
+    'credit_card': '信用卡',
+    'cash': '現金',
+    'line_pay': 'LINE Pay',
+    'bank_transfer': '銀行轉帳'
+  };
+  return method ? (methodMap[method] || method) : '未知';
+}
+
+// 定義付款狀態翻譯
+function translatePaymentStatus(status?: string): string {
+  const statusMap: Record<string, string> = {
+    'pending': '待付款',
+    'paid': '已付款',
+    'failed': '付款失敗',
+    'refunded': '已退款'
+  };
+  return status ? (statusMap[status] || status) : '未知';
+}
+
+// 定義配送方式翻譯
+function translateShippingMethod(method?: string): string {
+  const methodMap: Record<string, string> = {
+    'home_delivery': '宅配到府',
+    'store_pickup': '門市取貨',
+    'convenience_store': '超商取貨'
+  };
+  return method ? (methodMap[method] || method) : '未知';
+}
+
+// 定義配送狀態翻譯
+function translateShippingStatus(status?: string): string {
+  const statusMap: Record<string, string> = {
+    'pending': '待出貨',
+    'processing': '處理中',
+    'shipped': '已出貨',
+    'delivered': '已送達',
+    'failed': '配送失敗'
+  };
+  return status ? (statusMap[status] || status) : '未知';
 } 

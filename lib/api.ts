@@ -7,8 +7,15 @@ export async function getProducts() {
                       ? 'http://localhost:4000' 
                       : 'http://localhost:4000'); // 修改生產環境的 URL
     
-    const res = await fetch(`${baseUrl}/api/products?limit=20&status=active`, { 
-      next: { revalidate: 3600 } // 設置緩存時間為1小時，而不是使用 no-cache
+    // 添加時間戳和force_reload參數防止任何層級的緩存
+    const timestamp = Date.now();
+    const res = await fetch(`${baseUrl}/api/products?limit=20&status=active&_t=${timestamp}&force_reload=true`, { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     if (!res.ok) {
@@ -16,6 +23,9 @@ export async function getProducts() {
     }
     
     const data = await res.json();
+    console.log('獲取產品數據 (時間戳):', timestamp);
+    console.log('獲取的完整產品數據:', data); // 記錄完整響應
+    console.log('獲取產品數據:', data.data); // 添加日誌以檢查獲取的產品數據
     return data.data || [];
   } catch (error) {
     console.error('獲取產品數據失敗:', error);
@@ -52,8 +62,15 @@ export async function getCategories(): Promise<Category[]> {
                       ? 'http://localhost:4000' 
                       : 'http://localhost:4000'); // 修改生產環境的 URL
     
-    const res = await fetch(`${baseUrl}/api/categories`, { 
-      next: { revalidate: 3600 } // 設置緩存時間為1小時，而不是使用 no-cache
+    // 添加時間戳防止緩存
+    const timestamp = Date.now();
+    const res = await fetch(`${baseUrl}/api/categories?_t=${timestamp}&force_reload=true`, { 
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     if (!res.ok) {
@@ -61,6 +78,8 @@ export async function getCategories(): Promise<Category[]> {
     }
     
     const categories: ApiCategory[] = await res.json();
+    console.log('獲取類別數據 (時間戳):', timestamp);
+    console.log('獲取的類別數據:', categories);
     
     // 為API返回的類別添加所需的屬性
     const transformedCategories = categories.map((category: ApiCategory) => {

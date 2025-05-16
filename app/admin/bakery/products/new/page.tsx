@@ -47,6 +47,7 @@ export default function NewProduct() {
     discount_price: '',
     category_id: '',
     status: 'active', // 預設為 active
+    specification: '', // 新增產品規格欄位
     images: '' // 新增儲存圖片路徑
   });
 
@@ -81,6 +82,9 @@ export default function NewProduct() {
         break;
       case 'product-status':
         apiField = 'status';
+        break;
+      case 'product-specification':
+        apiField = 'specification';
         break;
       default:
         apiField = id;
@@ -263,6 +267,7 @@ export default function NewProduct() {
         discount_price: formData.discount_price ? Number(formData.discount_price) : undefined,
         category_id: Number(formData.category_id),
         images: uploadedImagePath, // 更新為上傳後的圖片路徑
+        specification: formData.specification || undefined, // 添加產品規格
         status: formData.status || 'active'
       };
       
@@ -446,6 +451,23 @@ export default function NewProduct() {
                   ></textarea>
                 </div>
                 <p className="mt-2 text-sm text-gray-500">簡單描述這個產品的特點和賣點</p>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label htmlFor="product-specification" className="block text-sm font-medium text-gray-700">
+                  產品規格
+                </label>
+                <div className="mt-1">
+                  <textarea
+                    id="product-specification"
+                    rows={3}
+                    placeholder="輸入產品規格，例如：尺寸、重量、材質等"
+                    className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-base py-3 border-gray-300 rounded-md"
+                    value={formData.specification}
+                    onChange={handleInputChange}
+                  ></textarea>
+                </div>
+                <p className="mt-2 text-sm text-gray-500">填寫產品的詳細規格資訊，幫助顧客更好地了解產品</p>
               </div>
 
               {/* 價格區塊 */}

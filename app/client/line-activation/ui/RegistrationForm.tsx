@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 
+
 type LineProfile = {
   userId: string;
   displayName: string;
@@ -11,9 +12,10 @@ type LineProfile = {
 type RegistrationFormProps = {
   lineProfile: LineProfile | null;
   liff: any;
+  handleViewChange: (view: "activate" | "register") => void;
 };
 
-export default function RegistrationForm({ lineProfile, liff }: RegistrationFormProps) {
+export default function RegistrationForm({ lineProfile, liff, handleViewChange }: RegistrationFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -124,9 +126,9 @@ export default function RegistrationForm({ lineProfile, liff }: RegistrationForm
             // 如果在LINE LIFF環境中，嘗試關閉視窗
             if (liff && liff.isInClient()) {
               try {
-                setTimeout(() => {
-                  liff.closeWindow();
-                }, 3000);
+                // setTimeout(() => {
+                //   liff.closeWindow();
+                // }, 3000);
               } catch (windowError) {
                 console.error("關閉LIFF視窗失敗", windowError);
               }
@@ -159,11 +161,12 @@ export default function RegistrationForm({ lineProfile, liff }: RegistrationForm
         </div>
         <h3 className="text-xl font-semibold text-gray-800 mb-2">註冊成功！</h3>
         <p className="text-gray-600 mb-6">{successMessage}</p>
+        <p className="text-gray-600 mb-6">請立即返回開通頁面</p>
         <button
-          onClick={() => window.location.href = "/?view=activate"}
+           onClick={() => handleViewChange("activate")}
           className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
-          返回首頁
+          返回開通頁面
         </button>
       </div>
     );
@@ -216,7 +219,7 @@ export default function RegistrationForm({ lineProfile, liff }: RegistrationForm
 
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              電子郵件 <span className="text-red-500">*</span>
+              電子郵件(帳號用) <span className="text-red-500">*</span>
             </label>
             <input
               id="email"
@@ -231,7 +234,7 @@ export default function RegistrationForm({ lineProfile, liff }: RegistrationForm
 
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              電話 <span className="text-red-500">*</span>
+              電話(密碼用) <span className="text-red-500">*</span>
             </label>
             <input
               id="phone"
@@ -321,7 +324,7 @@ export default function RegistrationForm({ lineProfile, liff }: RegistrationForm
             </select>
           </div>
 
-          <div className="flex space-x-4 pt-15">
+          <div className="flex space-x-4 pt-4">
             <button
               type="button"
               onClick={handlePrevStep}

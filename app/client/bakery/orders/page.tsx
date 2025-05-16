@@ -44,6 +44,8 @@ export default function OrdersPage() {
 
       // 確保 orders 是陣列
       const receivedOrders = Array.isArray(data.orders) ? data.orders : [];
+      console.log('Orders received:', receivedOrders); // 添加調試日誌
+      
       setOrders(receivedOrders);
       
       if (receivedOrders.length === 0) {
@@ -190,13 +192,6 @@ export default function OrdersPage() {
             <div className="inline-block animate-pulse rounded-full h-10 w-10 bg-amber-200 mb-3"></div>
             <p className="text-gray-600 font-medium">正在準備您的訂單資訊...</p>
             <p className="text-gray-500 text-sm mt-2">我們正在自動使用您的聯絡資訊查詢訂單</p>
-          </div>
-        ) : null}
-        
-        {queryInfo.email || queryInfo.phone ? (
-          <div className="mt-4 text-center text-sm text-gray-500">
-            {queryInfo.email && (<p>查詢郵箱: {queryInfo.email}</p>)}
-            {queryInfo.phone && (<p>查詢電話: {queryInfo.phone}</p>)}
           </div>
         ) : null}
       </div>

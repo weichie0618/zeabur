@@ -179,7 +179,6 @@ export function LineActivationClient() {
           <h2 className="text-xl font-semibold text-gray-800">
             {currentView === "activate" ? "開通LINE帳號" : "新商家註冊"}
           </h2>
-          
         </div>
         
         {/* 表單區域 */}
@@ -187,7 +186,11 @@ export function LineActivationClient() {
           {currentView === "activate" ? (
             <LineActivationForm lineProfile={lineProfile} liff={liffObject} />
           ) : (
-            <RegistrationForm lineProfile={lineProfile} liff={liffObject} />
+            <RegistrationForm 
+              lineProfile={lineProfile} 
+              liff={liffObject} 
+              handleViewChange={handleViewChange}
+            />
           )}
         </div>
 

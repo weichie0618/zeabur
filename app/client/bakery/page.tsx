@@ -13,12 +13,14 @@ export const metadata: Metadata = {
   description: '晴朗家烘焙提供多種新鮮手作麵包，口味豐富，品質保證'
 };
 
-// 添加靜態重新驗證時間
-export const revalidate = 3600; // 1小時重新驗證一次
+// 禁用靜態重新驗證，使用動態渲染確保最新數據
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 // 主頁面 - 伺服器端組件
 export default async function BakeryPage() {
   try {
+    console.log('開始獲取產品和類別數據...');
     // 從伺服器端獲取產品數據和類別數據
     const [products, categories] = await Promise.all([
       getProducts(),
@@ -31,6 +33,8 @@ export default async function BakeryPage() {
     
     console.log('產品資料獲取狀態:', productsSucceeded ? '成功' : '失敗');
     console.log('類別資料獲取狀態:', categoriesSucceeded ? '成功' : '失敗');
+    console.log('產品數量:', products.length);
+    console.log('第一個產品詳情:', products[0]); // 輸出第一個產品的完整信息
     
     return (
       <div>

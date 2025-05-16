@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { FlexTemplates } from "../../../utils/flexTemplates";
 import { sendLineMessages, getServiceExpiryDate } from "../../../services/lineService";
+import { createActivationSuccessMessage } from "../../../utils/flexTemplates";
 
 type LineProfile = {
   userId: string;
@@ -19,6 +20,10 @@ export default function LineActivationForm({ lineProfile, liff }: LineActivation
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [messageResult, setMessageResult] = useState<{status: "success" | "error" | null, message: string}>({
+    status: null, 
+    message: ""
+  });
   
   const [formData, setFormData] = useState({
     email: "",
@@ -39,6 +44,7 @@ export default function LineActivationForm({ lineProfile, liff }: LineActivation
     setIsSubmitting(true);
     setErrorMessage("");
     setSuccessMessage("");
+    setMessageResult({status: null, message: ""});
 
     try {
       // 檢查是否有LINE資料，如果沒有則顯示提示但仍允許繼續
@@ -79,34 +85,49 @@ export default function LineActivationForm({ lineProfile, liff }: LineActivation
       if (isLineConnected) {
         setSuccessMessage("LINE帳號開通成功！");
         
-        // 如果在LINE LIFF環境中，發送FLEX消息並嘗試關閉視窗
+        // 如果在LINE LIFF環境中，發送消息
         if (liff && liff.isInClient()) {
           try {
             // 獲取客戶名稱 (從API響應的data.customer或使用默認值)
             const customerName = data.data?.customer || "尊敬的客戶";
             
-            // 獲取到期日
-            const expiryDate = getServiceExpiryDate();
+           
             
-            // 準備並發送開通成功的FLEX消息
-            const messages = FlexTemplates.activation(
+            // 直接使用 createActivationSuccessMessage 生成訊息
+            const messages = createActivationSuccessMessage(
               customerName, 
               lineProfile.displayName, 
-              expiryDate
+             
             );
-            console.log("開通成功FLEX消息:", messages);
-            await sendLineMessages(liff, messages);
+            console.log("開通成功消息:", messages);
             
-            // 發送消息後等待1秒再關閉視窗
-            setTimeout(() => {
-              liff.closeWindow();
-            }, 1000);
-          } catch (messageError) {
-            console.error("發送FLEX消息失敗", messageError);
-            // 消息發送失敗不影響主流程，仍然關閉視窗
-            setTimeout(() => {
-              liff.closeWindow();
-            }, 1000);
+            // 直接使用 liff.sendMessages 發送訊息
+            try {
+              await liff.sendMessages(messages);
+              setMessageResult({
+                status: "success", 
+                message: "訊息發送成功！"
+              });
+              console.log("訊息發送成功");
+              
+              // 僅在訊息發送成功後才關閉視窗
+              setTimeout(() => {
+                liff.closeWindow();
+              }, 1000);
+            } catch (sendError) {
+              console.error("發送訊息失敗", sendError);
+              setMessageResult({
+                status: "error", 
+                message: "發送訊息失敗: " + (sendError instanceof Error ? sendError.message : "未知錯誤")
+              });
+              // 訊息發送失敗時不關閉視窗，讓用戶看到錯誤訊息
+            }
+          } catch (error) {
+            console.error("準備訊息失敗", error);
+            setMessageResult({
+              status: "error", 
+              message: "準備訊息失敗: " + (error instanceof Error ? error.message : "未知錯誤")
+            });
           }
         }
       } else {
@@ -131,8 +152,20 @@ export default function LineActivationForm({ lineProfile, liff }: LineActivation
         </div>
         <h3 className="text-xl font-semibold text-gray-800 mb-2">開通成功！</h3>
         <p className="text-gray-600 mb-6">{successMessage}</p>
-        {liff && liff.isInClient() && lineProfile && (
-          <p className="text-sm text-gray-500">此視窗將在幾秒後自動關閉...</p>
+        
+        {/* 顯示訊息發送結果 */}
+        {messageResult.status && (
+          <div className={`mt-3 p-3 rounded-md text-sm mx-auto max-w-xs ${
+            messageResult.status === "success" 
+              ? "bg-green-100 text-green-800" 
+              : "bg-red-100 text-red-800"
+          }`}>
+            {messageResult.message}
+          </div>
+        )}
+        
+        {liff && liff.isInClient() && lineProfile && messageResult.status === "success" && (
+          <p className="text-sm text-gray-500 mt-4">此視窗將在幾秒後自動關閉...</p>
         )}
       </div>
     );
@@ -230,9 +263,6 @@ export default function LineActivationForm({ lineProfile, liff }: LineActivation
             </span>
           ) : (
             <span className="flex items-center justify-center">
-              {/* <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19.3,8.3c0-3.8-3.8-6.9-8.4-6.9S2.5,4.5,2.5,8.3c0,3.4,3,6.3,7.1,6.8c0.3,0.1,0.7,0.2,0.8,0.5c0.1,0.3,0,0.7-0.1,1  c0,0-0.1,0.6-0.1,0.7c0,0.2,0.1,0.9,0.9,0.5c0.9-0.4,4.4-2.6,6-4.4l0,0C18.6,12.1,19.3,10.3,19.3,8.3z"></path>
-              </svg> */}
               開通LINE帳號
             </span>
           )}

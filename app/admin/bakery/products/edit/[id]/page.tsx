@@ -24,6 +24,7 @@ interface Product {
   category_id: number;
   images: string[] | string;
   status: string;
+  specification: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;
@@ -44,6 +45,7 @@ export default function EditProduct() {
     discount_price: null,
     category_id: 0,
     images: [],
+    specification: '',
     status: 'active'
   });
 
@@ -115,6 +117,7 @@ export default function EditProduct() {
           discount_price: productData.discount_price ? parseFloat(productData.discount_price) : null,
           category_id: productData.category?.id || productData.category_id,
           images: singleImagePath, // 確保始終設置為字串形式
+          specification: productData.specification || '',
           status: productData.status
         });
 
@@ -523,6 +526,24 @@ export default function EditProduct() {
                     className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   />
                 </div>
+              </div>
+
+              <div className="sm:col-span-6">
+                <label htmlFor="specification" className="block text-sm font-medium text-gray-700">
+                  產品規格
+                </label>
+                <div className="mt-1">
+                  <textarea
+                    id="specification"
+                    name="specification"
+                    rows={3}
+                    value={formData.specification || ''}
+                    onChange={handleInputChange}
+                    className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                    placeholder="請輸入產品規格，例如：尺寸、重量、材質等"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">填寫產品的詳細規格資訊，幫助顧客更好地了解產品</p>
               </div>
             </div>
           </div>

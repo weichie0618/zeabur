@@ -29,6 +29,7 @@ interface Product {
   categoryId: number | null;
   short_description: string | null;
   category: Category | null;
+  specification: string | null;
 }
 
 interface ApiResponse {
@@ -571,6 +572,9 @@ export default function ProductsManagement() {
                     價格
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    規格
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     狀態
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -614,6 +618,19 @@ export default function ProductsManagement() {
                           </>
                         ) : (
                           product.price
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 max-w-xs truncate">
+                        {product.specification ? (
+                          <span title={product.specification}>
+                            {product.specification.length > 30 
+                              ? `${product.specification.substring(0, 30)}...` 
+                              : product.specification}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">無規格資訊</span>
                         )}
                       </div>
                     </td>

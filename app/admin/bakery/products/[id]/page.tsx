@@ -20,6 +20,7 @@ interface Product {
   category: Category;
   images: string;
   status: string;
+  specification: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -246,8 +247,14 @@ export default function ProductDetail() {
                   <span>{product.id}</span>
                 </p>
                 <p className="flex justify-between py-2 border-b border-gray-100">
-                  <span className="font-medium">庫存數量：</span>
-                  <span>{product.stock} 件</span>
+                  <span className="font-medium">商品規格：</span>
+                  <span className="text-right">
+                    {product.specification 
+                      ? (product.specification.length > 30 
+                          ? `${product.specification.substring(0, 30)}...` 
+                          : product.specification)
+                      : '無規格資訊'}
+                  </span>
                 </p>
                 <p className="flex justify-between py-2 border-b border-gray-100">
                   <span className="font-medium">商品分類：</span>

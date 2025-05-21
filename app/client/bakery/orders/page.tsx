@@ -14,7 +14,8 @@ export default function OrdersPage() {
 
   // 優化為使用 useCallback
   const handleSearch = useCallback(async (email: string, phone: string) => {
-    if (!email && !phone) {
+    // 檢查是否有 LINE 用戶 ID
+    if (!(isLoggedIn && profile && profile.userId) && !email && !phone) {
       setError('無法獲取您的聯絡資訊，請更新您的個人資料或聯繫客服。');
       return;
     }
@@ -29,10 +30,11 @@ export default function OrdersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // 優先使用 LINE 用戶 ID 作為主要查詢條件
+          lineId: isLoggedIn && profile ? profile.userId : undefined,
+          // 保留 email 和 phone 作為備用查詢條件
           customer_email: email || undefined,
           customer_phone: phone || undefined,
-          // 如果在LINE環境中並且已登入，可以添加LINE用戶ID作為額外的查詢條件
-          ...(isLoggedIn && profile && { line_user_id: profile.userId }),
         }),
       });
 
@@ -83,12 +85,19 @@ export default function OrdersPage() {
       let email = '';
       let phone = '';
       
+      // 如果用戶已登入 LINE 且有 userId，直接使用 userId 查詢
+      if (profile && profile.userId) {
+        setQueryInfo({ email, phone });
+        handleSearch(email, phone);
+        return;
+      }
+      
       // 優先使用從 API 獲取的客戶資料
       if (customerData) {
         email = customerData.email || '';
         phone = customerData.phone || '';
         
-        // 如果有email或phone，直接執行查詢
+        // 如果有email或phone，執行查詢
         if (email || phone) {
           setQueryInfo({ email, phone });
           handleSearch(email, phone);
@@ -120,7 +129,7 @@ export default function OrdersPage() {
           phone = parsedProfile.phone;
         }
         
-        // 如果有email或phone，直接執行查詢
+        // 如果有email或phone，執行查詢
         if (email || phone) {
           setQueryInfo({ email, phone });
           handleSearch(email, phone);

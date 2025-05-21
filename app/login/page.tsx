@@ -337,7 +337,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* 角色說明 */}
+        {/* 角色說明
         <div className="mt-8 space-y-4 text-sm text-gray-500">
           <div className="border-t border-gray-200 pt-4">
             <h3 className="text-lg font-medium text-gray-900 mb-2">帳號說明</h3>
@@ -367,7 +367,7 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

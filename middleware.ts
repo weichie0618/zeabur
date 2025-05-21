@@ -139,17 +139,12 @@ const getTokenFromRequest = (request: NextRequest): string | null => {
 
 // 檢查路徑需要的權限
 const getRequiredRole = (path: string): string | null => {
-  // 管理者後台路徑需要管理員權限
+  // 僅管理者後台路徑需要管理員權限
   if (path.startsWith('/admin')) {
     return 'admin';
   }
   
-  // 業務後台路徑需要業務權限
-  if (path.startsWith('/sales')) {
-    return 'salesperson';
-  }
-  
-  // 公共頁面不需要特定權限
+  // 其他所有頁面不需要特定權限
   return null;
 };
 
@@ -194,9 +189,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // 特殊處理 /admin 路徑，如果用戶嘗試訪問管理員頁面但沒有token，直接跳轉登入頁
+  // 僅對/admin路徑進行權限驗證
   if (path.startsWith('/admin')) {
-    if (isDev) console.log('偵測到管理員頁面請求，進行特殊處理');
+    if (isDev) console.log('偵測到管理員頁面請求，進行權限驗證');
     
     // 獲取令牌
     const token = getTokenFromRequest(request);
@@ -222,44 +217,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  // 獲取令牌
-  const token = getTokenFromRequest(request);
-  
-  // 驗證令牌並獲取用戶信息
-  const user = token ? await verifyToken(token) : null;
-  
-  const requiredRole = getRequiredRole(path);
-  if (isDev) console.log(`路徑 ${path} 需要角色: ${requiredRole || '無需特定權限'}, 用戶角色: ${user?.role || '未登入'}`);
-  
-  // 如果頁面需要特定權限但用戶未登入，重定向到登入頁面
-  if (requiredRole && !user) {
-    if (isDev) console.log('需要特定權限但用戶未登入，重定向到登入頁面');
-    
-    // 設置一個查詢參數，讓登入頁知道這是因為訪問受保護頁面被重定向過來的
-    return NextResponse.redirect(new URL('/login?expired=true&redirect=' + encodeURIComponent(path), request.url));
-  }
-  
-  // 如果用戶沒有訪問該區域的權限，根據用戶角色重定向到適當的頁面
-  if (requiredRole && user && user.role !== requiredRole) {
-    // 管理員可以訪問所有區域
-    if (user.role === 'admin') {
-      if (isDev) console.log('管理員可以訪問所有區域');
-      return NextResponse.next();
-    }
-    
-    // 業務人員嘗試訪問管理員區域，重定向到業務儀表板
-    if (user.role === 'salesperson' && requiredRole === 'admin') {
-      if (isDev) console.log('業務人員嘗試訪問管理員區域，重定向到業務儀表板');
-      return NextResponse.redirect(new URL('/sales/dashboard', request.url));
-    }
-    
-    // 其他情況重定向到未授權頁面
-    if (isDev) console.log('用戶沒有訪問該區域的權限，重定向到未授權頁面');
-    return NextResponse.redirect(new URL('/unauthorized?reason=not-allowed', request.url));
-  }
-  
-  // 通過所有檢查，允許請求繼續
-  if (isDev) console.log('通過所有檢查，允許請求繼續');
+  // 對於所有其他頁面，直接允許訪問，不需要權限驗證
+  if (isDev) console.log('非管理員頁面，無需權限驗證，允許請求繼續');
   return NextResponse.next();
 }
 

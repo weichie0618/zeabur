@@ -2,6 +2,12 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
 // 設置環境變數
 const isDev = process.env.NODE_ENV === 'development';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+// 檢查API基礎URL是否已設置
+if (isDev && !API_BASE_URL) {
+  console.warn('警告: NEXT_PUBLIC_API_URL 環境變數未設置，API請求可能會失敗');
+}
 
 interface AuthTokens {
   accessToken: string;
@@ -20,7 +26,7 @@ interface RefreshResponse {
 
 // 創建Axios實例 - 確保baseURL設置正確
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -29,8 +35,15 @@ const api = axios.create({
 
 // 記錄環境變數和API配置信息到控制台（僅開發環境）
 if (isDev) {
-  console.log('API基礎URL設置為:', process.env.NEXT_PUBLIC_API_URL || '(空)');
+  console.log('API基礎URL設置為:', API_BASE_URL || '(空)');
   console.log('當API路徑以斜線開頭時，會基於當前主機名處理');
+  
+  // 檢查API_URL是否使用localhost，提供警告和建議
+  if (API_BASE_URL.includes('localhost')) {
+    console.log('注意: API設置為使用localhost，這在某些網絡環境下可能不穩定');
+    console.log('如出現ERR_CONNECTION_REFUSED錯誤，系統將自動嘗試使用127.0.0.1');
+    console.log('建議: 考慮直接在.env文件中使用127.0.0.1替代localhost');
+  }
 }
 
 // 從localStorage中獲取token
@@ -63,8 +76,8 @@ const refreshAuthToken = async (): Promise<boolean> => {
     const tokens = getTokens();
     if (!tokens) return false;
     
-    // 確保路徑以斜線開頭
-    const response = await axios.post<RefreshResponse>('/api/auth/refresh-token', {
+    // 使用現有的api實例而不是原始axios
+    const response = await api.post<RefreshResponse>('/api/auth/refresh-token', {
       refreshToken: tokens.refreshToken,
     });
     
@@ -203,45 +216,143 @@ api.interceptors.response.use(
   }
 );
 
-// API調用方法 - 確保所有路徑都以斜線開頭
+// 創建一個備用API實例處理函數 - 用於處理連接到localhost失敗的情況
+const createAlternativeApiInstance = () => {
+  if (isDev) console.log('連接到localhost失敗，嘗試使用127.0.0.1...');
+  
+  // 建立一個臨時API實例，用127.0.0.1替代localhost
+  const alternativeApi = axios.create({
+    baseURL: API_BASE_URL.replace('localhost', '127.0.0.1'),
+    timeout: 10000,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
+  // 添加授權頭
+  const tokens = getTokens();
+  if (tokens) {
+    alternativeApi.defaults.headers.common.Authorization = `Bearer ${tokens.accessToken}`;
+  }
+  
+  if (isDev) console.log('嘗試備用URL:', API_BASE_URL.replace('localhost', '127.0.0.1'));
+  
+  return alternativeApi;
+};
+
+// 添加一個包裝API請求的輔助函數，處理連接錯誤
+const handleApiRequest = async <T>(
+  requestFn: () => Promise<AxiosResponse<T>>
+): Promise<AxiosResponse<T>> => {
+  try {
+    return await requestFn();
+  } catch (error: any) {
+    // 檢查是否為連接被拒絕錯誤
+    if (error.message && error.message.includes('ERR_CONNECTION_REFUSED') && API_BASE_URL.includes('localhost')) {
+      // 使用錯誤回退機制 - 切換到127.0.0.1
+      const alternativeApi = createAlternativeApiInstance();
+      
+      // 創建一個新的請求函數，使用備用API實例
+      const alternativeRequestFn = () => {
+        // 獲取原始請求的URL和方法
+        const originalConfig = (error.config as AxiosRequestConfig);
+        
+        // 使用備用API實例發送請求
+        if (originalConfig.method && originalConfig.url) {
+          const method = originalConfig.method.toLowerCase();
+          const url = originalConfig.url;
+          const data = originalConfig.data;
+          const params = originalConfig.params;
+          
+          switch (method) {
+            case 'get':
+              return alternativeApi.get(url, { params });
+            case 'post':
+              return alternativeApi.post(url, data, { params });
+            case 'put':
+              return alternativeApi.put(url, data, { params });
+            case 'delete':
+              return alternativeApi.delete(url, { params });
+            default:
+              throw new Error(`不支持的HTTP方法: ${method}`);
+          }
+        }
+        
+        throw new Error('無法重新創建原始請求');
+      };
+      
+      return alternativeRequestFn();
+    }
+    
+    // 如果不是連接錯誤，直接拋出原始錯誤
+    throw error;
+  }
+};
+
+// 定義用戶數據接口，取代any類型
+interface UserData {
+  id?: number;
+  email?: string;
+  name?: string;
+  password?: string;
+  role?: string;
+  [key: string]: any; // 允許其他未指定的屬性
+}
+
+// API調用方法 - 使用通用的錯誤處理函數
 export const apiService = {
   login: async (email: string, password: string) => {
-    // 在開發環境中記錄請求信息
     if (isDev) {
       console.log(`發送登入請求: ${email}`);
     }
-    return api.post('/api/auth/login', { email, password });
+    return handleApiRequest(() => 
+      api.post('/api/auth/login', { email, password })
+    );
   },
   
   logout: async () => {
-    const result = await api.post('/api/auth/logout');
+    const result = await handleApiRequest(() => 
+      api.post('/api/auth/logout')
+    );
     clearTokens();
     return result;
   },
   
   getCurrentUser: async () => {
-    return api.get('/api/auth/me');
+    return handleApiRequest(() => 
+      api.get('/api/auth/me')
+    );
   },
   
   // 用戶管理API
   getUsers: async () => {
-    return api.get('/api/users');
+    return handleApiRequest(() => 
+      api.get('/api/users')
+    );
   },
   
   getUserById: async (id: number) => {
-    return api.get(`/api/users/${id}`);
+    return handleApiRequest(() => 
+      api.get(`/api/users/${id}`)
+    );
   },
   
-  createUser: async (userData: any) => {
-    return api.post('/api/users', userData);
+  createUser: async (userData: UserData) => {
+    return handleApiRequest(() => 
+      api.post('/api/users', userData)
+    );
   },
   
-  updateUser: async (id: number, userData: any) => {
-    return api.put(`/api/users/${id}`, userData);
+  updateUser: async (id: number, userData: UserData) => {
+    return handleApiRequest(() => 
+      api.put(`/api/users/${id}`, userData)
+    );
   },
   
   deleteUser: async (id: number) => {
-    return api.delete(`/api/users/${id}`);
+    return handleApiRequest(() => 
+      api.delete(`/api/users/${id}`)
+    );
   },
 };
 

@@ -36,7 +36,7 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'credit' | 'atm' | 'cvs'>('credit');
+  const [paymentMethod, setPaymentMethod] = useState<'takkyubin'>('takkyubin');
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
@@ -75,6 +75,14 @@ export default function CheckoutPage() {
       if (savedCustomerData) {
         const parsedData = JSON.parse(savedCustomerData);
         console.log('從 localStorage 讀取到客戶資料:', parsedData);
+        
+        // 調試輸出 lineId 資訊
+        if (parsedData && parsedData.lineId) {
+          console.log('從 localStorage 讀取到 LINE ID:', parsedData.lineId);
+        } else {
+          console.warn('localStorage 中的客戶資料不包含 LINE ID');
+        }
+        
         if (parsedData) {
           setFormData(prev => ({
             ...prev,
@@ -94,6 +102,7 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (isLoggedIn && profile && !liffLoading) {
       console.log('從 LIFF 獲取到用戶資料:', profile);
+      console.log('LINE 用戶 ID:', profile.userId || '未獲取到 ID');
       setFormData(prev => ({
         ...prev,
         customerName: profile.displayName || prev.customerName,
@@ -120,6 +129,8 @@ export default function CheckoutPage() {
 
     // 如果沒有從 LiffProvider 獲取資料，則檢查本地儲存
     if (isLoggedIn && !liffLoading && profile && profile.userId) {
+      console.log('LINE 用戶已登入，ID:', profile.userId);
+      
       const savedCustomerData = localStorage.getItem('customerData');
       if (savedCustomerData) {
         try {
@@ -188,6 +199,64 @@ export default function CheckoutPage() {
       return;
     }
 
+    // 檢查是否在 LINE 應用內
+    if (liff && !liff.isInClient()) {
+      setFormError('請在 LINE 應用內完成訂單，以確保能正確關聯您的 LINE 帳號');
+      return;
+    }
+
+    // 從 LIFF SDK 或 localStorage 獲取 LINE ID
+    let lineUserId: string | null = null;
+    
+    // 首先嘗試從 LIFF SDK 獲取
+    if (isLoggedIn && profile && profile.userId) {
+      lineUserId = profile.userId;
+      console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', lineUserId);
+    } else {
+      console.warn('無法從 LIFF SDK 獲取 LINE 用戶 ID，嘗試從 localStorage 讀取');
+      
+      // 嘗試從 localStorage 獲取
+      try {
+        const savedCustomerData = localStorage.getItem('customerData');
+        if (savedCustomerData) {
+          const parsedData = JSON.parse(savedCustomerData);
+          if (parsedData && parsedData.lineId) {
+            lineUserId = parsedData.lineId;
+            console.log('從 localStorage 成功獲取 LINE 用戶 ID:', lineUserId);
+          }
+        }
+      } catch (error) {
+        console.error('從 localStorage 解析 LINE 用戶 ID 失敗:', error);
+      }
+    }
+    
+    // 如果仍然無法獲取 LINE ID，顯示錯誤並中止提交
+    if (!lineUserId) {
+      console.error('未能獲取 LINE 用戶 ID (LIFF 和 localStorage 均失敗)');
+      
+      // 顯示適當的錯誤訊息
+      if (!isLoggedIn) {
+        setFormError('您尚未登入 LINE，請重新登入後再試');
+      } else if (!profile) {
+        setFormError('無法獲取您的 LINE 個人資料，請確認已授權應用存取您的資料');
+      } else {
+        setFormError('無法獲取您的 LINE 用戶 ID，請確保您已在 LINE 應用中登入並授權');
+      }
+      
+      // 如果 LIFF 物件存在，嘗試重新登入
+      if (liff && !isLoggedIn) {
+        setTimeout(() => {
+          try {
+            liff.login();
+          } catch (error) {
+            console.error('LIFF 登入失敗', error);
+          }
+        }, 2000);
+      }
+      
+      return;
+    }
+
     setFormError(null);
     setSubmitting(true);
     setPaymentStatus('processing');
@@ -204,34 +273,39 @@ export default function CheckoutPage() {
     updateCustomerData(customerDataToSave);
     console.log('結帳頁面: 已更新客戶資料', customerDataToSave);
 
-    // 準備訂單資料（根據 API 規格調整）
-    const orderData: OrderData = {
+    // 準備訂單資料（根據新的 API 規格調整）
+    const orderData = {
       items: cart.map(item => ({
         product_id: item.id,
         quantity: item.quantity
       })),
-      customer_details: {
+      customer_info: {
         name: formData.customerName,
         email: formData.email,
-        phone: formData.phone,
-        address: formData.address
+        phone: formData.phone
       },
-      shipping_method: "home_delivery"
-      // 如果需要業務人員代碼，可以在這裡加入
-      // salesperson_code: "XXXX"
+      shipping_address: {
+        recipientName: formData.customerName,
+        phone: formData.phone,
+        address1: formData.address,
+        city: "", // 可以根據需求添加這些字段
+        postal_code: ""
+      },
+      // 選填項目
+      salesperson_code: "",
+      // 使用獲取到的 LINE 用戶 ID
+      lineid: lineUserId
     };
 
-    try {
-      // 如果在LINE瀏覽器中，添加LINE用戶ID
-      if (liff && liff.isInClient() && isLoggedIn && profile) {
-        // 添加LINE用戶ID到訂單數據中
-        orderData.customer_details.name = profile.displayName || orderData.customer_details.name;
-        // 如果API支持，還可以添加LINE特定字段
-        // orderData.line_user_id = profile.userId;
-      }
+    // LINE 用戶資訊記錄（用於調試）
+    console.log('LINE 用戶資訊已添加至訂單:', {
+      userId: lineUserId,
+      displayName: profile?.displayName || '未獲取'
+    });
 
+    try {
       // 呼叫後端 API 建立訂單
-      const response = await fetch('/api/orders/create', {
+      const response = await fetch('/api/orders/create/bakery', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -245,39 +319,20 @@ export default function CheckoutPage() {
         throw new Error(data.message || '建立訂單失敗');
       }
 
-      // 根據支付方式，導向不同頁面
-      if (paymentMethod === 'credit') {
-        // 使用 API 回傳的 ecpay_form，但採用更安全的DOM操作方式
-        const formContainer = document.createElement('div');
-        formContainer.innerHTML = data.ecpay_form;
-        document.body.appendChild(formContainer);
-        
-        // 確保表單立即提交
-        const form = formContainer.querySelector('form');
-        if (form) {
-          form.submit();
-        } else {
-          throw new Error('無法找到綠界付款表單');
-        }
-        
-        // 清空購物車後會由綠界支付頁導向結果頁
-      } else if (paymentMethod === 'atm') {
-        // 保存訂單和付款資訊
-        localStorage.setItem('atmPaymentInfo', JSON.stringify({
-          order_id: data.order_id,
-          order_number: data.order_number,
-          ...data
-        }));
-        router.push('/client/payment/atm?orderId=' + data.order_id);
-      } else if (paymentMethod === 'cvs') {
-        // 保存訂單和付款資訊
-        localStorage.setItem('cvsPaymentInfo', JSON.stringify({
-          order_id: data.order_id,
-          order_number: data.order_number,
-          ...data
-        }));
-        router.push('/client/payment/cvs?orderId=' + data.order_id);
-      }
+      // 導向訂單確認頁面
+      const orderItems = data.order.items.map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal
+      }));
+      
+      // 將訂單數據編碼為 URL 安全的字符串
+      const encodedItems = encodeURIComponent(JSON.stringify(orderItems));
+      
+      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}`);
 
       // 清空購物車
       localStorage.removeItem('bakeryCart');
@@ -433,10 +488,24 @@ export default function CheckoutPage() {
                   <button 
                     type="button"
                     onClick={() => {
+                      // 檢查 localStorage 中的 LINE ID
+                      let localStorageLineId = '未獲取';
+                      try {
+                        const savedData = localStorage.getItem('customerData');
+                        if (savedData) {
+                          const parsedData = JSON.parse(savedData);
+                          localStorageLineId = parsedData.lineId || '未獲取';
+                        }
+                      } catch (e) {
+                        localStorageLineId = '解析錯誤';
+                      }
+                      
                       console.log('目前顧客資料狀態:', {
                         formData,
                         customerData,
                         profile,
+                        lineIdFromProfile: profile?.userId || '未獲取',
+                        lineIdFromLocalStorage: localStorageLineId,
                         localStorage: localStorage.getItem('customerData')
                           ? JSON.parse(localStorage.getItem('customerData') || '{}')
                           : null
@@ -450,7 +519,19 @@ export default function CheckoutPage() {
                 <div>
                   <div>Profile: {profile ? '已載入' : '未載入'}</div>
                   <div>CustomerData: {customerData ? '已載入' : '未載入'}</div>
-                  <div>FormData: {JSON.stringify(formData)}</div>
+                  <div>LINE ID (LIFF): {profile?.userId || '未獲取'}</div>
+                  <div>LINE ID (localStorage): {(() => {
+                    try {
+                      const savedData = localStorage.getItem('customerData');
+                      if (savedData) {
+                        const parsedData = JSON.parse(savedData);
+                        return parsedData.lineId || '未獲取';
+                      }
+                      return '未獲取';
+                    } catch (e) {
+                      return '解析錯誤';
+                    }
+                  })()}</div>
                 </div>
               </div>
             )}
@@ -460,49 +541,17 @@ export default function CheckoutPage() {
         {/* 右側 - 付款方式與確認訂單 */}
         <div className="lg:col-span-1">
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">選擇付款方式</h2>
+            <h2 className="text-xl font-semibold mb-4">配送方式</h2>
             <div className="space-y-3">
               <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'credit' ? 'border-amber-500 bg-amber-50' : ''}`}
-                onClick={() => setPaymentMethod('credit')}
+                className="border rounded-md p-3 flex items-center border-amber-500 bg-amber-50"
               >
-                <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${paymentMethod === 'credit' ? 'border-amber-600' : 'border-gray-300'}`}>
-                  {paymentMethod === 'credit' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  <div className="w-3 h-3 bg-amber-600 rounded-full"></div>
                 </div>
                 <div className="flex-grow">
-                  <div className="font-medium">信用卡付款</div>
-                  <div className="text-sm text-gray-500">支援VISA, MasterCard, JCB</div>
-                </div>
-                <div className="flex space-x-1">
-                  <div className="w-10 h-6 bg-gray-100 rounded"></div>
-                  <div className="w-10 h-6 bg-gray-100 rounded"></div>
-                  <div className="w-10 h-6 bg-gray-100 rounded"></div>
-                </div>
-              </div>
-              
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'atm' ? 'border-amber-500 bg-amber-50' : ''}`}
-                onClick={() => setPaymentMethod('atm')}
-              >
-                <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${paymentMethod === 'atm' ? 'border-amber-600' : 'border-gray-300'}`}>
-                  {paymentMethod === 'atm' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">ATM轉帳</div>
-                  <div className="text-sm text-gray-500">取得專屬虛擬帳號</div>
-                </div>
-              </div>
-              
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cvs' ? 'border-amber-500 bg-amber-50' : ''}`}
-                onClick={() => setPaymentMethod('cvs')}
-              >
-                <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${paymentMethod === 'cvs' ? 'border-amber-600' : 'border-gray-300'}`}>
-                  {paymentMethod === 'cvs' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">超商繳費</div>
-                  <div className="text-sm text-gray-500">7-11, 全家, 萊爾富, OK</div>
+                  <div className="font-medium">黑貓宅配(冷凍)</div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
                 </div>
               </div>
             </div>
@@ -521,25 +570,18 @@ export default function CheckoutPage() {
                   處理中...
                 </>
               ) : (
-                <>確認訂單並付款</>
+                <>確認訂單</>
               )}
             </button>
+            
+           
             
             <Link href="/client/bakery" className="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 py-3 rounded-md flex items-center justify-center text-center transition-colors">
               返回購物
             </Link>
-            
-            {/* <div className="mt-6 text-xs text-gray-500">
-              <p>點擊「確認訂單並付款」，即表示您同意我們的</p>
-              <div className="flex space-x-1 mt-1">
-                <a href="/terms" className="text-amber-600 hover:underline">服務條款</a>
-                <span>和</span>
-                <a href="/privacy" className="text-amber-600 hover:underline">隱私政策</a>
-              </div>
-            </div> */}
           </div>
         </div>
       </div>
     </div>
   );
-} 
+}

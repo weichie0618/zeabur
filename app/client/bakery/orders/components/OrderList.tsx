@@ -366,7 +366,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                         <span className="text-gray-500 inline-block w-20">地址:</span>
                         <span className="font-medium">
                           {order.address ? (
-                            `${order.address.postal_code} ${order.address.city} ${order.address.address1}`
+                            `${order.address}`
                           ) : (
                             '未提供'
                           )}

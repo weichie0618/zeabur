@@ -42,12 +42,12 @@ export default async function BakeryPage() {
         <LiffInitializer />
         
         {/* 英雄區塊 - 靜態內容，可在伺服器端渲染 */}
-        <div className="mt-12">
+        <div className="mt-6">
           <BakeryHero />
         </div>
         
         {/* 客戶端交互部分 */}
-        <div className="mt-12">
+        <div id="products" className="mt-12">
           <Suspense fallback={<LoadingSkeleton />}>
             <ProductsClient 
               initialProducts={products} 
@@ -66,12 +66,12 @@ export default async function BakeryPage() {
         <LiffInitializer />
         
         {/* 英雄區塊 - 靜態內容，可在伺服器端渲染 */}
-        <div className="mt-12">
+        <div className="mt-6">
           <BakeryHero />
         </div>
         
         {/* 客戶端交互部分 */}
-        <div className="mt-12">
+        <div id="products" className="mt-12">
           <Suspense fallback={<LoadingSkeleton />}>
             <ProductsClient 
               initialProducts={[]} 

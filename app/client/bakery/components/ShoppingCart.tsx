@@ -107,7 +107,11 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
             />
           </div>
           <div className="ml-4 flex-1">
-            <h3 className="font-medium">{item.name}</h3>
+            <h3 className={`font-medium truncate whitespace-nowrap overflow-hidden ${
+              item.name.length > 15 ? 'text-xs' : 'text-sm'
+            }`} title={item.name}>
+              {item.name}
+            </h3>
             <p className="text-amber-600">${item.price}</p>
             <div className="flex items-center mt-1">
               <button 

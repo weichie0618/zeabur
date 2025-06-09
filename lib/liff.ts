@@ -3,6 +3,30 @@ import { getLiffId, getLiffObject } from '@/lib/env';
 // 初始化LIFF應用
 export async function initializeLiff(liffId?: string): Promise<any> {
   try {
+    // 首先檢查是否有預加載的 LIFF 對象
+    if ((window as any).liffObject) {
+      console.log('使用預加載的 LIFF 對象 (in initializeLiff)');
+      const liffObject = (window as any).liffObject;
+      
+      // 如果沒有提供liffId，則使用默認值
+      const targetLiffId = liffId || getLiffId();
+      
+      if (!targetLiffId) {
+        throw new Error('LIFF ID is required');
+      }
+
+      // 使用預加載的LIFF對象進行初始化
+      if (!liffObject.isReady) {
+        await liffObject.init({
+          liffId: targetLiffId,
+          withLoginOnExternalBrowser: true,
+        });
+      }
+      
+      return liffObject;
+    }
+    
+    // 如果沒有預加載對象，進行正常初始化
     const liffObject = await getLiffObject();
     
     // 如果沒有提供liffId，則使用默認值

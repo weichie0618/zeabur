@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 // 搜尋參數處理元件
 function SearchParamsHandler({ onParamsProcessed }: { 
-  onParamsProcessed: (expired: boolean, redirectPath: string | null) => void 
+  onParamsProcessed: (expired: boolean, redirectPath: string | null, reason: string | null) => void 
 }) {
   const searchParams = useSearchParams();
   
@@ -16,15 +16,18 @@ function SearchParamsHandler({ onParamsProcessed }: {
       const expired = searchParams.get('expired') === 'true';
       // 保存重定向路徑
       const redirect = searchParams.get('redirect');
+      // 獲取錯誤原因
+      const reason = searchParams.get('reason');
       
       // 調用回調函數傳遞參數
-      onParamsProcessed(expired, redirect);
+      onParamsProcessed(expired, redirect, reason);
       
       // 清除URL參數，避免瀏覽器重新整理時再次觸發
-      if ((expired || redirect) && typeof window !== 'undefined') {
+      if ((expired || redirect || reason) && typeof window !== 'undefined') {
         const url = new URL(window.location.href);
         url.searchParams.delete('expired');
         url.searchParams.delete('redirect');
+        url.searchParams.delete('reason');
         window.history.replaceState({}, '', url.toString());
       }
     }
@@ -46,10 +49,33 @@ export default function LoginPage() {
   const isDev = process.env.NODE_ENV === 'development';
 
   // 處理搜尋參數回調
-  const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null) => {
+  const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null, reason: string | null) => {
     if (expired) {
       setError('您的登入已過期，請重新登入');
       addDebugInfo('檢測到登入過期參數，顯示過期提示');
+    }
+    
+    if (reason) {
+      switch(reason) {
+        case 'expired':
+          setError('您的登入已過期');
+          break;
+        case 'invalid':
+          setError('身份驗證無效');
+          break;
+        case 'not-allowed':
+          setError('您沒有足夠的權限訪問該頁面');
+          break;
+        case 'not-authenticated':
+          setError('需要先登入才能訪問該頁面');
+          break;
+        case 'auth-error':
+          setError('身份驗證發生錯誤');
+          break;
+        default:
+          setError('請先登入');
+      }
+      addDebugInfo(`檢測到錯誤原因: ${reason}`);
     }
     
     if (redirect) {
@@ -298,11 +324,7 @@ export default function LoginPage() {
               </label>
             </div>
 
-            <div className="text-sm">
-              <a href="#" className="font-medium text-amber-600 hover:text-amber-500">
-                忘記密碼?
-              </a>
-            </div>
+            
           </div>
 
           <div>

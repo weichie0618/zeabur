@@ -102,6 +102,8 @@ export const BreadCategories: React.FC<BreadCategoriesProps> = ({
           onClick={() => {
             // 設置為全部顯示
             setActiveCategory('all');
+            // 設置標記，表示這是用戶主動觸發的類別變更
+            sessionStorage.setItem('userTriggeredCategoryChange', 'true');
           }}
         >
           <span className="whitespace-nowrap font-medium">全部商品</span>
@@ -123,6 +125,8 @@ export const BreadCategories: React.FC<BreadCategoriesProps> = ({
             onClick={() => {
               // 傳遞分類ID作為字符串
               setActiveCategory(category.id.toString());
+              // 設置標記，表示這是用戶主動觸發的類別變更
+              sessionStorage.setItem('userTriggeredCategoryChange', 'true');
             }}
           >
             <span className="whitespace-nowrap font-medium">{getCategoryDisplayName(category)}</span>

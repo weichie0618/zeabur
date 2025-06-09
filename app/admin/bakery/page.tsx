@@ -1,46 +1,76 @@
-import React from 'react';
+'use client';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  initializeAuth, 
+  getAuthHeaders, 
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from './utils/authService';
 
 export default function AdminDashboard() {
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+  
   // 模擬數據
   const stats = [
-    { title: '今日銷售額', value: '$12,426', change: '+12.5%', changeType: 'positive' },
-    { title: '本月訂單數', value: '152', change: '+8.2%', changeType: 'positive' },
-    { title: '平均客單價', value: '$82', change: '-2.5%', changeType: 'negative' },
-    { title: '新客戶數', value: '48', change: '+24.0%', changeType: 'positive' },
+    { title: '今日銷售額', value: '$0', change: '0%', changeType: 'positive' },
+    { title: '本月訂單數', value: '0', change: '0%', changeType: 'positive' },
+    { title: '平均客單價', value: '$0', change: '0%', changeType: 'negative' },
+    { title: '新客戶數', value: '0', change: '0%', changeType: 'positive' },
   ];
 
   // 模擬最近訂單
   const recentOrders = [
-    { id: 'ORD-6723', customer: '陳小明', date: '2024/05/14 08:45', amount: '$245', status: '待出貨', salesPerson: '王小明' },
-    { id: 'ORD-6722', customer: '林美華', date: '2024/05/14 06:12', amount: '$125', status: '已完成', salesPerson: '李小華' },
-    { id: 'ORD-6721', customer: '王大同', date: '2024/05/13 21:30', amount: '$350', status: '已完成', salesPerson: '王小明' },
-    { id: 'ORD-6720', customer: '張小玲', date: '2024/05/13 15:22', amount: '$68', status: '待出貨', salesPerson: '王小明' },
-    { id: 'ORD-6719', customer: '李文昌', date: '2024/05/13 11:47', amount: '$192', status: '處理中', salesPerson: '陳大勇' },
+    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
+    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
+    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
+    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
+    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
   ];
 
   // 模擬熱門產品
   const topProducts = [
-    { name: '法式牛角麵包', sold: 145, revenue: '$9,425', growth: '+12%' },
-    { name: '提拉米蘇', sold: 98, revenue: '$14,700', growth: '+5%' },
-    { name: '藍莓乳酪蛋糕', sold: 82, revenue: '$9,840', growth: '+18%' },
-    { name: '草莓蛋糕', sold: 65, revenue: '$17,550', growth: '-3%' },
-    { name: '肉鬆麵包', sold: 53, revenue: '$3,180', growth: '+8%' },
+    { name: '', sold: 0, revenue: '$0', growth: '0%' },
+    { name: '', sold: 0, revenue: '$0', growth: '0%' },
+    { name: '', sold: 0, revenue: '$0', growth: '0%' },
+    { name: '', sold: 0, revenue: '$0', growth: '0%' },
+    { name: '', sold: 0, revenue: '$0', growth: '0%' },
   ];
 
   // 模擬庫存警告
   const lowStockItems = [
-    { name: '鮮奶油蛋糕', stock: 3, minStock: 5 },
-    { name: '抹茶拿鐵', stock: 2, minStock: 10 },
-    { name: '巧克力餅乾', stock: 4, minStock: 15 },
+    { name: '', stock: 0, minStock: 0 },
+    { name: '', stock: 0, minStock: 0 },
+    { name: '', stock: 0, minStock: 0 },
   ];
 
   // 模擬業務表現數據
   const salesPeople = [
-    { id: 'S-023', name: '王小明', sales: '$8,245', orders: 42, customers: 18, achievement: '78%' },
-    { id: 'S-015', name: '李小華', sales: '$6,120', orders: 35, customers: 15, achievement: '61%' },
-    { id: 'S-031', name: '陳大勇', sales: '$5,840', orders: 28, customers: 12, achievement: '58%' },
-    { id: 'S-008', name: '林小菁', sales: '$4,950', orders: 23, customers: 10, achievement: '49%' },
+    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
+    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
+    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
+    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
   ];
 
   return (
@@ -54,11 +84,38 @@ export default function AdminDashboard() {
             <option>本月</option>
             <option>本年</option>
           </select>
-          <button className="bg-amber-600 text-white px-4 py-1.5 rounded-md hover:bg-amber-700 text-sm font-medium">
+          {/* <button className="bg-amber-600 text-white px-4 py-1.5 rounded-md hover:bg-amber-700 text-sm font-medium">
             下載報表
-          </button>
+          </button> */}
         </div>
       </div>
+      
+      {/* 認證警告 */}
+      {showAuthWarning && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error || '認證失敗，請重新登入系統'}
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRelogin();
+                  }}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  立即登入
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 統計卡片區 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -142,8 +199,8 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {salesPeople.map((person) => (
-                <tr key={person.id} className="hover:bg-gray-50">
+              {salesPeople.map((person, index) => (
+                <tr key={`sales-person-${index}`} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
                     <Link href={`/admin/bakery/sales-people/${person.id}`}>
                       {person.id}
@@ -214,8 +271,8 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
+                {recentOrders.map((order, index) => (
+                  <tr key={`order-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
                       <Link href={`/admin/bakery/orders/${order.id}`}>
                         {order.id}

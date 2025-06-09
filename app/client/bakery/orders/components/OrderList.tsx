@@ -48,6 +48,7 @@ interface Order {
   payment_status?: string;
   shipping_method?: string;
   shipping_status?: string;
+  shipping_fee?: number | null; // 添加運費字段
 }
 
 interface OrderListProps {
@@ -145,11 +146,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                     {formatDate(order.created_at)}
                   </div>
                 </div>
-                <div className="sm:col-span-4">
-                  <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${statusClasses[order.status] || 'bg-gray-100 text-gray-800'}`}>
-                    {statusTranslation[order.status] || order.status}
-                  </span>
-                </div>
+               
                 <div className="sm:col-span-3 text-right">
                   <div className="font-bold">NT$ {formatPrice(order.total_amount)}</div>
                 </div>
@@ -187,7 +184,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {/* 使用 orderItems 或 items 顯示訂單項目 */}
-                        {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
+                        {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? 
                           order.orderItems.map((item) => (
                             <tr key={item.id}>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -216,7 +213,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                               </td>
                             </tr>
                           ))
-                        ) : Array.isArray(order.items) && order.items.length > 0 ? (
+                        : Array.isArray(order.items) && order.items.length > 0 ? 
                           order.items.map((item) => (
                             <tr key={item.id}>
                               <td className="px-6 py-4 whitespace-nowrap">
@@ -245,13 +242,14 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                               </td>
                             </tr>
                           ))
-                        ) : (
+                        : (
                           <tr>
                             <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
                               此訂單沒有商品項目
                             </td>
                           </tr>
                         )}
+                        {/* 總計行 */}
                         <tr className="bg-gray-50">
                           <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
                             總計
@@ -260,13 +258,24 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                             NT$ {formatPrice(order.total_amount)}
                           </td>
                         </tr>
+                        {/* 添加運費顯示行 */}
+                        {order.shipping_fee !== null && order.shipping_fee !== undefined && order.shipping_fee > 0 ? (
+                          <tr className="bg-gray-50">
+                            <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                              運費
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                              NT$ {formatPrice(order.shipping_fee)}
+                            </td>
+                          </tr>
+                        ) : null}
                       </tbody>
                     </table>
                   </div>
                   
                   {/* 手機版卡片 - 僅在小型螢幕上顯示 */}
                   <div className="md:hidden space-y-3">
-                    {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? (
+                    {Array.isArray(order.orderItems) && order.orderItems.length > 0 ? 
                       order.orderItems.map((item) => (
                         <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
                           <div className="flex items-start">
@@ -297,7 +306,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                           </div>
                         </div>
                       ))
-                    ) : Array.isArray(order.items) && order.items.length > 0 ? (
+                    : Array.isArray(order.items) && order.items.length > 0 ? 
                       order.items.map((item) => (
                         <div key={item.id} className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
                           <div className="flex items-start">
@@ -328,15 +337,21 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                           </div>
                         </div>
                       ))
-                    ) : (
+                    : 
                       <div className="bg-white rounded-lg border border-gray-200 p-4 text-center text-gray-500">
                         此訂單沒有商品項目
                       </div>
-                    )}
+                    }
                     
                     {/* 手機版總計 */}
                     <div className="bg-amber-50 rounded-lg p-4 text-right">
                       <span className="font-bold text-gray-900">總計: NT$ {formatPrice(order.total_amount)}</span>
+                      {/* 手機版運費顯示 */}
+                      {order.shipping_fee !== null && order.shipping_fee !== undefined && order.shipping_fee > 0 ? (
+                        <div className="text-sm text-gray-600 mt-1">
+                          運費: NT$ {formatPrice(order.shipping_fee)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -363,13 +378,19 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                         <span className="font-medium">{order.customer_email || '未提供'}</span>
                       </p>
                       <p>
-                        <span className="text-gray-500 inline-block w-20">地址:</span>
+                        <span className="text-gray-500 inline-block w-20">配送方式:</span>
+                        <span className="font-medium">{translateShippingMethod(order.shipping_method)}</span>
+                      </p>
+                      <p>
+                        <span className="text-gray-500 inline-block w-20">{order.shipping_method === 'pickup' ? '自取地址:' : '地址:'}</span>
                         <span className="font-medium">
-                          {order.address ? (
+                          {order.shipping_method === 'pickup' ? 
+                            '桃園市蘆竹區油管路一段696號'
+                           : order.address ? 
                             `${order.address}`
-                          ) : (
+                           : 
                             '未提供'
-                          )}
+                          }
                         </span>
                       </p>
                     </div>
@@ -421,7 +442,10 @@ function translateShippingMethod(method?: string): string {
   const methodMap: Record<string, string> = {
     'home_delivery': '宅配到府',
     'store_pickup': '門市取貨',
-    'convenience_store': '超商取貨'
+    'convenience_store': '超商取貨',
+    'takkyubin_payment': '黑貓宅配(冷凍) 匯款',
+    'takkyubin_cod': '黑貓宅配(冷凍) 貨到付款',
+    'pickup': '自取' // 添加自取的翻譯
   };
   return method ? (methodMap[method] || method) : '未知';
 }

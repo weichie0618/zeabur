@@ -202,14 +202,7 @@ export async function middleware(request: NextRequest) {
     if (!user || user.role !== 'admin') {
       if (isDev) console.log('訪問管理員頁面但無有效token或非管理員角色，重定向到登入頁面');
       
-      // 如果已經在登入頁面，不要再重定向以避免循環
-      const isFromLoginPage = request.headers.get('referer')?.includes('/login') || false;
-      if (isFromLoginPage) {
-        if (isDev) console.log('已經從登入頁面重定向而來，避免循環重定向');
-        return NextResponse.redirect(new URL('/unauthorized?reason=auth-error', request.url));
-      }
-      
-      // 設置一個查詢參數，讓登入頁知道這是因為訪問管理頁面被重定向過來的
+      // 直接重定向到登入頁面，不再重定向到未授權頁面
       return NextResponse.redirect(new URL('/login?expired=true&redirect=' + encodeURIComponent(path), request.url));
     }
     

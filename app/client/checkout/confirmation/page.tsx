@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -22,10 +22,12 @@ interface Order {
   id: string;
   order_number: string;
   total_amount: number;
+  shipping_fee?: number;
   items: OrderItem[];
 }
 
-export default function OrderConfirmationPage() {
+// 包裝搜索參數部分以避免直接在組件內使用 useSearchParams
+function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('orderNumber');
@@ -44,6 +46,28 @@ export default function OrderConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isDevEnvironment = process.env.NODE_ENV === 'development';
+  // 從URL獲取配送方式
+  const shippingMethod = searchParams.get('shippingMethod') || 'takkyubin_payment';
+  // 獲取自取日期時間
+  const pickupDateTime = searchParams.get('pickupDateTime') || '';
+  
+  // 格式化日期時間顯示
+  const formatPickupDateTime = (dateTimeStr: string) => {
+    if (!dateTimeStr) return '未指定';
+    try {
+      const dt = new Date(dateTimeStr);
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      const hours = String(dt.getHours()).padStart(2, '0');
+      const minutes = String(dt.getMinutes()).padStart(2, '0');
+      
+      return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+    } catch (e) {
+      console.error('日期格式化錯誤', e);
+      return dateTimeStr; // 如果格式化失敗，返回原始字符串
+    }
+  };
 
   // 銀行帳戶資訊（這些資訊通常會從設定或API獲取）
   const bankInfo = {
@@ -61,6 +85,7 @@ export default function OrderConfirmationPage() {
       
       const totalAmount = searchParams.get('totalAmount');
       const encodedItems = searchParams.get('items');
+      const shippingFee = searchParams.get('shippingFee');
       
       if (!orderId || !orderNumber || !totalAmount || !encodedItems) {
         debug += '訂單參數不完整，無法獲取訂單詳細信息\n';
@@ -68,6 +93,11 @@ export default function OrderConfirmationPage() {
         setError('訂單參數不完整，請返回重試');
         setLoading(false);
         return;
+      }
+      
+      // 記錄自取日期時間
+      if (shippingMethod === 'pickup' && pickupDateTime) {
+        debug += `自取日期時間: ${pickupDateTime}\n`;
       }
       
       try {
@@ -81,6 +111,11 @@ export default function OrderConfirmationPage() {
           total_amount: parseFloat(totalAmount),
           items: decodedItems
         };
+        
+        if (shippingFee) {
+          orderData.shipping_fee = parseFloat(shippingFee);
+          debug += `運費: ${orderData.shipping_fee}\n`;
+        }
         
         setOrderData(orderData);
         
@@ -284,9 +319,38 @@ export default function OrderConfirmationPage() {
       debug += '開始構建 Flex Message...\n';
       
       // 建立簡單文字訊息（作為備用）
-      const textMessage = {
-        type: 'text',
-        text: `🎂 感謝您的訂購！
+      let textMessage;
+      if (shippingMethod === 'pickup') {
+        textMessage = {
+          type: 'text',
+          text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+請至桃園市蘆竹區油管路一段696號自取商品並現場付款
+
+📍 自取地址：
+桃園市蘆竹區油管路一段696號
+
+⏰ 預計自取時間：
+${formatPickupDateTime(pickupDateTime)}
+
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+        };
+      } else if (shippingMethod === 'takkyubin_cod') {
+        textMessage = {
+          type: 'text',
+          text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+我們將盡快安排宅配，收貨時付款即可
+
+📦 宅配說明：
+商品會以黑貓宅急便低溫冷凍配送
+${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+        };
+      } else {
+        textMessage = {
+          type: 'text',
+          text: `🎂 感謝您的訂購！
 訂單編號：${orderNumber}
 請於3日內完成匯款
 
@@ -294,9 +358,11 @@ export default function OrderConfirmationPage() {
 銀行：${bankInfo.bankName}（${bankInfo.bankCode}）
 戶名：${bankInfo.accountName}
 帳號：${bankInfo.accountNumber}
+${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
 
 完成匯款後，請將匯款收據與訂單編號透過LINE傳送給我們，謝謝！`
-      };
+        };
+      }
       
       // 使用從URL參數獲取的訂單項目
       const orderItems = orderData?.items || [];
@@ -304,231 +370,696 @@ export default function OrderConfirmationPage() {
       // 計算訂單總額
       const totalAmount = orderData?.total_amount || 0;
       
+      // 獲取運費信息
+      const shippingFee = orderData?.shipping_fee || 0;
+      
       debug += `訂單項目數量: ${orderItems.length}\n`;
       debug += `訂單總金額: ${totalAmount}\n`;
+      debug += `運費: ${shippingFee}\n`;
+      debug += `配送方式: ${shippingMethod}\n`;
       
-      // 建立 Flex Message
-      const flexMessage = {
-        type: "flex",
-        altText: `訂單編號 ${orderNumber} 建立成功，請於3日內完成匯款`,
-        contents: {
-          type: "bubble",
-          header: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "text",
-                text: "訂單已建立",
-                size: "xl",
-                align: "center",
-                weight: "bold",
-                color: "#ffffff"
-              }
-            ],
-            backgroundColor: "#A05800",
-            paddingAll: "md"
-          },
-          body: {
-            type: "box",
-            layout: "vertical",
-            spacing: "md",
-            contents: [
-              {
-                type: "box",
-                layout: "vertical",
-                backgroundColor: "#FFF3E0",
-                paddingAll: "md",
-                cornerRadius: "md",
-                contents: [
-                  {
-                    type: "text",
-                    text: "請於 3 日內完成匯款",
-                    size: "md",
-                    weight: "bold",
-                    align: "center",
-                    color: "#D32F2F",
-                    wrap: true
-                  }
-                ]
-              },
-              {
-                type: "separator",
-                margin: "md"
-              },
-              {
-                type: "text",
-                text: `訂單編號：${orderNumber || "未提供"}`,
-                size: "sm",
-                color: "#333333",
-                margin: "md"
-              },
-              {
-                type: "text",
-                text: "訂單明細",
-                weight: "bold",
-                color: "#7B3F00",
-                margin: "lg",
-                size: "md"
-              },
-              ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
-                type: "box",
-                layout: "horizontal",
-                contents: [
-                  {
-                    type: "text",
-                    text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
-                    size: "sm",
-                    color: "#555555",
-                    flex: 5,
-                    margin: "sm"
-                  },
-                  {
-                    type: "text",
-                    text: `$${item.subtotal}`,
-                    size: "sm",
-                    align: "end",
-                    color: "#111111",
-                    flex: 2
-                  }
-                ],
-                margin: "md"
-              })) : [{
-                type: "text",
-                text: "無法獲取訂單明細",
-                size: "sm",
-                color: "#555555",
-                align: "center"
-              }]),
-              {
-                type: "box",
-                layout: "horizontal",
-                margin: "md",
-                contents: [
-                  {
-                    type: "text",
-                    text: "總計",
-                    size: "sm",
-                    weight: "bold",
-                    color: "#333333"
-                  },
-                  {
-                    type: "text",
-                    text: `$${totalAmount}`,
-                    size: "sm",
-                    align: "end",
-                    weight: "bold",
-                    color: "#111111"
-                  }
-                ]
-              },
-              {
-                type: "separator",
-                margin: "lg"
-              },
-              {
-                type: "text",
-                text: "匯款資訊",
-                weight: "bold",
-                color: "#7B3F00",
-                margin: "lg",
-                size: "md"
-              },
-              {
-                type: "box",
-                layout: "vertical",
-                margin: "md",
-                spacing: "sm",
-                contents: [
-                  {
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "銀行名稱",
-                        size: "sm",
-                        color: "#555555"
-                      },
-                      {
-                        type: "text",
-                        text: `${bankInfo.bankName} (${bankInfo.bankCode})`,
-                        size: "sm",
-                        color: "#111111",
-                        align: "end"
-                      }
-                    ]
-                  },
-                  {
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "戶名",
-                        size: "sm",
-                        color: "#555555"
-                      },
-                      {
-                        type: "text",
-                        text: bankInfo.accountName,
-                        size: "sm",
-                        color: "#111111",
-                        align: "end"
-                      }
-                    ]
-                  },
-                  {
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                      {
-                        type: "text",
-                        text: "帳號",
-                        size: "sm",
-                        color: "#555555"
-                      },
-                      {
-                        type: "text",
-                        text: bankInfo.accountNumber,
-                        size: "sm",
-                        color: "#111111",
-                        align: "end"
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                type: "separator",
-                margin: "lg"
-              },
-              {
-                type: "text",
-                text: "匯款完成後請將匯款收據與訂單編號\n傳送給我們（LINE客服）",
-                size: "xs",
-                color: "#888888",
-                align: "center",
-                wrap: true,
-                margin: "md"
-              }
-            ]
-          },
-          footer: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "text",
-                text: "感謝您的訂購",
-                size: "sm",
-                align: "center",
-                color: "#aaaaaa"
-              }
-            ]
+      // 根據配送方式選擇不同的 Flex Message
+      let flexMessage;
+      
+      if (shippingMethod === 'pickup') {
+        // 自取的 Flex Message
+        flexMessage = [{
+          type: 'text',
+          text: orderNumber // 添加普通文字訊息
+        },{
+          type: "flex",
+          altText: `${orderNumber} 建立成功，請至店面自取並現場付款`,
+          contents: {
+            type: "bubble",
+            header: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "訂單已建立 ",
+                  size: "xl",
+                  align: "center",
+                  weight: "bold",
+                  color: "#ffffff"
+                }
+              ],
+              backgroundColor: "#673AB7",
+              paddingAll: "md"
+            },
+            body: {
+              type: "box",
+              layout: "vertical",
+              spacing: "md",
+              contents: [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#EDE7F6",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "請於取貨時現場付款",
+                      size: "md",
+                      weight: "bold",
+                      align: "center",
+                      color: "#512DA8",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: `訂單編號：${orderNumber || "未提供"}`,
+                  size: "sm",
+                  color: "#333333",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "訂單明細",
+                  weight: "bold",
+                  color: "#512DA8",
+                  margin: "lg",
+                  size: "md"
+                },
+                ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
+                  type: "box",
+                  layout: "horizontal",
+                  contents: [
+                    {
+                      type: "text",
+                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                      size: "sm",
+                      color: "#555555",
+                      flex: 5,
+                      margin: "sm"
+                    },
+                    {
+                      type: "text",
+                      text: `$${item.subtotal}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111",
+                      flex: 2
+                    }
+                  ],
+                  margin: "md"
+                })) : [{
+                  type: "text",
+                  text: "無法獲取訂單明細",
+                  size: "sm",
+                  color: "#555555",
+                  align: "center"
+                }]),
+                
+                // 自取模式 - 運費顯示（如果有運費）
+                ...(shippingFee > 0 ? [{
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "運費",
+                      size: "sm",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${shippingFee}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111"
+                    }
+                  ]
+                }] : []),
+                
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "總計",
+                      size: "sm",
+                      weight: "bold",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${totalAmount}`,
+                      size: "sm",
+                      align: "end",
+                      weight: "bold",
+                      color: "#111111"
+                    }
+                  ]
+                },
+                
+                {
+                  type: "separator",
+                  margin: "lg"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#EDE7F6",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  margin: "lg",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "自取地址",
+                      weight: "bold",
+                      color: "#512DA8",
+                      size: "md",
+                      align: "center"
+                    },
+                    {
+                      type: "text",
+                      text: "桃園市蘆竹區油管路一段696號",
+                      size: "sm",
+                      color: "#673AB7",
+                      align: "center",
+                      margin: "sm"
+                    },
+                    {
+                      type: "text",
+                      text: "請於取貨時現場付款",
+                      size: "sm",
+                      color: "#673AB7",
+                      align: "center",
+                      margin: "sm",
+                      weight: "bold"
+                    },
+                    // 添加自取日期時間顯示
+                    {
+                      type: "text",
+                      text: "預計自取時間",
+                      weight: "bold",
+                      color: "#512DA8",
+                      size: "sm",
+                      align: "center",
+                      margin: "md"
+                    },
+                    {
+                      type: "text",
+                      text: formatPickupDateTime(pickupDateTime),
+                      size: "sm",
+                      color: "#673AB7",
+                      align: "center",
+                      margin: "sm",
+                      weight: "bold"
+                    }
+                  ]
+                },
+                {
+                  type: "text",
+                  text: "若有任何問題，請透過LINE與我們聯繫\n謝謝！",
+                  size: "xs",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true,
+                  margin: "md"
+                }
+              ]
+            },
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "感謝您的訂購",
+                  size: "sm",
+                  align: "center",
+                  color: "#aaaaaa"
+                }
+              ]
+            }
+          }
+        }];
+      } else if (shippingMethod === 'takkyubin_cod') {
+        // 貨到付款的 Flex Message
+        flexMessage = [{
+          type: 'text',
+          text: orderNumber // 添加普通文字訊息
+        },{
+          type: "flex",
+          altText: `訂單編號 ${orderNumber} 建立成功，將安排宅配，收貨時付款`,
+          contents: {
+            type: "bubble",
+            header: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "訂單已建立",
+                  size: "xl",
+                  align: "center",
+                  weight: "bold",
+                  color: "#ffffff"
+                }
+              ],
+              backgroundColor: "#2E7D32",
+              paddingAll: "md"
+            },
+            body: {
+              type: "box",
+              layout: "vertical",
+              spacing: "md",
+              contents: [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#E8F5E9",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "請於貨到時付款",
+                      size: "md",
+                      weight: "bold",
+                      align: "center",
+                      color: "#2E7D32",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: `訂單編號：${orderNumber || "未提供"}`,
+                  size: "sm",
+                  color: "#333333",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "訂單明細",
+                  weight: "bold",
+                  color: "#33691E",
+                  margin: "lg",
+                  size: "md"
+                },
+                ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
+                  type: "box",
+                  layout: "horizontal",
+                  contents: [
+                    {
+                      type: "text",
+                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                      size: "sm",
+                      color: "#555555",
+                      flex: 5,
+                      margin: "sm"
+                    },
+                    {
+                      type: "text",
+                      text: `$${item.subtotal}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111",
+                      flex: 2
+                    }
+                  ],
+                  margin: "md"
+                })) : [{
+                  type: "text",
+                  text: "無法獲取訂單明細",
+                  size: "sm",
+                  color: "#555555",
+                  align: "center"
+                }]),
+                
+                // 貨到付款模式 - 運費顯示（如果有運費）
+                ...(shippingFee > 0 ? [{
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "運費",
+                      size: "sm",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${shippingFee}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111"
+                    }
+                  ]
+                }] : []),
+                
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "總計",
+                      size: "sm",
+                      weight: "bold",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${totalAmount}`,
+                      size: "sm",
+                      align: "end",
+                      weight: "bold",
+                      color: "#111111"
+                    }
+                  ]
+                },
+                
+                {
+                  type: "separator",
+                  margin: "lg"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#E3F2FD",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  margin: "lg",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "配送資訊",
+                      weight: "bold",
+                      color: "#0D47A1",
+                      size: "md",
+                      align: "center"
+                    },
+                    {
+                      type: "text",
+                      text: "商品以黑貓宅急便低溫冷凍配送\n貨到付款",
+                      size: "sm",
+                      color: "#1976D2",
+                      align: "center",
+                      margin: "sm",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "text",
+                  text: "若有任何問題，請透過LINE與我們聯繫\n謝謝！",
+                  size: "xs",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true,
+                  margin: "md"
+                }
+              ]
+            },
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "感謝您的訂購",
+                  size: "sm",
+                  align: "center",
+                  color: "#aaaaaa"
+                }
+              ]
+            }
+          }
+        }];
+      } else {
+        // 預設匯款的 Flex Message (原有的)
+        flexMessage =[ {
+          type: 'text',
+          text: orderNumber // 添加普通文字訊息
+        },{
+          type: "flex",
+          altText: `訂單編號 ${orderNumber} 建立成功，請於3日內完成匯款`,
+          contents: {
+            type: "bubble",
+            header: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "訂單已建立",
+                  size: "xl",
+                  align: "center",
+                  weight: "bold",
+                  color: "#ffffff"
+                }
+              ],
+              backgroundColor: "#A05800",
+              paddingAll: "md"
+            },
+            body: {
+              type: "box",
+              layout: "vertical",
+              spacing: "md",
+              contents: [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#FFF3E0",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "請於 3 日內完成匯款",
+                      size: "md",
+                      weight: "bold",
+                      align: "center",
+                      color: "#D32F2F",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: `訂單編號：${orderNumber || "未提供"}`,
+                  size: "sm",
+                  color: "#333333",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "訂單明細",
+                  weight: "bold",
+                  color: "#7B3F00",
+                  margin: "lg",
+                  size: "md"
+                },
+                ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
+                  type: "box",
+                  layout: "horizontal",
+                  contents: [
+                    {
+                      type: "text",
+                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                      size: "sm",
+                      color: "#555555",
+                      flex: 5,
+                      margin: "sm"
+                    },
+                    {
+                      type: "text",
+                      text: `$${item.subtotal}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111",
+                      flex: 2
+                    }
+                  ],
+                  margin: "md"
+                })) : [{
+                  type: "text",
+                  text: "無法獲取訂單明細",
+                  size: "sm",
+                  color: "#555555",
+                  align: "center"
+                }]),
+                
+                // 匯款模式 - 運費顯示（如果有運費）
+                ...(shippingFee > 0 ? [{
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "運費",
+                      size: "sm",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${shippingFee}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111"
+                    }
+                  ]
+                }] : []),
+                
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "總計",
+                      size: "sm",
+                      weight: "bold",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${totalAmount}`,
+                      size: "sm",
+                      align: "end",
+                      weight: "bold",
+                      color: "#111111"
+                    }
+                  ]
+                },
+                
+                {
+                  type: "separator",
+                  margin: "lg"
+                },
+                {
+                  type: "text",
+                  text: "匯款資訊",
+                  weight: "bold",
+                  color: "#7B3F00",
+                  margin: "lg",
+                  size: "md"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  margin: "md",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "銀行名稱",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: `${bankInfo.bankName} (${bankInfo.bankCode})`,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "戶名",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: bankInfo.accountName,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    },
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "帳號",
+                          size: "sm",
+                          color: "#555555"
+                        },
+                        {
+                          type: "text",
+                          text: bankInfo.accountNumber,
+                          size: "sm",
+                          color: "#111111",
+                          align: "end"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "lg"
+                },
+                {
+                  type: "text",
+                  text: "匯款完成後請將匯款收據與訂單編號\n傳送給我們（LINE客服）",
+                  size: "xs",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true,
+                  margin: "md"
+                }
+              ]
+            },
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "感謝您的訂購",
+                  size: "sm",
+                  align: "center",
+                  color: "#aaaaaa"
+                }
+              ]
+            }
           }
         }
-      };
+        ];
+      }
       
       debug += '檢查是否在 LINE 應用中...\n';
       
@@ -548,7 +1079,7 @@ export default function OrderConfirmationPage() {
             debug += '訂單項目未找到或為空\n';
           }
           
-          await activeLiff.sendMessages([flexMessage]);
+          await activeLiff.sendMessages(flexMessage);
           debug += 'Flex Message 發送成功\n';
           
           setMessageSent(true);
@@ -632,6 +1163,7 @@ export default function OrderConfirmationPage() {
     return false; // 始終返回false，不顯示關閉按鈕
   };
 
+  // 返回原始的 JSX
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
       {/* 加載 LIFF SDK */}
@@ -682,6 +1214,16 @@ export default function OrderConfirmationPage() {
                 <div>
                   <h2 className="font-semibold text-gray-700">訂單編號</h2>
                   <p className="text-gray-900">{orderNumber || '未提供'}</p>
+                </div>
+                {orderData && orderData.shipping_fee !== null && orderData.shipping_fee !== undefined && orderData.shipping_fee > 0 ?(
+                  <div>
+                    <h2 className="font-semibold text-gray-700">運費</h2>
+                    <p className="text-gray-900">${orderData.shipping_fee.toFixed(2)}</p>
+                  </div>
+                ) : null}
+                <div>
+                  <h2 className="font-semibold text-gray-700">訂單總額</h2>
+                  <p className="text-gray-900">${orderData?.total_amount.toFixed(2) || '0.00'}</p>
                 </div>
               </div>
             </div>
@@ -1006,6 +1548,15 @@ export default function OrderConfirmationPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// 主組件使用 Suspense 包裝含有 useSearchParams 的內容
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={<div>載入中...</div>}>
+      <OrderConfirmationContent />
+    </Suspense>
   );
 }
 

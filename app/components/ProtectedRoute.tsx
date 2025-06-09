@@ -16,7 +16,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   useEffect(() => {
     // 如果用戶數據已加載完成但未認證，則重定向到登入頁面
     if (!isLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/login?reason=not-authenticated');
       return;
     }
 
@@ -33,8 +33,8 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
         return;
       }
       
-      // 其他未授權的情況，重定向到錯誤頁面
-      router.push('/unauthorized');
+      // 其他未授權的情況，直接重定向到登入頁面
+      router.push('/login?reason=not-allowed');
     }
   }, [isLoading, isAuthenticated, requiredRole, user, router]);
 

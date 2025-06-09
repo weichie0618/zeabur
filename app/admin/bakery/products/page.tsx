@@ -2,6 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { 
+  initializeAuth, 
+  getAuthHeaders, 
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../utils/authService';
 
 // 定義產品類型
 interface Category {
@@ -21,7 +28,7 @@ interface Product {
   description: string;
   price: string;
   discount_price: string | null;
-  category_id: number;
+  
   images: string;
   status: string;
   created_at: string;
@@ -80,6 +87,10 @@ export default function ProductsManagement() {
   // 添加一個狀態來存儲所有原始產品
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  
   // 初始化時間戳
   useEffect(() => {
     const timestamps: {[key: number]: number} = {};
@@ -95,13 +106,41 @@ export default function ProductsManagement() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
 
   // 獲取分類列表
   const fetchCategories = async () => {
     try {
       setLoadingCategories(true);
+      console.log('開始獲取分類列表');
+      console.log('當前 accessToken 狀態:', accessToken ? '已設置' : '未設置');
+      
       const timestamp = Date.now();
-      const response = await fetch(`/api/categories?t=${timestamp}`);
+      const response = await fetch(`/api/categories?t=${timestamp}`, {
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
+      });
+      
+      if (response.status === 401) {
+        handleAuthError('獲取分類時認證失敗', setError, setLoading, setShowAuthWarning);
+        setLoadingCategories(false);
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('無法獲取分類資料');
@@ -135,6 +174,10 @@ export default function ProductsManagement() {
       setLoading(true);
       setError(null);
       
+      // 檢查令牌狀態但不提前返回
+      console.log('開始獲取產品列表');
+      console.log('當前 accessToken 狀態:', accessToken ? '已設置' : '未設置');
+      
       // 構建查詢參數 - 只請求所有產品，不包含篩選
       const queryParams = new URLSearchParams();
       
@@ -149,7 +192,18 @@ export default function ProductsManagement() {
       console.log('發送請求到:', apiUrl);
       
       // 發送GET請求獲取所有產品
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
+      });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
+        setLoading(false);
+        return;
+      }
+      
       console.log('獲得回應狀態:', response.status);
       
       if (!response.ok) {
@@ -225,11 +279,9 @@ export default function ProductsManagement() {
       if (selectedCategory) {
         console.log('套用分類篩選:', selectedCategory);
         filtered = filtered.filter(product => 
-          product.category_id.toString() === selectedCategory ||
-          (product.categoryId && product.categoryId.toString() === selectedCategory)
+          product.categoryId !== null && product.categoryId.toString() === selectedCategory
         );
         console.log('分類篩選後產品數量:', filtered.length);
-      }
       
       // 應用狀態篩選
       if (selectedStatus) {
@@ -237,7 +289,7 @@ export default function ProductsManagement() {
         filtered = filtered.filter(product => product.status === selectedStatus);
         console.log('狀態篩選後產品數量:', filtered.length);
       }
-      
+      }
       // 應用排序
       if (sortBy) {
         console.log('套用排序:', sortBy);
@@ -315,10 +367,18 @@ export default function ProductsManagement() {
     }, 0);
   };
 
+  // 第一次載入時獲取產品數據和分類列表
   useEffect(() => {
-    fetchCategories();
-    fetchProducts();
-  }, []);
+    // 確保已獲取到token後再發起請求
+    if (accessToken) {
+      console.log('accessToken 已設置，準備獲取產品和分類');
+      fetchCategories();
+      fetchProducts();
+    } else {
+      // 不立即顯示錯誤，等待可能的自動重試
+      console.warn('useEffect: 暫時缺少accessToken，等待獲取中...');
+    }
+  }, [accessToken]);
 
   // 取得產品狀態顯示樣式
   const getStatusStyle = (status: string) => {
@@ -374,9 +434,25 @@ export default function ProductsManagement() {
       setIsDeleting(true);
       setDeleteError(null);
       
+      // 檢查令牌是否存在
+      if (!accessToken) {
+        handleAuthError('刪除產品時缺少認證令牌', setError, setLoading, setShowAuthWarning);
+        return;
+      }
+      
       const response = await fetch(`/api/products/${deletingProductId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
       });
+
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthError('刪除產品時認證失敗', setError, setLoading, setShowAuthWarning);
+        setShowDeleteConfirm(false);
+        setDeletingProductId(null);
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -385,6 +461,8 @@ export default function ProductsManagement() {
 
       // 更新產品列表
       setProducts(prevProducts => prevProducts.filter(product => product.id !== deletingProductId));
+      setFilteredProducts(prevProducts => prevProducts.filter(product => product.id !== deletingProductId));
+      setAllProducts(prevProducts => prevProducts.filter(product => product.id !== deletingProductId));
       setDeleteSuccess('產品已成功刪除');
       
       // 重設刪除狀態
@@ -427,6 +505,33 @@ export default function ProductsManagement() {
           </Link>
         </div>
       </div>
+      
+      {/* 認證警告 */}
+      {showAuthWarning && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error || '認證失敗，請重新登入系統'}
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRelogin();
+                  }}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  立即登入
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 成功訊息顯示 */}
       {deleteSuccess && (

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ interface FormValidation {
   email: boolean;
   phone: boolean;
   address: boolean;
+  pickupDateTime?: boolean; // 新增自取日期時間驗證
 }
 
 // 訂單資料接口
@@ -27,7 +28,25 @@ interface OrderData {
     address: string;
   };
   shipping_method: string;
+  payment_method: string;
   salesperson_code?: string;
+}
+
+// 配送方式類型
+type ShippingMethod = 'takkyubin_payment' | 'takkyubin_cod' | 'pickup';
+
+// 客戶資料介面
+interface CustomerData {
+  name?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  lineId?: string;
+  customerId?: string;
+  tempAddress?: string; // 添加暫存地址欄位
+  taxId?: string; // 添加統編欄位
+  carrier?: string; // 添加載具欄位
+  pickupDateTime?: string; // 添加自取日期時間欄位
 }
 
 export default function CheckoutPage() {
@@ -36,12 +55,16 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'takkyubin'>('takkyubin');
+  const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('takkyubin_payment');
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
     phone: '',
-    address: ''
+    address: '',
+    taxId: '', // 新增統編
+    carrier: '', // 新增載具
+    pickupDateTime: '', // 新增自取日期時間
+    invoiceType: 'taxId' as 'taxId' | 'carrier' // 新增發票類型選擇
   });
   const [validation, setValidation] = useState<FormValidation>({
     name: true,
@@ -51,6 +74,29 @@ export default function CheckoutPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+
+  // 從 localStorage 獲取客戶資料的輔助函數
+  const getCustomerDataFromLocalStorage = (): CustomerData | null => {
+    try {
+      const savedCustomerData = localStorage.getItem('customerData');
+      if (savedCustomerData) {
+        const parsedData = JSON.parse(savedCustomerData) as CustomerData;
+        console.log('從 localStorage 讀取到客戶資料:', parsedData);
+        
+        // 調試輸出 lineId 資訊
+        if (parsedData && parsedData.lineId) {
+          console.log('從 localStorage 讀取到 LINE ID:', parsedData.lineId);
+        } else {
+          console.warn('localStorage 中的客戶資料不包含 LINE ID');
+        }
+        
+        return parsedData;
+      }
+    } catch (e) {
+      console.error('解析本地客戶資料失敗', e);
+    }
+    return null;
+  };
 
   // 從 localStorage 獲取購物車資料
   useEffect(() => {
@@ -69,32 +115,22 @@ export default function CheckoutPage() {
 
     loadCart();
     
-    // 嘗試從 localStorage 加載客戶數據（不依賴於 LIFF）
-    try {
-      const savedCustomerData = localStorage.getItem('customerData');
-      if (savedCustomerData) {
-        const parsedData = JSON.parse(savedCustomerData);
-        console.log('從 localStorage 讀取到客戶資料:', parsedData);
-        
-        // 調試輸出 lineId 資訊
-        if (parsedData && parsedData.lineId) {
-          console.log('從 localStorage 讀取到 LINE ID:', parsedData.lineId);
-        } else {
-          console.warn('localStorage 中的客戶資料不包含 LINE ID');
-        }
-        
-        if (parsedData) {
-          setFormData(prev => ({
-            ...prev,
-            customerName: parsedData.name || prev.customerName,
-            email: parsedData.email || prev.email,
-            phone: parsedData.phone || prev.phone,
-            address: parsedData.address || prev.address
-          }));
-        }
-      }
-    } catch (e) {
-      console.error('解析本地客戶資料失敗', e);
+    // 嘗試從 localStorage 加載客戶數據
+    const localCustomerData = getCustomerDataFromLocalStorage();
+    if (localCustomerData) {
+      setFormData(prev => ({
+        ...prev,
+        customerName: localCustomerData.name || prev.customerName,
+        email: localCustomerData.email || prev.email,
+        phone: localCustomerData.phone || prev.phone,
+        address: localCustomerData.address || prev.address,
+        // 使用非類型安全的方式訪問屬性
+        taxId: (localCustomerData as any).taxId || prev.taxId,
+        carrier: (localCustomerData as any).carrier || prev.carrier,
+        // 根據已有資料設定預設發票類型
+        invoiceType: (localCustomerData as any).taxId ? 'taxId' : 
+                    (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType
+      }));
     }
   }, []);
 
@@ -121,7 +157,13 @@ export default function CheckoutPage() {
         customerName: customerData.name || prev.customerName,
         email: customerData.email || prev.email,
         phone: customerData.phone || prev.phone,
-        address: customerData.address || prev.address
+        address: customerData.address || prev.address,
+        // 使用非類型安全的方式訪問屬性
+        taxId: (customerData as any).taxId || prev.taxId,
+        carrier: (customerData as any).carrier || prev.carrier,
+        // 根據已有資料設定預設發票類型
+        invoiceType: (customerData as any).taxId ? 'taxId' : 
+                    (customerData as any).carrier ? 'carrier' : prev.invoiceType
       }));
       console.log('已從 LiffProvider 中獲取的客戶資料自動填充表單', customerData);
       return;
@@ -131,21 +173,22 @@ export default function CheckoutPage() {
     if (isLoggedIn && !liffLoading && profile && profile.userId) {
       console.log('LINE 用戶已登入，ID:', profile.userId);
       
-      const savedCustomerData = localStorage.getItem('customerData');
-      if (savedCustomerData) {
-        try {
-          const parsedData = JSON.parse(savedCustomerData);
-          setFormData(prev => ({
+      const localCustomerData = getCustomerDataFromLocalStorage();
+      if (localCustomerData) {
+                  setFormData(prev => ({
             ...prev,
-            customerName: parsedData.name || prev.customerName,
-            email: parsedData.email || prev.email,
-            phone: parsedData.phone || prev.phone,
-            address: parsedData.address || prev.address
+            customerName: localCustomerData.name || prev.customerName,
+            email: localCustomerData.email || prev.email,
+            phone: localCustomerData.phone || prev.phone,
+            address: localCustomerData.address || prev.address,
+            // 使用非類型安全的方式訪問屬性
+            taxId: (localCustomerData as any).taxId || prev.taxId,
+            carrier: (localCustomerData as any).carrier || prev.carrier,
+            // 根據已有資料設定預設發票類型
+            invoiceType: (localCustomerData as any).taxId ? 'taxId' : 
+                        (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType
           }));
-          console.log('已從儲存的客戶資料中自動填充表單', parsedData);
-        } catch (e) {
-          console.error('解析客戶資料失敗', e);
-        }
+        console.log('已從儲存的客戶資料中自動填充表單', localCustomerData);
       }
     }
   }, [isLoggedIn, liffLoading, profile, customerData]);
@@ -157,14 +200,59 @@ export default function CheckoutPage() {
     }
   }, [cart, loading, router]);
 
-  // 計算總金額
-  const calculateTotal = () => {
+  // 使用 useMemo 優化計算商品小計
+  const subtotal = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  }, [cart]);
+
+  // 計算運費
+  const shippingFee = useMemo(() => {
+    // 自取不需要運費
+    if (shippingMethod === 'pickup') {
+      return 0;
+    }
+    
+    // 訂單金額超過3500免運費，否則運費200元
+    return subtotal >= 3500 ? 0 : 200;
+  }, [shippingMethod, subtotal]);
+
+  // 計算總金額
+  const total = useMemo(() => {
+    return subtotal + shippingFee;
+  }, [subtotal, shippingFee]);
+
+  // 計算預設自取日期時間（D+3，不含週六，固定15:00）
+  const calculateDefaultPickupDateTime = (): string => {
+    const today = new Date();
+    let futureDate = new Date(today);
+    
+    // 先加3天
+    futureDate.setDate(today.getDate() + 3);
+    
+    // 檢查是否為週六 (6 代表週六)
+    if (futureDate.getDay() === 6) {
+      // 如果是週六，再加2天變成週一
+      futureDate.setDate(futureDate.getDate() + 2);
+    }
+    
+    // 設定時間為 15:00
+    futureDate.setHours(15, 0, 0, 0);
+    
+    // 格式化為 YYYY-MM-DDTHH:MM 格式，以便用於 datetime-local 輸入框
+    const year = futureDate.getFullYear();
+    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+    const day = String(futureDate.getDate()).padStart(2, '0');
+    const hours = String(futureDate.getHours()).padStart(2, '0');
+    const minutes = String(futureDate.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   };
 
   // 表單值變更處理
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // 正常更新欄位
     setFormData({
       ...formData,
       [name]: value
@@ -177,13 +265,99 @@ export default function CheckoutPage() {
     });
   };
 
+  // 處理發票類型選擇
+  const handleInvoiceTypeChange = (type: 'taxId' | 'carrier') => {
+    setFormData({
+      ...formData,
+      invoiceType: type
+    });
+  };
+
+  // 配送方式變更處理
+  const handleShippingMethodChange = (method: ShippingMethod) => {
+    // 暫存當前配送方式以便比較
+    const prevMethod = shippingMethod;
+    
+    // 更新配送方式
+    setShippingMethod(method);
+    
+    // 如果切換到自取，重置地址驗證狀態和地址欄位
+    if (method === 'pickup') {
+      // 如果從其他配送方式切換到自取，暫存地址資訊並清空地址欄位
+      if (prevMethod !== 'pickup' && formData.address) {
+        // 將地址暫存到localStorage中的tempAddress欄位
+        try {
+          // 取得現有的客戶資料
+          const localData = getCustomerDataFromLocalStorage() || {};
+          // 添加暫存地址
+          localStorage.setItem('customerData', JSON.stringify({
+            ...localData,
+            tempAddress: formData.address
+          }));
+          
+          // 清空表單中的地址欄位，設置預設自取日期時間
+          setFormData(prev => ({
+            ...prev,
+            address: '',
+            pickupDateTime: calculateDefaultPickupDateTime() // 設置預設自取日期時間
+          }));
+        } catch (error) {
+          console.error('暫存地址失敗', error);
+        }
+      } else if (prevMethod !== 'pickup' && !formData.pickupDateTime) {
+        // 如果沒有地址需要暫存，但需要設置預設自取日期時間
+        setFormData(prev => ({
+          ...prev,
+          pickupDateTime: calculateDefaultPickupDateTime()
+        }));
+      }
+      
+      // 重置地址驗證狀態，啟用自取日期時間驗證
+      setValidation(prev => ({
+        ...prev,
+        address: true,
+        pickupDateTime: true
+      }));
+    } else if (prevMethod === 'pickup') {
+      // 從自取切換到其他配送方式，嘗試恢復之前暫存的地址
+      try {
+        const localData = getCustomerDataFromLocalStorage();
+        if (localData && localData.tempAddress) {
+          // 恢復之前的地址
+          setFormData(prev => ({
+            ...prev,
+            address: localData.tempAddress || '',
+            pickupDateTime: '' // 清空自取日期時間
+          }));
+          
+          // 可以選擇性地從localStorage中移除暫存地址
+          const updatedData = {...localData};
+          delete updatedData.tempAddress;
+          localStorage.setItem('customerData', JSON.stringify(updatedData));
+        } else if (localData && localData.address) {
+          // 如果沒有暫存地址但有正常保存的地址，使用它
+          setFormData(prev => ({
+            ...prev,
+            address: localData.address || '',
+            pickupDateTime: '' // 清空自取日期時間
+          }));
+        }
+      } catch (error) {
+        console.error('恢復地址失敗', error);
+      }
+    }
+  };
+
   // 驗證表單
   const validateForm = (): boolean => {
     const newValidation = {
       name: !!formData.customerName,
       email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email),
       phone: /^09\d{8}$/.test(formData.phone),
-      address: !!formData.address
+      // 如果是自取，則驗證自取日期時間而非地址
+      address: shippingMethod === 'pickup' ? true : !!formData.address,
+      // 如果是自取，則檢查自取日期時間是否已填寫
+      pickupDateTime: shippingMethod === 'pickup' ? !!formData.pickupDateTime : true
     };
 
     setValidation(newValidation);
@@ -199,8 +373,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    // 檢查是否在 LINE 應用內
-    if (liff && !liff.isInClient()) {
+    // 檢查是否在 LINE 應用內 - 開發環境下忽略此檢查
+    if (liff && !liff.isInClient() && process.env.NODE_ENV !== 'development') {
       setFormError('請在 LINE 應用內完成訂單，以確保能正確關聯您的 LINE 帳號');
       return;
     }
@@ -216,22 +390,18 @@ export default function CheckoutPage() {
       console.warn('無法從 LIFF SDK 獲取 LINE 用戶 ID，嘗試從 localStorage 讀取');
       
       // 嘗試從 localStorage 獲取
-      try {
-        const savedCustomerData = localStorage.getItem('customerData');
-        if (savedCustomerData) {
-          const parsedData = JSON.parse(savedCustomerData);
-          if (parsedData && parsedData.lineId) {
-            lineUserId = parsedData.lineId;
-            console.log('從 localStorage 成功獲取 LINE 用戶 ID:', lineUserId);
-          }
-        }
-      } catch (error) {
-        console.error('從 localStorage 解析 LINE 用戶 ID 失敗:', error);
+      const localCustomerData = getCustomerDataFromLocalStorage();
+      if (localCustomerData && localCustomerData.lineId) {
+        lineUserId = localCustomerData.lineId;
+        console.log('從 localStorage 成功獲取 LINE 用戶 ID:', lineUserId);
       }
     }
     
-    // 如果仍然無法獲取 LINE ID，顯示錯誤並中止提交
-    if (!lineUserId) {
+    // 如果仍然無法獲取 LINE ID，設置默認值或在開發環境中繼續 - 僅用於開發目的
+    if (!lineUserId && process.env.NODE_ENV === 'development') {
+      lineUserId = 'dev_' + Date.now();
+      console.warn('開發環境下使用臨時 LINE ID:', lineUserId);
+    } else if (!lineUserId) {
       console.error('未能獲取 LINE 用戶 ID (LIFF 和 localStorage 均失敗)');
       
       // 顯示適當的錯誤訊息
@@ -266,12 +436,27 @@ export default function CheckoutPage() {
       name: formData.customerName,
       email: formData.email,
       phone: formData.phone,
-      address: formData.address
+      address: formData.address,
+      taxId: formData.taxId,
+      carrier: formData.carrier,
+      pickupDateTime: formData.pickupDateTime,
+      invoiceType: formData.invoiceType
     };
     
     // 使用 LiffProvider 提供的方法更新客戶資料
     updateCustomerData(customerDataToSave);
     console.log('結帳頁面: 已更新客戶資料', customerDataToSave);
+
+    // 獲取運費與付款方式
+    const paymentMethod = shippingMethod === 'takkyubin_cod' ? 'cod' : 'bank_transfer';
+
+    // 嘗試從 localStorage 獲取客戶資料
+    const localCustomerData = getCustomerDataFromLocalStorage();
+
+    // 處理自取地址，包含預計自取日期時間
+    const addressForApi = shippingMethod === 'pickup' 
+      ? `自取 - 預計自取時間: ${formData.pickupDateTime}` 
+      : formData.address;
 
     // 準備訂單資料（根據新的 API 規格調整）
     const orderData = {
@@ -287,14 +472,21 @@ export default function CheckoutPage() {
       shipping_address: {
         recipientName: formData.customerName,
         phone: formData.phone,
-        address1: formData.address,
+        address1: addressForApi,
         city: "", // 可以根據需求添加這些字段
         postal_code: ""
       },
+      // 新增配送方式與付款方式
+      shipping_method: shippingMethod,
+      payment_method: paymentMethod,
+      shipping_fee: shippingFee,
       // 選填項目
-      salesperson_code: "",
+      salesperson_code: localCustomerData?.customerId || "", 
       // 使用獲取到的 LINE 用戶 ID
-      lineid: lineUserId
+      lineid: lineUserId,
+      // 新增統編和載具資訊，只傳送選中的類型
+      taxId: formData.invoiceType === 'taxId' ? formData.taxId : '',
+      carrier: formData.invoiceType === 'carrier' ? formData.carrier : ''
     };
 
     // LINE 用戶資訊記錄（用於調試）
@@ -332,12 +524,17 @@ export default function CheckoutPage() {
       // 將訂單數據編碼為 URL 安全的字符串
       const encodedItems = encodeURIComponent(JSON.stringify(orderItems));
       
-      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}`);
-
-      // 清空購物車
+      // 清空購物車 - 僅在訂單成功建立後執行
       localStorage.removeItem('bakeryCart');
-      
       setPaymentStatus('success');
+      
+      // 獲取API返回的運費（如果有）
+      const shippingFeeFromAPI = data.order.shipping_fee || shippingFee;
+      
+      // 添加自取日期時間參數
+      const pickupDateTimeParam = shippingMethod === 'pickup' ? `&pickupDateTime=${encodeURIComponent(formData.pickupDateTime)}` : '';
+      
+      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}`);
     } catch (error) {
       console.error('結帳失敗', error);
       setFormError('結帳過程中發生錯誤，請稍後再試');
@@ -347,6 +544,17 @@ export default function CheckoutPage() {
     }
   };
 
+  // 頁面初次載入或配送方式變更時，設置預設自取日期時間
+  useEffect(() => {
+    // 如果是自取模式且沒有設置自取日期時間，則設置預設值
+    if (shippingMethod === 'pickup' && !formData.pickupDateTime) {
+      setFormData(prev => ({
+        ...prev,
+        pickupDateTime: calculateDefaultPickupDateTime()
+      }));
+    }
+  }, [shippingMethod, formData.pickupDateTime]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -354,6 +562,20 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  // 根據配送方式顯示對應的說明文字
+  const getShippingMethodDescription = () => {
+    switch(shippingMethod) {
+      case 'takkyubin_payment':
+        return '全台配送，商品以低溫冷凍宅配\n需先匯款';
+      case 'takkyubin_cod':
+        return '全台配送，商品以低溫冷凍宅配\n貨到付款';
+      case 'pickup':
+        return '自取商品';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -365,6 +587,51 @@ export default function CheckoutPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 左側 - 購物車商品概覽與顧客資料輸入表單 */}
         <div className="lg:col-span-2">
+          {/* 手機版先顯示配送方式 */}
+          <div className="lg:hidden bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">配送方式</h2>
+            <div className="space-y-3">
+              <div 
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_payment')}
+              >
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">匯款</span></div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>需先匯款</div>
+                </div>
+              </div>
+              
+              {/* <div 
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_cod')}
+              >
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  {shippingMethod === 'takkyubin_cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-sm font-bold">貨到付款</span></div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>收貨時付款</div>
+                </div>
+              </div> */}
+              
+              <div 
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('pickup')}
+              >
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <div className="font-medium">自取</div>
+                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品 (取貨時付款)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* 商品列表 */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">訂購商品</h2>
@@ -393,15 +660,22 @@ export default function CheckoutPage() {
             <div className="border-t pt-4 mt-4">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 font-medium">小計</span>
-                <span className="font-medium">${calculateTotal().toFixed(2)}</span>
+                <span className="font-medium">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 font-medium">運費</span>
-                <span className="font-medium">$0.00</span>
+                <span className="font-medium">
+                  {shippingMethod === 'pickup' ? '免運費' : (
+                    shippingFee === 0 ? '免運費' : `$${shippingFee.toFixed(2)}`
+                  )}
+                  {shippingMethod !== 'pickup' && shippingFee > 0 && (
+                    <span className="text-xs text-gray-500 ml-2">（訂單達$3,500免運費）</span>
+                  )}
+                </span>
               </div>
               <div className="flex justify-between items-center mt-4 text-lg">
                 <span className="font-bold">總計</span>
-                <span className="font-bold text-amber-600">${calculateTotal().toFixed(2)}</span>
+                <span className="font-bold text-amber-600">${total.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -418,7 +692,7 @@ export default function CheckoutPage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="customerName" className="block text-gray-700 mb-1">姓名 *</label>
+                <label htmlFor="customerName" className="block text-gray-700 mb-1">姓名(收件者) *</label>
                 <input
                   type="text"
                   id="customerName"
@@ -464,20 +738,119 @@ export default function CheckoutPage() {
                 {!validation.phone && <p className="text-red-500 text-sm mt-1">請輸入有效的手機號碼（格式：09XXXXXXXX）</p>}
               </div>
               
+              {/* 如果是自取，顯示自取日期時間；否則顯示地址欄位 */}
+              {shippingMethod === 'pickup' ? (
+                <div>
+                  <label htmlFor="pickupDateTime" className="block text-gray-700 mb-1">預計自取日期時間 *</label>
+                  <input
+                    type="datetime-local"
+                    id="pickupDateTime"
+                    name="pickupDateTime"
+                    value={formData.pickupDateTime}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md ${!validation.pickupDateTime ? 'border-red-500' : 'border-gray-300'}`}
+                    required
+                  />
+                  {!validation.pickupDateTime && <p className="text-red-500 text-sm mt-1">請選擇預計自取日期時間</p>}
+                  <p className="text-gray-500 text-sm mt-1">預設時間為下單日後3天(不含周六)下午3點</p>
+                  <p className="text-gray-500 text-sm mt-1">可自行調整其他時間</p>
+                  <p className="text-gray-500 text-sm">自取地址：桃園市蘆竹區油管路一段696號</p>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="address" className="block text-gray-700 mb-1">收件地址 *</label>
+                  <input
+                    type="text"
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-md ${!validation.address ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="請輸入您的詳細地址"
+                    required
+                  />
+                  {!validation.address && <p className="text-red-500 text-sm mt-1">請輸入收件地址</p>}
+                </div>
+              )}
+            </div>
+
+            {/* 增加統編和載具欄位 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="address" className="block text-gray-700 mb-1">收件地址 *</label>
+                <label htmlFor="taxId" className="block text-gray-700 mb-1">統一編號 (選填)</label>
                 <input
                   type="text"
-                  id="address"
-                  name="address"
-                  value={formData.address}
+                  id="taxId"
+                  name="taxId"
+                  value={formData.taxId}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md ${!validation.address ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="請輸入您的詳細地址"
-                  required
+                  className="w-full px-3 py-2 border rounded-md border-gray-300"
+                  placeholder="請輸入統一編號"
                 />
-                {!validation.address && <p className="text-red-500 text-sm mt-1">請輸入收件地址</p>}
               </div>
+              
+              <div>
+                <label htmlFor="carrier" className="block text-gray-700 mb-1">載具編號 (選填)</label>
+                <input
+                  type="text"
+                  id="carrier"
+                  name="carrier"
+                  value={formData.carrier}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border rounded-md border-gray-300"
+                  placeholder="/手機條碼載具"
+                />
+              </div>
+            </div>
+
+            {/* 當統編和載具都有值時，顯示選擇器 */}
+            {formData.taxId && formData.carrier && (
+              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-amber-800 font-medium mb-3">請選擇要使用的類型：</p>
+                <div className="space-y-2">
+                  <div 
+                    className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${
+                      formData.invoiceType === 'taxId' 
+                        ? 'border-amber-500 bg-amber-100' 
+                        : 'border-gray-300 bg-white hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleInvoiceTypeChange('taxId')}
+                  >
+                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-3 flex items-center justify-center">
+                      {formData.invoiceType === 'taxId' && (
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium">統一編號</div>
+                      <div className="text-sm text-gray-600">{formData.taxId}</div>
+                    </div>
+                  </div>
+                  
+                  <div 
+                    className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${
+                      formData.invoiceType === 'carrier' 
+                        ? 'border-amber-500 bg-amber-100' 
+                        : 'border-gray-300 bg-white hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleInvoiceTypeChange('carrier')}
+                  >
+                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-3 flex items-center justify-center">
+                      {formData.invoiceType === 'carrier' && (
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium">載具編號</div>
+                      <div className="text-sm text-gray-600">{formData.carrier}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mb-4 text-sm text-gray-500">
+              <p>註：統一編號和載具編號只能擇一使用</p>
             </div>
             
             {/* 只在開發環境顯示的 Debug 信息 */}
@@ -489,16 +862,8 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={() => {
                       // 檢查 localStorage 中的 LINE ID
-                      let localStorageLineId = '未獲取';
-                      try {
-                        const savedData = localStorage.getItem('customerData');
-                        if (savedData) {
-                          const parsedData = JSON.parse(savedData);
-                          localStorageLineId = parsedData.lineId || '未獲取';
-                        }
-                      } catch (e) {
-                        localStorageLineId = '解析錯誤';
-                      }
+                      const localCustomerData = getCustomerDataFromLocalStorage();
+                      const localStorageLineId = localCustomerData?.lineId || '未獲取';
                       
                       console.log('目前顧客資料狀態:', {
                         formData,
@@ -506,9 +871,7 @@ export default function CheckoutPage() {
                         profile,
                         lineIdFromProfile: profile?.userId || '未獲取',
                         lineIdFromLocalStorage: localStorageLineId,
-                        localStorage: localStorage.getItem('customerData')
-                          ? JSON.parse(localStorage.getItem('customerData') || '{}')
-                          : null
+                        localStorage: getCustomerDataFromLocalStorage()
                       });
                     }}
                     className="text-blue-600 hover:text-blue-800"
@@ -521,16 +884,8 @@ export default function CheckoutPage() {
                   <div>CustomerData: {customerData ? '已載入' : '未載入'}</div>
                   <div>LINE ID (LIFF): {profile?.userId || '未獲取'}</div>
                   <div>LINE ID (localStorage): {(() => {
-                    try {
-                      const savedData = localStorage.getItem('customerData');
-                      if (savedData) {
-                        const parsedData = JSON.parse(savedData);
-                        return parsedData.lineId || '未獲取';
-                      }
-                      return '未獲取';
-                    } catch (e) {
-                      return '解析錯誤';
-                    }
+                    const localCustomerData = getCustomerDataFromLocalStorage();
+                    return localCustomerData?.lineId || '未獲取';
                   })()}</div>
                 </div>
               </div>
@@ -538,20 +893,48 @@ export default function CheckoutPage() {
           </form>
         </div>
 
-        {/* 右側 - 付款方式與確認訂單 */}
+        {/* 右側 - 配送方式與確認訂單 */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          {/* 大螢幕才顯示配送方式區塊 */}
+          <div className="hidden lg:block bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">配送方式</h2>
             <div className="space-y-3">
               <div 
-                className="border rounded-md p-3 flex items-center border-amber-500 bg-amber-50"
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_payment')}
               >
                 <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  <div className="w-3 h-3 bg-amber-600 rounded-full"></div>
+                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                 </div>
                 <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍)</div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
+                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">匯款</span></div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>需先匯款</div>
+                </div>
+              </div>
+              
+              <div 
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_cod')}
+              >
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  {shippingMethod === 'takkyubin_cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-sm font-bold">貨到付款</span></div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>收貨時付款</div>
+                </div>
+              </div>
+              
+              <div 
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('pickup')}
+              >
+                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                  {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                </div>
+                <div className="flex-grow">
+                  <div className="font-medium">自取</div>
+                  <div className="text-sm text-gray-500">請至店面自取商品</div>
                 </div>
               </div>
             </div>
@@ -574,13 +957,43 @@ export default function CheckoutPage() {
               )}
             </button>
             
-           
-            
-            <Link href="/client/bakery" className="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 py-3 rounded-md flex items-center justify-center text-center transition-colors">
+            <Link 
+              href="/client/bakery#products" 
+              className="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 py-3 rounded-md flex items-center justify-center text-center transition-colors"
+              onClick={(e) => {
+                // 確保不清空購物車（除非提交訂單成功）
+                if (paymentStatus === 'success') {
+                  // 如果訂單已成功，允許清空購物車
+                  return;
+                }
+                
+                // 在返回購物頁面前，確保購物車數據在 localStorage 中存在
+                try {
+                  const currentCart = localStorage.getItem('bakeryCart');
+                  if (!currentCart && cart.length > 0) {
+                    // 如果 localStorage 中沒有購物車數據但當前頁面有，則保存它
+                    localStorage.setItem('bakeryCart', JSON.stringify(cart));
+                    console.log('返回購物頁前保存購物車數據:', cart);
+                  }
+                } catch (error) {
+                  console.error('保存購物車數據失敗:', error);
+                }
+              }}
+            >
               返回購物
             </Link>
           </div>
         </div>
+      </div>
+      
+      {/* 隱私權政策和服務條款連結 */}
+      <div className="mt-8 text-center text-sm text-gray-500">
+        <p>
+          提交訂單即表示您同意我們的
+          <Link href="/client/privacy-policy" className="text-amber-600 hover:text-amber-800 mx-1">隱私權政策</Link>
+          和
+          <Link href="/client/terms-of-service" className="text-amber-600 hover:text-amber-800 mx-1">服務條款</Link>
+        </p>
       </div>
     </div>
   );

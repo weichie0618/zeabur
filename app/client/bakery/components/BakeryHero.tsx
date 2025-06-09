@@ -28,7 +28,13 @@ export const BakeryHero: React.FC = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
           >
-            採用頂級食材，每日新鮮製作，帶給您最道地的烘焙美食體驗。
+            配送資訊<br/>
+            自取 - 免運<br/>
+            地址：桃園市蘆竹區油管路一段696號<br/>
+            <br/>
+            本島低溫宅配<br/>
+            滿3500元免運<br/>
+            未滿3500元、每件運費200元
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 20 }}

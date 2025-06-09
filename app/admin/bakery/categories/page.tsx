@@ -1,6 +1,14 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  getToken, 
+  getAuthHeaders, 
+  initializeAuth, 
+  handleAuthError, 
+  handleRelogin, 
+  setupAuthWarningAutoHide
+} from '../utils/authService';
 
 // 定義分類類型
 interface Category {
@@ -36,6 +44,10 @@ export default function CategoriesManagement() {
     totalPages: 1
   });
   
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  
   // 篩選相關狀態
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedParentCategory, setSelectedParentCategory] = useState('');
@@ -62,20 +74,60 @@ export default function CategoriesManagement() {
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning,
+      false // 不自動重定向
+    );
+  }, []);
+  
+  // 處理認證錯誤
+  const handleAuthErrorCallback = (errorMessage: string) => {
+    handleAuthError(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 處理重新登入
+  const handleReloginCallback = () => {
+    handleRelogin();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+  
   // 獲取分類列表 - 只負責初始加載所有分類
   const fetchCategories = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // 不再添加篩選參數，只獲取所有數據
+      // 獲取認證令牌和標頭
+      const token = accessToken || getToken();
+      const headers = getAuthHeaders(token);
+      
+      // 添加排序參數，避免使用不存在的sort欄位
       const timestamp = Date.now();
-      const apiUrl = `/api/categories?t=${timestamp}`;
+      const apiUrl = `/api/categories?t=${timestamp}&sortBy=id&order=ASC`;
       console.log('發送請求到:', apiUrl);
       
-      // 發送GET請求
-      const response = await fetch(apiUrl);
+      // 發送GET請求，添加認證標頭
+      const response = await fetch(apiUrl, {
+        headers: headers,
+        credentials: 'include',
+      });
       console.log('獲得回應狀態:', response.status);
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthErrorCallback('獲取分類時認證失敗');
+        return;
+      }
       
       if (!response.ok) {
         const errorText = await response.text();
@@ -174,8 +226,10 @@ export default function CategoriesManagement() {
   
   // 初始加載
   useEffect(() => {
-    fetchCategories();
-  }, []); // 只在組件掛載時獲取數據
+    if (accessToken) {
+      fetchCategories();
+    }
+  }, [accessToken]); // 當令牌變更時重新獲取數據
   
   // 分頁變更時本地篩選
   useEffect(() => {
@@ -299,9 +353,25 @@ export default function CategoriesManagement() {
     setDeleteSuccess(null);
     
     try {
+      // 檢查令牌是否存在
+      if (!accessToken) {
+        handleAuthErrorCallback('刪除分類時缺少認證令牌');
+        return;
+      }
+      
       const response = await fetch(`/api/categories/${deletingCategoryId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
       });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthErrorCallback('刪除分類時認證失敗');
+        setShowDeleteConfirm(false);
+        setDeletingCategoryId(null);
+        return;
+      }
       
       const data = await response.json();
       
@@ -357,17 +427,54 @@ export default function CategoriesManagement() {
   
   return (
     <div>
+      {/* 頂部認證警告條 */}
+      {showAuthWarning && error && error.includes('認證') && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-100 border-b border-red-200 text-red-700 px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>未獲取到認證令牌，請重新登入</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setShowAuthWarning(false)} 
+              className="text-red-700 hover:text-red-900"
+            >
+              關閉
+            </button>
+            <button 
+              onClick={handleReloginCallback}
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+            >
+              重新登入
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="mb-6 flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-800">分類管理</h1>
-        <button
-          onClick={handleAddCategory}
-          className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md flex items-center text-sm transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          新增分類
-        </button>
+        <div className="flex items-center space-x-2">
+          <Link
+            href="/admin/bakery/categories/sort"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center text-sm transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+            分類排序
+          </Link>
+          <button
+            onClick={handleAddCategory}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md flex items-center text-sm transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            新增分類
+          </button>
+        </div>
       </div>
       
       {/* 篩選區塊 */}

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -197,6 +197,17 @@ export default function CVSPaymentPage() {
     );
   }
   
-  // 只在客戶端渲染時返回實際內容
-  return <CVSPaymentContent />;
+  // 使用 Suspense 包裹實際內容
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">載入付款資訊中...</p>
+        </div>
+      </div>
+    }>
+      <CVSPaymentContent />
+    </Suspense>
+  );
 } 

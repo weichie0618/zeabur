@@ -16,12 +16,16 @@ const nextConfig: NextConfig = {
         destination: "/api/upload",
       },
       {
+        source: "/api/images/:path*",
+        destination: "/api/images/:path*",
+      },
+      {
         source: "/api/sample-request",
         destination: "/api/sample-request",
       },
       {
         source: "/api/:path*",
-        destination: "http://localhost:4000/api/:path*",
+        destination: "http://192.168.0.213:4000/api/:path*",
       },
     ];
   },

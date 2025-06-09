@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import RegistrationForm from "./RegistrationForm";
 import LineActivationForm from "./LineActivationForm";
@@ -12,7 +12,8 @@ declare global {
   }
 }
 
-export function LineActivationClient() {
+// 分離處理 SearchParams 的組件
+function ActivationContent() {
   const searchParams = useSearchParams();
   const [liffObject, setLiffObject] = useState<any>(null);
   const [lineProfile, setLineProfile] = useState<any>(null);
@@ -220,5 +221,23 @@ export function LineActivationClient() {
         </div>
       </div>
     </>
+  );
+}
+
+// 主組件使用 Suspense 包裝
+export function LineActivationClient() {
+  return (
+    <Suspense fallback={
+      <div className="p-6">
+        <div className="mb-6 text-center">
+          <h2 className="text-xl font-semibold text-gray-800">載入中...</h2>
+        </div>
+        <div className="flex justify-center">
+          <div className="animate-spin h-8 w-8 border-b-2 border-blue-500 rounded-full"></div>
+        </div>
+      </div>
+    }>
+      <ActivationContent />
+    </Suspense>
   );
 } 

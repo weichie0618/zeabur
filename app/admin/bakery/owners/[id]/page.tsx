@@ -79,6 +79,9 @@ export default function OwnerDetails() {
       setAccessToken(token);
     } else {
       setError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
       setLoading(false);
     }
     

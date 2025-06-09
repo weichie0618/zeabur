@@ -1,9 +1,19 @@
 'use client';
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import fs from 'fs/promises';
-import path from 'path';
+import Image from 'next/image';
+
+// 定義分類類型
+interface Category {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  level: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 // 定義動畫樣式
 const animationStyles = `
@@ -38,25 +48,58 @@ export default function NewProduct() {
   // 新增檔案上傳狀態
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   const [uploadedImagePath, setUploadedImagePath] = useState<string>('');
+  
+  // 預覽相關狀態
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [showPreviewAnimation, setShowPreviewAnimation] = useState(false);
+  
+  // 分類列表
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   // 表單狀態 - 只保留API所需欄位
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
     description: '',
     price: '',
     discount_price: '',
-    category_id: '',
+    categoryId: '',
     status: 'active', // 預設為 active
     specification: '', // 新增產品規格欄位
+    unit_code: '', // 新增單位代號欄位
     images: '' // 新增儲存圖片路徑
   });
 
   // 表單錯誤狀態
   const [formErrors, setFormErrors] = useState({
+    id: false,
     name: false,
     price: false,
-    category_id: false
+    categoryId: false
   });
+
+  // 載入分類資料
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await fetch('/api/categories');
+        if (!response.ok) {
+          throw new Error('無法獲取分類資料');
+        }
+        const data = await response.json();
+        setCategories(data);
+      } catch (error) {
+        console.error('載入分類失敗:', error);
+        setErrorMessage('無法載入產品分類，請重新整理頁面');
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // 處理輸入變更
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -69,7 +112,7 @@ export default function NewProduct() {
         apiField = 'name';
         break;
       case 'product-category':
-        apiField = 'category_id';
+        apiField = 'categoryId';
         break;
       case 'product-description':
         apiField = 'description';
@@ -86,6 +129,9 @@ export default function NewProduct() {
       case 'product-specification':
         apiField = 'specification';
         break;
+      case 'unit_code':
+        apiField = 'unit_code';
+        break;
       default:
         apiField = id;
     }
@@ -96,7 +142,7 @@ export default function NewProduct() {
     }));
     
     // 清除對應的錯誤狀態
-    if (apiField === 'name' || apiField === 'price' || apiField === 'category_id') {
+    if (apiField === 'name' || apiField === 'price' || apiField === 'categoryId') {
       setFormErrors(prev => ({
         ...prev,
         [apiField]: false
@@ -133,20 +179,34 @@ export default function NewProduct() {
     return true;
   };
 
-  // 處理圖片上傳
+  // 處理圖片上傳 - 改進支援圖片預覽
   const processImagePreview = async (file: File) => {
     try {
-      // 設定檔案名稱為產品名稱
-      const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${Math.random().toString(36).substring(2, 15)}.jpg`;
+      // 設定檔案名稱為產品名稱和ID
+      const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${formData.id}.jpg`;
+      
+      // 使用 FileReader 創建本地預覽 URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setPreviewUrl(e.target.result as string);
+          
+          // 顯示動畫效果
+          setShowPreviewAnimation(true);
+          setTimeout(() => setShowPreviewAnimation(false), 1000);
+        }
+      };
+      reader.readAsDataURL(file);
       
       // 保存上傳的文件信息
       setUploadedImage(file);
-      setUploadedImagePath(`/bakery/${fileName}`);
+      // 更新API路徑格式
+      setUploadedImagePath(`/api/images/bakery/${fileName}`);
       
       // 更新表單數據中的圖片路徑
       setFormData(prev => ({
         ...prev,
-        images: `/bakery/${fileName}`
+        images: `/api/images/bakery/${fileName}`
       }));
       
       setErrorMessage('');
@@ -216,9 +276,10 @@ export default function NewProduct() {
   // 表單驗證
   const validateForm = () => {
     const errors = {
+      id: !formData.id.trim(),
       name: !formData.name.trim(),
       price: !formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0,
-      category_id: !formData.category_id
+      categoryId: !formData.categoryId
     };
     
     setFormErrors(errors);
@@ -242,10 +303,11 @@ export default function NewProduct() {
       // 如果有上傳圖片，先處理圖片上傳
       if (uploadedImage) {
         const formDataUpload = new FormData();
-        const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${Math.random().toString(36).substring(2, 15)}.jpg`;
+        const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${formData.id}.jpg`;
         
         formDataUpload.append('file', uploadedImage, fileName);
-        formDataUpload.append('destination', 'public/bakery');
+        // 更新目標路徑為uploads/bakery
+        formDataUpload.append('destination', 'uploads/bakery');
         
         // 發送圖片上傳請求
         const uploadResponse = await fetch('/api/upload', {
@@ -261,13 +323,15 @@ export default function NewProduct() {
       
       // 準備API請求資料
       const apiData = {
+        id: formData.id,
         name: formData.name,
         description: formData.description,
         price: Number(formData.price),
         discount_price: formData.discount_price ? Number(formData.discount_price) : undefined,
-        category_id: Number(formData.category_id),
+        categoryId: Number(formData.categoryId),
         images: uploadedImagePath, // 更新為上傳後的圖片路徑
         specification: formData.specification || undefined, // 添加產品規格
+        unit_code: formData.unit_code || undefined, // 添加單位代號
         status: formData.status || 'active'
       };
       
@@ -396,6 +460,36 @@ export default function NewProduct() {
               </div>
 
               <div className="sm:col-span-3">
+                <label htmlFor="product-id" className="block text-sm font-medium text-gray-700">
+                  產品編號<span className="text-red-500">*</span>
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    id="product-id"
+                    placeholder="輸入產品編號"
+                    className={`shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-base py-3 ${formErrors.id ? 'border-red-300' : 'border-gray-300'} rounded-md`}
+                    value={formData.id}
+                    onChange={(e) => {
+                      const { value } = e.target;
+                      setFormData(prev => ({
+                        ...prev,
+                        id: value
+                      }));
+                      if (value.trim()) {
+                        setFormErrors(prev => ({
+                          ...prev,
+                          id: false
+                        }));
+                      }
+                    }}
+                    required
+                  />
+                  {formErrors.id && <p className="mt-1 text-sm text-red-600">請輸入產品編號</p>}
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
                 <label htmlFor="product-name" className="block text-sm font-medium text-gray-700">
                   產品名稱<span className="text-red-500">*</span>
                 </label>
@@ -420,19 +514,24 @@ export default function NewProduct() {
                 <div className="mt-1">
                   <select
                     id="product-category"
-                    className={`shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-base py-3 ${formErrors.category_id ? 'border-red-300' : 'border-gray-300'} rounded-md`}
-                    value={formData.category_id}
+                      className={`shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-base py-3 ${formErrors.categoryId ? 'border-red-300' : 'border-gray-300'} rounded-md`}
+                    value={formData.categoryId}
                     onChange={handleInputChange}
                     required
+                    disabled={loadingCategories}
                   >
                     <option value="">選擇分類</option>
-                    <option value="1">麵包</option>
-                    <option value="2">蛋糕</option>
-                    <option value="3">餅乾</option>
-                    <option value="4">甜點</option>
-                    <option value="5">飲料</option>
+                    {loadingCategories ? (
+                      <option value="" disabled>載入中...</option>
+                    ) : (
+                      categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))
+                    )}
                   </select>
-                  {formErrors.category_id && <p className="mt-1 text-sm text-red-600">請選擇產品分類</p>}
+                  {formErrors.categoryId && <p className="mt-1 text-sm text-red-600">請選擇產品分類</p>}
                 </div>
               </div>
 
@@ -529,9 +628,33 @@ export default function NewProduct() {
                   >
                     <option value="active">上架中</option>
                     <option value="inactive">下架中</option>
-              
+                    <option value="out_of_stock">缺貨中</option>
+                    <option value="low_stock">庫存不足</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="unit_code" className="block text-sm font-medium text-gray-700">
+                  單位代號
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    id="unit_code"
+                    placeholder="輸入單位代號"
+                    required
+                    className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-base py-3 border-gray-300 rounded-md"
+                    value={formData.unit_code}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        unit_code: e.target.value.toUpperCase()
+                      }));
+                    }}
+                  />
+                </div>
+                <p className="mt-2 text-sm text-gray-500">例如：PCS、BOX、PKG、SET</p>
               </div>
 
               {/* 產品圖片區塊 */}
@@ -540,7 +663,7 @@ export default function NewProduct() {
               </div>
 
               <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   上傳產品圖片
                 </label>
                 <div 
@@ -553,12 +676,21 @@ export default function NewProduct() {
                   <div className="space-y-1 text-center">
                     {uploadedImagePath ? (
                       <div className="flex flex-col items-center">
-                        <div className="text-green-500 mb-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                        <div className={`mb-2 h-32 w-32 overflow-hidden rounded-md transition-all duration-300 ${showPreviewAnimation ? 'ring-4 ring-amber-400 scale-105' : ''}`}>
+                          <Image
+                            src={previewUrl || uploadedImagePath}
+                            alt="產品圖片"
+                            width={128}
+                            height={128}
+                            className="h-full w-full object-cover"
+                          />
                         </div>
-                        <p className="text-sm text-gray-900">圖片已準備好上傳</p>
+                        <p className="text-sm text-gray-900 font-medium">
+                          <span className="flex items-center">
+                            <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showPreviewAnimation ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                            已選擇圖片
+                          </span>
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">{uploadedImage?.name}</p>
                         <button 
                           type="button"
@@ -566,6 +698,7 @@ export default function NewProduct() {
                           onClick={() => {
                             setUploadedImage(null);
                             setUploadedImagePath('');
+                            setPreviewUrl('');
                             setFormData(prev => ({ ...prev, images: '' }));
                           }}
                         >

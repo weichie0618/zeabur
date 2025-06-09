@@ -1,30 +1,44 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  initializeAuth, 
+  getAuthHeaders as getAuthHeadersFromService,
+  handleAuthError as handleAuthErrorFromService,
+  handleRelogin as handleReloginFromService,
+  setupAuthWarningAutoHide
+} from '../utils/authService';
 
 // 定義客戶類型
 interface Customer {
   id: number;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  companyName: string;
-  companyId: string;
-  industry: string;
-  status: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
+  lineId: string;          // LINE用戶ID
+  customerId: string;      // 客戶編號
+  displayName: string;     // LINE顯示名稱
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  carrier: string | null;  // 載具號碼
+  taxId: string | null;    // 統一編號
+  createdAt: string;
+  updatedAt: string;
+  customer?: {
+    companyName: string | null;
+  };
 }
 
 interface ApiResponse {
-  data: Customer[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
+  status: string;
+  message: string;
+  data: {
+    lineUsers: Customer[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    }
   };
 }
 
@@ -41,20 +55,13 @@ export default function CustomersManagement() {
   
   // 篩選相關狀態
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
-  const [selectedIndustry, setSelectedIndustry] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState('ASC');
   
-  // 行業別選項
-  const industryOptions = [
-    '烘焙坊／麵包店',
-    '咖啡廳／茶館',
-    '餐廳',
-    '飯店',
-    '零售商店',
-    '其他'
-  ];
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   
   // 刪除相關狀態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -63,49 +70,98 @@ export default function CustomersManagement() {
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 新增通知狀態
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+
+  // 新增臨時lineId狀態
+  const [tempLineId, setTempLineId] = useState<string | null>(null);
+
+  // 新增公司名稱列表狀態
+  const [companyNames, setCompanyNames] = useState<string[]>([]);
+
+  // 保存所有未篩選的客戶數據
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+
+  // 獲取認證頭部
+  const getAuthHeaders = () => {
+    return getAuthHeadersFromService(accessToken);
+  };
+  
+  // 處理認證錯誤
+  const handleAuthError = (errorMessage: string) => {
+    handleAuthErrorFromService(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleRelogin = () => {
+    handleReloginFromService();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+  
+  // 初始化獲取認證令牌
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
   // 獲取客戶列表
   const fetchCustomers = async (page = 1) => {
     try {
       setLoading(true);
       setError(null);
       
+      // 檢查令牌是否存在
+      if (!accessToken) {
+        handleAuthError('獲取客戶資料時缺少認證令牌');
+        return;
+      }
+      
       // 構建查詢參數
       const queryParams = new URLSearchParams();
       queryParams.append('page', page.toString());
       queryParams.append('limit', meta.limit.toString());
-      queryParams.append('sortBy', sortBy);
-      queryParams.append('order', sortOrder);
-      
-      if (selectedStatus) {
-        queryParams.append('status', selectedStatus);
-      }
-      
-      if (selectedIndustry) {
-        queryParams.append('industry', selectedIndustry);
-      }
-      
-      // 添加搜索查詢
-      if (searchQuery.trim()) {
-        queryParams.append('search', searchQuery.trim());
-      }
       
       // 添加時間戳參數，防止快取
       const timestamp = Date.now();
       queryParams.append('t', timestamp.toString());
       
-      const apiUrl = `/api/customers?${queryParams.toString()}`;
+      // 使用新的LINE用戶API
+      const apiUrl = `/api/customer/admin/lineusers?${queryParams.toString()}`;
       console.log('發送請求到:', apiUrl);
       
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
       
-      if (!response.ok) {
-        throw new Error(`無法獲取客戶資料: ${response.status}`);
+      // 處理認證失敗
+      if (response.status === 401) {
+        handleAuthError('獲取LINE用戶列表時認證失敗');
+        return;
       }
       
-      const data: ApiResponse = await response.json();
+      if (!response.ok) {
+        throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
+      }
       
-      setCustomers(data.data);
-      setMeta(data.meta);
+      const responseData: ApiResponse = await response.json();
+      
+      if (responseData.status !== 'success') {
+        throw new Error(responseData.message || '獲取LINE用戶列表失敗');
+      }
+      
+      setCustomers(responseData.data.lineUsers);
+      setAllCustomers(responseData.data.lineUsers); // 保存未篩選的數據
+      setMeta(responseData.data.pagination);
     } catch (err) {
       console.error('獲取客戶錯誤:', err);
       setError(err instanceof Error ? err.message : '發生錯誤');
@@ -116,29 +172,140 @@ export default function CustomersManagement() {
 
   // 初始加載和重新過濾時獲取客戶
   useEffect(() => {
-    fetchCustomers(meta.page);
-  }, [sortBy, sortOrder, selectedStatus, selectedIndustry]);
+    if (accessToken) {
+      fetchCustomers(meta.page);
+    }
+  }, [sortBy, sortOrder, accessToken]);
+
+  // 添加新的 useEffect 來獲取並設置唯一的公司名稱列表
+  useEffect(() => {
+    if (customers.length > 0) {
+      // 獲取所有不重複的公司名稱
+      const uniqueCompanies = Array.from(new Set(
+        customers
+          .filter(customer => customer.customer?.companyName)
+          .map(customer => customer.customer?.companyName || '')
+      )).filter(name => name !== '');
+      
+      // 按字母順序排序
+      uniqueCompanies.sort();
+      setCompanyNames(uniqueCompanies);
+    }
+  }, [customers]);
 
   // 頁面變化處理
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= meta.totalPages) {
-      fetchCustomers(page);
+      // 計算當前頁的索引範圍
+      const startIndex = (page - 1) * meta.limit;
+      const endIndex = Math.min(startIndex + meta.limit, customers.length);
+      
+      // 更新顯示的客戶列表
+      setMeta({
+        ...meta,
+        page: page
+      });
     }
   };
 
   // 應用篩選
   const handleApplyFilters = () => {
-    fetchCustomers(1); // 重置到第一頁
+    // 在前端進行篩選
+    setLoading(true);
+    
+    try {
+      // 從所有客戶數據中進行篩選
+      let filteredCustomers = [...allCustomers];
+      
+      // 根據搜索關鍵字篩選
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        filteredCustomers = filteredCustomers.filter(customer => {
+          // 根據不同欄位進行搜索
+          return (
+            (customer.lineId && customer.lineId.toLowerCase().includes(query)) ||
+            (customer.displayName && customer.displayName.toLowerCase().includes(query)) ||
+            (customer.name && customer.name.toLowerCase().includes(query)) ||
+            (customer.email && customer.email.toLowerCase().includes(query)) ||
+            (customer.phone && customer.phone.includes(query)) ||
+            (customer.customerId && customer.customerId.includes(query))
+          );
+        });
+      }
+      
+      // 根據公司名稱篩選
+      if (selectedCompany) {
+        filteredCustomers = filteredCustomers.filter(customer => 
+          customer.customer?.companyName === selectedCompany
+        );
+      }
+      
+      // 排序
+      filteredCustomers.sort((a, b) => {
+        const fieldA = a[sortBy as keyof Customer];
+        const fieldB = b[sortBy as keyof Customer];
+        
+        // 處理複雜的嵌套欄位
+        if (sortBy === 'companyName') {
+          const companyA = a.customer?.companyName || '';
+          const companyB = b.customer?.companyName || '';
+          return sortOrder === 'ASC' 
+            ? companyA.localeCompare(companyB)
+            : companyB.localeCompare(companyA);
+        }
+        
+        // 處理一般欄位
+        if (fieldA === undefined || fieldB === undefined) return 0;
+        
+        if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+          return sortOrder === 'ASC' 
+            ? fieldA.localeCompare(fieldB)
+            : fieldB.localeCompare(fieldA);
+        }
+        
+        // 數字或日期比較
+        return sortOrder === 'ASC'
+          ? (fieldA as any) - (fieldB as any)
+          : (fieldB as any) - (fieldA as any);
+      });
+      
+      // 更新客戶列表和分頁信息
+      setCustomers(filteredCustomers);
+      
+      // 更新分頁信息
+      const totalFiltered = filteredCustomers.length;
+      const totalPages = Math.ceil(totalFiltered / meta.limit);
+      
+      setMeta({
+        ...meta,
+        total: totalFiltered,
+        totalPages: totalPages > 0 ? totalPages : 1,
+        page: 1 // 重置到第一頁
+      });
+      
+      console.log('前端篩選後的結果數量:', filteredCustomers.length);
+      
+    } catch (err) {
+      console.error('前端篩選錯誤:', err);
+      setError(err instanceof Error ? err.message : '篩選時發生錯誤');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // 重置篩選
   const handleResetFilters = () => {
     setSearchQuery('');
-    setSelectedStatus('');
-    setSelectedIndustry('');
+    setSelectedCompany('');
     setSortBy('id');
     setSortOrder('ASC');
-    fetchCustomers(1);
+    setCustomers(allCustomers); // 直接使用所有客戶數據
+    setMeta({
+      ...meta,
+      total: allCustomers.length,
+      totalPages: Math.ceil(allCustomers.length / meta.limit),
+      page: 1
+    });
   };
 
   // 排序切換
@@ -178,8 +345,10 @@ export default function CustomersManagement() {
   };
 
   // 處理刪除按鈕點擊
-  const handleDeleteClick = (customerId: number) => {
+  const handleDeleteClick = (customerId: number, lineId: string) => {
     setDeletingCustomerId(customerId);
+    // 設置lineId作為臨時狀態，用於刪除操作
+    setTempLineId(lineId);
     setShowDeleteConfirm(true);
     setDeleteError(null);
     setDeleteSuccess(null);
@@ -189,45 +358,61 @@ export default function CustomersManagement() {
   const handleCancelDelete = () => {
     setShowDeleteConfirm(false);
     setDeletingCustomerId(null);
+    setTempLineId(null);
     setDeleteError(null);
   };
 
   // 處理確認刪除
   const handleConfirmDelete = async () => {
-    if (!deletingCustomerId) return;
+    if (!deletingCustomerId || !tempLineId) return;
     
     try {
       setIsDeleting(true);
       setDeleteError(null);
       
-      const response = await fetch(`/api/customers/${deletingCustomerId}`, {
+      // 使用暫存的lineId進行刪除
+      const lineId = tempLineId;
+      
+      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
+        credentials: 'include',
       });
+      
+      if (response.status === 401) {
+        handleAuthError('刪除LINE用戶時認證失敗');
+        return;
+      }
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || '刪除客戶失敗');
+        throw new Error(errorData.message || '刪除LINE用戶失敗');
       }
       
       const data = await response.json();
-      setDeleteSuccess(data.message || '客戶已成功刪除');
+      
+      // 立即關閉確認彈窗
+      setShowDeleteConfirm(false);
+      setDeletingCustomerId(null);
+      setTempLineId(null);
+      
+      // 設置成功通知，而不是直接設置 deleteSuccess
+      setNotification({
+        message: data.message || 'LINE用戶已成功刪除',
+        type: 'success'
+      });
       
       // 重新獲取客戶列表
       fetchCustomers(meta.page);
       
-      // 3秒後清除成功訊息
+      // 5秒後自動清除通知
       setTimeout(() => {
-        setShowDeleteConfirm(false);
-        setDeleteSuccess(null);
-        setDeletingCustomerId(null);
-      }, 3000);
+        setNotification(null);
+      }, 5000);
       
     } catch (err) {
-      console.error('刪除客戶錯誤:', err);
-      setDeleteError(err instanceof Error ? err.message : '刪除客戶時發生錯誤');
+      console.error('刪除LINE用戶錯誤:', err);
+      setDeleteError(err instanceof Error ? err.message : '刪除LINE用戶時發生錯誤');
     } finally {
       setIsDeleting(false);
     }
@@ -237,10 +422,34 @@ export default function CustomersManagement() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold mb-8">客戶管理</h1>
       
-      {/* 成功訊息 */}
-      {deleteSuccess && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {deleteSuccess}
+      {/* 認證警告 */}
+      {showAuthWarning && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+          您的登入狀態已過期，請<a href="/auth/login" className="underline font-semibold">重新登入</a>後再訪問此頁面。
+        </div>
+      )}
+      
+      {/* 通知條 */}
+      {notification && (
+        <div className={`${notification.type === 'success' ? 'bg-green-100 border-green-400 text-green-700' : 'bg-red-100 border-red-400 text-red-700'} 
+                         border px-4 py-3 rounded mb-4 flex items-center justify-between transition-opacity duration-500`}>
+          <div className="flex items-center">
+            {notification.type === 'success' ? (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+              </svg>
+            ) : (
+              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"></path>
+              </svg>
+            )}
+            {notification.message}
+          </div>
+          <button onClick={() => setNotification(null)} className="text-gray-500 hover:text-gray-700">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+            </svg>
+          </button>
         </div>
       )}
       
@@ -255,42 +464,29 @@ export default function CustomersManagement() {
       <div className="bg-white shadow-md rounded-lg p-6 mb-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">搜索客戶</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">搜索用戶</label>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="輸入名稱、電子郵件或手機..."
+                  placeholder="輸入名稱、LINE ID、電子郵件或手機..."
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">客戶狀態</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">客戶業主</label>
                 <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  value={selectedCompany}
+                  onChange={(e) => setSelectedCompany(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">全部狀態</option>
-                  <option value="active">活躍</option>
-                  <option value="inactive">非活躍</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">行業別</label>
-                <select
-                  value={selectedIndustry}
-                  onChange={(e) => setSelectedIndustry(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="">全部行業</option>
-                  {industryOptions.map((industry) => (
-                    <option key={industry} value={industry}>
-                      {industry}
+                  <option value="">全部</option>
+                  {companyNames.map((company, index) => (
+                    <option key={index} value={company}>
+                      {company}
                     </option>
                   ))}
                 </select>
@@ -313,13 +509,6 @@ export default function CustomersManagement() {
             </button>
           </div>
         </div>
-      </div>
-      
-      {/* 添加客戶按鈕 */}
-      <div className="mb-6 flex justify-end">
-        <Link href="/admin/bakery/customers/new" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-          新增客戶
-        </Link>
       </div>
       
       {/* 客戶列表 */}
@@ -351,39 +540,44 @@ export default function CustomersManagement() {
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort('name')}
+                    onClick={() => handleSort('lineId')}
                   >
-                    姓名
-                    {sortBy === 'name' && (
+                    LINE ID
+                    {sortBy === 'lineId' && (
                       <span className="ml-1">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                     )}
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    公司資訊
+                  <th 
+                    scope="col" 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                    onClick={() => handleSort('displayName')}
+                  >
+                    LINE暱稱/姓名
+                    {sortBy === 'displayName' && (
+                      <span className="ml-1">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+                    )}
                   </th>
+                 
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     聯絡資訊
                   </th>
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort('industry')}
+                    onClick={() => handleSort('customerId')}
                   >
-                    行業別
-                    {sortBy === 'industry' && (
+                    業主編號
+                    {sortBy === 'customerId' && (
                       <span className="ml-1">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                     )}
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    狀態
                   </th>
                   <th 
                     scope="col" 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                    onClick={() => handleSort('created_at')}
+                    onClick={() => handleSort('createdAt')}
                   >
                     建立時間
-                    {sortBy === 'created_at' && (
+                    {sortBy === 'createdAt' && (
                       <span className="ml-1">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
                     )}
                   </th>
@@ -398,41 +592,36 @@ export default function CustomersManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {customer.id}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                      {customer.notes && (
-                        <div className="text-sm text-gray-500 truncate max-w-xs">{customer.notes}</div>
-                      )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {customer.lineId || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{customer.companyName || '未提供'}</div>
-                      <div className="text-sm text-gray-500">{customer.companyId ? `統編: ${customer.companyId}` : ''}</div>
+                      <div className="text-sm font-medium text-gray-500">{customer.displayName || '-'}</div>
+                    
+                      <div className="text-sm font-medium text-gray-900">{customer.name || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{customer.email}</div>
-                      <div className="text-sm text-gray-500">{customer.phone}</div>
+                      <div className="text-sm text-gray-900">{customer.email || '-'}</div>
+                      <div className="text-sm text-gray-500">{customer.phone || '-'}</div>
+                      <div className="text-sm text-gray-500 truncate max-w-xs">{customer.address || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {customer.industry || '未分類'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(customer.status)}`}>
-                        {translateStatus(customer.status)}
-                      </span>
+                    <div className="text-sm text-gray-900">{customer.customerId || '-'}</div>
+                    <div className="text-sm text-gray-500">{customer.customer?.companyName || '-'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(customer.created_at).toLocaleDateString('zh-TW')}
+                      {new Date(customer.createdAt).toLocaleDateString('zh-TW')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        <Link href={`/admin/bakery/customers/${customer.id}`} className="text-indigo-600 hover:text-indigo-900">
+                        <Link href={`/admin/bakery/customers/${customer.lineId}`} className="text-indigo-600 hover:text-indigo-900">
                           查看
                         </Link>
-                        <Link href={`/admin/bakery/customers/edit/${customer.id}`} className="text-blue-600 hover:text-blue-900">
+                        <Link href={`/admin/bakery/customers/edit/${customer.lineId}`} className="text-blue-600 hover:text-blue-900">
                           編輯
                         </Link>
                         <button
-                          onClick={() => handleDeleteClick(customer.id)}
+                          onClick={() => handleDeleteClick(customer.id, customer.lineId)}
                           className="text-red-600 hover:text-red-900"
                         >
                           刪除
@@ -514,8 +703,13 @@ export default function CustomersManagement() {
       {/* 刪除確認彈窗 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium mb-4">確認刪除</h3>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+            <div className="flex items-center mb-4">
+              <svg className="w-6 h-6 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              <h3 className="text-lg font-medium">確認刪除</h3>
+            </div>
             
             {deleteError && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -528,14 +722,14 @@ export default function CustomersManagement() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={handleCancelDelete}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
                 disabled={isDeleting}
               >
                 取消
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center transition-colors"
                 disabled={isDeleting}
               >
                 {isDeleting ? (

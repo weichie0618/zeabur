@@ -3,6 +3,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
+import { 
+  initializeAuth, 
+  getAuthHeaders, 
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../utils/authService';
 
 // 定義產品類型
 interface Category {
@@ -33,12 +40,48 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/products/${productId}`);
+        
+        // 檢查令牌是否存在
+        if (!accessToken) {
+          handleAuthError('獲取產品資料時缺少認證令牌', setError, setLoading, setShowAuthWarning);
+          return;
+        }
+        
+        const response = await fetch(`/api/products/${productId}`, {
+          headers: getAuthHeaders(accessToken),
+          credentials: 'include'
+        });
+        
+        // 處理認證錯誤
+        if (response.status === 401) {
+          handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
+          return;
+        }
         
         if (!response.ok) {
           throw new Error('無法獲取產品資料');
@@ -71,10 +114,10 @@ export default function ProductDetail() {
       }
     };
 
-    if (productId) {
+    if (productId && accessToken) {
       fetchProduct();
     }
-  }, [productId]);
+  }, [productId, accessToken]);
 
   // 取得產品狀態顯示樣式
   const getStatusStyle = (status: string) => {
@@ -181,6 +224,33 @@ export default function ProductDetail() {
           </Link>
         </div>
       </div>
+      
+      {/* 認證警告 */}
+      {showAuthWarning && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error || '認證失敗，請重新登入系統'}
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRelogin();
+                  }}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  立即登入
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">

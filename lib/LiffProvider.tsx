@@ -6,6 +6,7 @@ import { initializeLiff, getLiffUserProfile } from './liff';
 // 客戶資料介面定義
 interface CustomerData {
   id: number;
+  customerId: string;
   email: string;
   name: string;
   phone: string;
@@ -97,7 +98,6 @@ export function LiffProvider({ children, liffId }: LiffProviderProps) {
         
         console.log('LiffProvider: 客戶資料獲取成功並已保存到 localStorage', data.data);
       } else {
-        // 如果 API 沒有返回數據，嘗試從 localStorage 中獲取
         console.log('LiffProvider: API 沒有返回數據，嘗試從 localStorage 載入');
         tryLoadFromLocalStorage();
       }
@@ -114,11 +114,21 @@ export function LiffProvider({ children, liffId }: LiffProviderProps) {
   }, []);
 
   useEffect(() => {
-    // 初始化LIFF
+    // 檢查是否有預加載的 LIFF 對象
     const initLiff = async () => {
       try {
         setIsLoading(true);
-        const liffObject = await initializeLiff(liffId);
+        
+        // 首先檢查是否有預加載的 LIFF 對象
+        let liffObject;
+        if ((window as any).liffObject) {
+          console.log('使用預加載的 LIFF 對象');
+          liffObject = (window as any).liffObject;
+        } else {
+          console.log('沒有找到預加載的 LIFF 對象，正在初始化');
+          liffObject = await initializeLiff(liffId);
+        }
+        
         setLiff(liffObject);
         
         // 設置登入狀態

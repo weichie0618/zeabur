@@ -26,7 +26,7 @@ interface Product {
   description?: string;
   is_new?: boolean;
   quantity?: number;
-  category_id: number;
+  categoryId: number;
   specification?: string;
 }
 
@@ -59,6 +59,13 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   // 添加模態視窗狀態
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // 添加購物車動畫狀態
+  const [animatingProduct, setAnimatingProduct] = useState<number | null>(null);
+  const [cartButtonAnimating, setCartButtonAnimating] = useState<number | null>(null);
+  // 修改為使用Set集合追蹤多個同時進行的動畫
+  const [animatingButtons, setAnimatingButtons] = useState<Set<number>>(new Set());
+  // 添加模態視窗數量選擇狀態
+  const [modalQuantity, setModalQuantity] = useState<number>(1);
 
   // 檢測是否是移動設備
   useEffect(() => {
@@ -88,7 +95,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
       const activeCategoryId = parseInt(activeCategory);
       
       // 篩選邏輯變更，使用 category_id 進行比較
-      result = result.filter(product => product.category_id === activeCategoryId);
+      result = result.filter(product => product.categoryId === activeCategoryId);
+    } else {
+      // 當顯示所有商品時，先按照類別ID排序
+      result.sort((a, b) => a.categoryId - b.categoryId);
     }
     
     // 根據搜尋字詞篩選（如果有）
@@ -102,41 +112,113 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     
     setFilteredProducts(result);
     
-    // 捲動到產品部分
-    const productsSection = document.getElementById('products-section');
-    if (productsSection) {
-      setTimeout(() => {
-        productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
+    // 添加一個狀態追蹤標記，只在使用者主動點擊類別時才滾動
+    const userTriggeredCategoryChange = sessionStorage.getItem('userTriggeredCategoryChange') === 'true';
+    
+    // 捲動到產品部分，但只在使用者主動切換類別時進行
+    if (userTriggeredCategoryChange) {
+      const productsSection = document.getElementById('products-section');
+      if (productsSection) {
+        setTimeout(() => {
+          productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        // 重置標記，確保下次需要明確設置
+        sessionStorage.removeItem('userTriggeredCategoryChange');
+      }
     }
   }, [activeCategory, initialProducts, searchQuery]);
 
-  // 加入購物車功能 - 使用 useCallback 優化
+  // 加入購物車功能 - 修改為考慮移動裝置
   const addToCart = useCallback((product: Product) => {
-    const existingItem = cart.find(item => item.id === product.id);
+    // 防止重複快速點擊
+    const productId = product.id;
+    
+    // 如果已經在模態視窗中，直接添加到購物車
+    if (showModal) {
+      const existingItem = cart.find(item => item.id === productId);
+      
+      if (existingItem) {
+        // 如果產品已在購物車，增加數量
+        setCart(cart.map(item => 
+          item.id === productId ? { ...item, quantity: (item.quantity || 1) + 1 } : item
+        ));
+      } else {
+        // 否則添加新產品
+        setCart([...cart, { ...product, quantity: 1 }]);
+      }
+      return;
+    }
+    
+    // 立即將商品加入購物車，不等待動畫完成
+    const existingItem = cart.find(item => item.id === productId);
     
     if (existingItem) {
       // 如果產品已在購物車，增加數量
       setCart(cart.map(item => 
-        item.id === product.id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
+        item.id === productId ? { ...item, quantity: (item.quantity || 1) + 1 } : item
       ));
     } else {
       // 否則添加新產品
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-  }, [cart]);
+    
+    // 移動裝置不顯示動畫或使用簡化動畫
+    if (isMobile) {
+      // 簡化的動畫處理，避免懸停問題
+      setAnimatingButtons(prev => {
+        const newSet = new Set(prev);
+        newSet.add(productId);
+        return newSet;
+      });
+      
+      // 縮短動畫時間以提升移動設備體驗
+      setTimeout(() => {
+        setAnimatingButtons(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(productId);
+          return newSet;
+        });
+      }, 900); // 移動設備上使用較短的動畫時間
+      
+      return;
+    }
+    
+    // 桌面設備使用完整動畫
+    // 啟動按鈕動畫 - 修改為使用Set集合
+    setAnimatingButtons(prev => {
+      // 創建新的Set以避免直接修改狀態
+      const newSet = new Set(prev);
+      // 如果此商品已在動畫中，先移除再添加（重置動畫）
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+        // 使用setTimeout確保DOM更新後再添加
+        setTimeout(() => {
+          setAnimatingButtons(current => new Set([...current, productId]));
+        }, 10);
+      } else {
+        // 否則直接添加
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+    
+    // 動畫結束後移除該商品的動畫狀態
+    setTimeout(() => {
+      setAnimatingButtons(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(productId);
+        return newSet;
+      });
+    }, 1000); // 按鈕動畫時長
+  }, [cart, showModal, isMobile]);
 
   // 從購物車移除 - 使用 useCallback 優化
   const removeFromCart = useCallback((productId: number) => {
     const newCart = cart.filter(item => item.id !== productId);
     setCart(newCart);
     
-    // 如果購物車為空，則清除localStorage中的購物車數據
-    if (newCart.length === 0) {
-      localStorage.removeItem('bakeryCart');
-      // 自動關閉購物車抽屜
-      setIsCartOpen(false);
-    }
+    // 僅在購物車變為空且用戶已經在頁面上操作時才考慮清空localStorage
+    // 不再在這裡直接清空localStorage，而是依靠上面的useEffect
   }, [cart, setIsCartOpen]);
 
   // 更新購物車商品數量 - 使用 useCallback 優化
@@ -171,22 +253,17 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     }
   }, [cart]);
 
-  // 當購物車變化時，保存到 localStorage
-  useEffect(() => {
-    if (cart.length > 0) {
-      localStorage.setItem('bakeryCart', JSON.stringify(cart));
-    } else {
-      // 清除 localStorage 中的購物車數據
-      localStorage.removeItem('bakeryCart');
-    }
-  }, [cart]);
-
   // 從 localStorage 載入購物車
   useEffect(() => {
     try {
       const savedCart = localStorage.getItem('bakeryCart');
       if (savedCart) {
-        setCart(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart);
+        // 只有當購物車為空時才設置購物車數據
+        if (cart.length === 0 && parsedCart && parsedCart.length > 0) {
+          console.log('從 localStorage 載入購物車數據:', parsedCart);
+          setCart(parsedCart);
+        }
       }
     } catch (error) {
       console.error('無法載入購物車資料', error);
@@ -205,6 +282,18 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
       bodyElement.classList.remove('overflow-x-hidden');
     };
   }, []);
+
+  // 當購物車變化時，保存到 localStorage
+  useEffect(() => {
+    if (cart.length > 0) {
+      console.log('將購物車數據保存到 localStorage:', cart);
+      localStorage.setItem('bakeryCart', JSON.stringify(cart));
+    } else if (isInitialized) {
+      // 只有在初始化完成後才清除 localStorage 中的購物車數據
+      // 這可以防止在從結帳頁面返回時清空購物車
+      localStorage.removeItem('bakeryCart');
+    }
+  }, [cart, isInitialized]);
   
   // 重新獲取產品資料 - 使用 useCallback 優化
   const handleRefresh = useCallback(() => {
@@ -218,7 +307,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
       // 將 activeCategory 轉換為數字進行比較
       const activeCategoryId = parseInt(activeCategory);
       // 使用 category_id 進行篩選，與上方邏輯一致
-      result = result.filter(product => product.category_id === activeCategoryId);
+      result = result.filter(product => product.categoryId === activeCategoryId);
+    } else {
+      // 當顯示所有商品時，先按照類別ID排序
+      result.sort((a, b) => a.categoryId - b.categoryId);
     }
     
     // 應用搜尋查詢篩選
@@ -238,6 +330,8 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const handleProductClick = useCallback((product: Product) => {
     setSelectedProduct(product);
     setShowModal(true);
+    // 重置模態視窗數量為1
+    setModalQuantity(1);
     // 模態視窗開啟時禁止捲動
     document.body.style.overflow = 'hidden';
   }, []);
@@ -248,6 +342,16 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     setSelectedProduct(null);
     // 模態視窗關閉時恢復捲動
     document.body.style.overflow = 'auto';
+  }, []);
+
+  // 增加模態視窗數量
+  const increaseModalQuantity = useCallback(() => {
+    setModalQuantity(prev => prev + 1);
+  }, []);
+
+  // 減少模態視窗數量
+  const decreaseModalQuantity = useCallback(() => {
+    setModalQuantity(prev => (prev > 1 ? prev - 1 : 1));
   }, []);
 
   return (
@@ -284,6 +388,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
+              // 如果搜尋字段不為空，設置用戶觸發滾動標記
+              if (e.target.value.trim()) {
+                sessionStorage.setItem('userTriggeredCategoryChange', 'true');
+              }
             }}
             className="w-full px-4 py-2 rounded-full border-gray-200 border focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-amber-300 text-sm"
           />
@@ -333,9 +441,13 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
               
               <div className="p-6">
                 <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedProduct.name}</h3>
+                  <h3 className={`font-bold text-gray-900 break-words mr-2 ${
+                    selectedProduct.name.length > 25 ? 'text-xl' : 'text-2xl'
+                  }`}>
+                    {selectedProduct.name}
+                  </h3>
                   {selectedProduct.is_new && (
-                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">新品</span>
+                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full flex-shrink-0">新品</span>
                   )}
                 </div>
                 
@@ -369,17 +481,73 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                   </div>
                 )}
                 
+                {/* 新增數量選擇器 */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                    </svg>
+                    購買數量
+                  </h4>
+                  <div className="flex items-center justify-start">
+                    <button 
+                      onClick={decreaseModalQuantity}
+                      className="w-10 h-10 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <div className="w-12 h-10 flex items-center justify-center border-t border-b border-amber-200 bg-white text-gray-800 font-medium">
+                      {modalQuantity}
+                    </div>
+                    <button 
+                      onClick={increaseModalQuantity}
+                      className="w-10 h-10 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
                 <button 
                   onClick={() => {
-                    addToCart(selectedProduct);
+                    // 修改加入購物車函數，將選擇的數量添加到購物車
+                    const existingItem = cart.find(item => item.id === selectedProduct.id);
+                    
+                    if (existingItem) {
+                      // 如果產品已在購物車，增加選擇的數量
+                      setCart(cart.map(item => 
+                        item.id === selectedProduct.id 
+                          ? { ...item, quantity: (item.quantity || 1) + modalQuantity } 
+                          : item
+                      ));
+                    } else {
+                      // 否則添加新產品，數量為選擇的數量
+                      setCart([...cart, { ...selectedProduct, quantity: modalQuantity }]);
+                    }
                     closeModal();
                   }}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors font-medium flex items-center justify-center"
+                  className={`w-full py-3 ${
+                    isMobile 
+                      ? 'bg-amber-500 active:bg-amber-600' // 移動設備使用 active 而非 hover
+                      : 'bg-amber-500 hover:bg-amber-600'
+                  } text-white rounded-md transition-colors font-medium flex items-center justify-center overflow-hidden group relative`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  加入購物車
+                  <motion.div 
+                    className="absolute top-0 left-0 w-full h-full bg-amber-600 origin-left"
+                    initial={{ scaleX: 0 }}
+                    whileTap={{ scaleX: 1 }}
+                    transition={{ duration: 0.3 }}
+                  />
+                  <div className="relative flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-2 ${isMobile ? '' : 'group-hover:animate-bounce'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    加入購物車 ({modalQuantity} 件)
+                  </div>
                 </button>
               </div>
             </motion.div>
@@ -459,13 +627,16 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                 <div className="p-4">
                   <div className="flex justify-between items-start">
                     <h3 
-                      className="font-medium text-gray-900 cursor-pointer hover:text-amber-600 transition-colors"
+                      className={`font-medium text-gray-900 cursor-pointer hover:text-amber-600 transition-colors truncate whitespace-nowrap overflow-hidden w-full ${
+                        product.name.length > 20 ? 'text-xs' : product.name.length > 15 ? 'text-sm' : 'text-base'
+                      }`}
                       onClick={() => handleProductClick(product)}
+                      title={product.name.trim()}
                     >
                       {product.name.trim()}
                     </h3>
                     {product.is_new && (
-                      <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full">新品</span>
+                      <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full flex-shrink-0 ml-1">新品</span>
                     )}
                   </div>
                   <p className="text-amber-600 font-bold mt-1 flex items-center">
@@ -489,12 +660,79 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                   )}
                   <button 
                     onClick={() => addToCart(product)}
-                    className="w-full mt-3 bg-amber-100 hover:bg-amber-200 text-amber-800 py-2 rounded-md transition-colors flex items-center justify-center group"
+                    className={`w-full mt-3 ${
+                      isMobile 
+                        ? 'bg-amber-200 active:bg-amber-300' // 移動設備使用 active 而非 hover
+                        : 'bg-amber-100 hover:bg-amber-200'
+                    } text-amber-800 py-2 rounded-md transition-colors flex items-center justify-center group relative overflow-hidden`}
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1 group-hover:animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    加入購物車
+                    {/* 默認按鈕內容 */}
+                    <span className={`relative z-10 flex items-center justify-center transition-opacity duration-200 ${animatingButtons.has(product.id) ? 'opacity-0' : 'opacity-100'}`}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-1 ${isMobile ? '' : 'group-hover:animate-bounce'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      加入購物車
+                    </span>
+                    
+                    {/* 按鈕內的動畫 */}
+                    {animatingButtons.has(product.id) && (
+                      <motion.div
+                        className="absolute inset-0 flex items-center justify-center bg-amber-200 z-0"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: isMobile ? 0.1 : 0.2 }}
+                      >
+                        <div className="relative h-8 w-10">
+                          {/* 購物車圖標顯示 */}
+                          <motion.div
+                            className="absolute left-0 right-0 mx-auto bottom-0"
+                            initial={{ 
+                              opacity: 0,
+                              y: -10,
+                              x: -15
+                            }}
+                            animate={{ 
+                              opacity: 1,
+                              y: 0,
+                              x: 1
+                            }}
+                            transition={{ 
+                              duration: 0.4,
+                              delay: 0.2,
+                              ease: "easeOut"
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          </motion.div>
+                          
+                          {/* 麵包圖標動畫 - 放入購物車 */}
+                          <motion.div 
+                            className="absolute left-0 right-0 mx-auto"
+                            initial={{ opacity: 0, y: 0, scale: 1 }}
+                            animate={{ 
+                              opacity: [0, 1, 1, 0.7],
+                              y: [0, -15, 3],
+                              scale: [1, 1, 0.7],
+                              x: [0, 0, 0]
+                            }}
+                            transition={{ 
+                              duration: 0.8, 
+                              times: [0, 0.3, 0.7, 1],
+                              ease: "easeInOut",
+                              // 延遲0.3秒，等待原按鈕內容完全隱藏
+                              delay: 0.3
+                            }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-amber-700" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C5.5 2 2 5.5 2 9c0 2.3 1.1 4.1 3 5.4V15l1 1v3c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-3l1-1v-.6c1.9-1.3 3-3.1 3-5.4 0-3.5-3.5-7-10-7zm0 1.5c5.7 0 8.5 2.8 8.5 5.5 0 1.9-1 3.3-2.5 4.3V15l-1 1v3c0 .3-.2.5-.5.5h-9c-.3 0-.5-.2-.5-.5v-3l-1-1v-1.7c-1.5-1-2.5-2.4-2.5-4.3 0-2.7 2.8-5.5 8.5-5.5zM11 6v1H6v1h5v1l3-1.5L11 6z"/>
+                            </svg>
+                          </motion.div>
+                        </div>
+                      </motion.div>
+                    )}
                   </button>
                 </div>
               </motion.div>

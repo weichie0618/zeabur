@@ -162,8 +162,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // 獲取目標目錄
-    const destination = formData.get('destination') as string || 'public/bakery';
+    // 獲取目標目錄 - 從 public/bakery 改為 uploads/bakery
+    const destination = formData.get('destination') as string || 'uploads/bakery';
     
     // 確保目錄存在
     const uploadDir = path.join(process.cwd(), destination);
@@ -185,10 +185,12 @@ export async function POST(req: NextRequest) {
     // 寫入檔案
     await fs.writeFile(filePath, buffer);
     
+    // 修改返回的路徑，使用 API 路徑而不是靜態文件路徑
+    // 使用 /api/images 路徑訪問上傳的圖片
     return NextResponse.json({
       success: true,
       message: '檔案上傳成功',
-      filePath: `/${destination.replace('public/', '')}/${fileName}`
+      filePath: `/api/images/bakery/${fileName}`
     });
   } catch (error) {
     console.error('檔案上傳失敗:', error);

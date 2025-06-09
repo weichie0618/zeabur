@@ -181,15 +181,15 @@ api.interceptors.response.use(
         
         // 檢測重定向循環
         const currentPath = window.location.pathname;
-        const loginPath = '/login?expired=true&redirect=' + encodeURIComponent(currentPath);
+        const loginPath = '/login?reason=expired&redirect=' + encodeURIComponent(currentPath);
         
         if (isRedirectLoop(loginPath)) {
-          console.error('偵測到重定向循環，不再重定向到登入頁面');
+          console.error('偵測到重定向循環，直接重定向到登入頁面');
           // 清除循環標記
           redirectHistory.length = 0;
           
-          // 處理循環重定向 - 重定向到未授權頁面而不是登入頁面
-          window.location.href = '/unauthorized?reason=auth-error';
+          // 直接重定向到登入頁面，不帶重定向路徑參數，避免循環
+          window.location.href = '/login?reason=auth-error';
           return Promise.reject(error);
         }
         
@@ -202,7 +202,7 @@ api.interceptors.response.use(
         
         if (isDev) console.log('非登入頁面，準備導向到登入頁面');
         
-        // 使用客戶端導航 - 帶參數以防止頁面重新整理循環
+        // 使用客戶端導航，帶上過期參數
         window.location.href = loginPath;
         
         // 5秒後重置狀態，以便下次可以再次重定向
@@ -305,17 +305,60 @@ export const apiService = {
     if (isDev) {
       console.log(`發送登入請求: ${email}`);
     }
-    return handleApiRequest(() => 
-      api.post('/api/auth/login', { email, password })
-    );
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include' // 包含cookies
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `登入失敗: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data && result.data.tokens) {
+        const { accessToken, refreshToken } = result.data.tokens;
+        storeTokens({ accessToken, refreshToken });
+      }
+
+      return result;
+    } catch (error) {
+      if (isDev) console.error('登入時發生錯誤:', error);
+      throw error;
+    }
   },
-  
+
   logout: async () => {
-    const result = await handleApiRequest(() => 
-      api.post('/api/auth/logout')
-    );
-    clearTokens();
-    return result;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' // 包含cookies
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `登出失敗: ${response.status}`);
+      }
+
+      const result = await response.json().catch(() => ({ success: true }));
+
+      clearTokens();
+      return result;
+    } catch (error) {
+      if (isDev) console.error('登出時發生錯誤:', error);
+      clearTokens();
+      throw error;
+    }
   },
   
   getCurrentUser: async () => {

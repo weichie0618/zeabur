@@ -1,6 +1,13 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { 
+  initializeAuth, 
+  getAuthHeaders as getAuthHeadersFromService,
+  handleAuthError as handleAuthErrorFromService,
+  handleRelogin as handleReloginFromService,
+  setupAuthWarningAutoHide
+} from '../utils/authService';
 
 // 定義業主類型
 interface Owner {
@@ -55,77 +62,35 @@ export default function OwnersManagement() {
   const [accessToken, setAccessToken] = useState<string>('');
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
 
+  // 獲取認證標頭
+  const getAuthHeaders = () => {
+    return getAuthHeadersFromService(accessToken);
+  };
+  
+  // 處理認證錯誤
+  const handleAuthError = (errorMessage: string) => {
+    handleAuthErrorFromService(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleRelogin = () => {
+    handleReloginFromService();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+  
   // 初始化獲取認證令牌
   useEffect(() => {
-    // 從cookies中讀取accessToken
-    const getCookieValue = (name: string) => {
-      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-      if (match) {
-        console.log(`找到 ${name} cookie`);
-        return decodeURIComponent(match[2]);
-      } else {
-        console.warn(`未找到 ${name} cookie`);
-        return '';
-      }
-    };
-    
-    // 獲取令牌的函數
-    const getToken = () => {
-      // 先檢查 localStorage 是否有令牌
-      let token = localStorage.getItem('accessToken');
-      if (token) {
-        console.log('從 localStorage 獲取令牌成功');
-        return token;
-      }
-      
-      // 如果 localStorage 沒有，再嘗試從 cookie 獲取
-      token = getCookieValue('accessToken');
-      if (token) {
-        console.log('從 cookie 獲取令牌成功');
-        // 將token也保存到localStorage，確保一致性
-        localStorage.setItem('accessToken', token);
-        return token;
-      }
-      
-      console.error('無法獲取認證令牌');
-      return '';
-    };
-    
-    // 嘗試獲取令牌
-    const token = getToken();
-    
-    if (token) {
-      console.log('成功獲取令牌，長度:', token.length);
-      setAccessToken(token);
-    } else {
-      setError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
-      setLoading(false);
-    }
-    
-    // 添加重試機制
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const retryFetchToken = () => {
-      if (retryCount >= maxRetries) return;
-      
-      console.log(`嘗試重新獲取令牌 (第 ${retryCount + 1} 次)`);
-      const newToken = getToken();
-      
-      if (newToken) {
-        console.log('重試獲取令牌成功');
-        setAccessToken(newToken);
-      } else {
-        retryCount++;
-        // 延遲重試
-        setTimeout(retryFetchToken, 1000);
-      }
-    };
-    
-    // 如果沒有token，嘗試重新獲取
-    if (!token) {
-      setTimeout(retryFetchToken, 1000);
-    }
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
   }, []);
   
   // 第一次載入時獲取業主數據
@@ -140,55 +105,11 @@ export default function OwnersManagement() {
     }
   }, [accessToken]);
 
-  // 獲取認證標頭
-  const getAuthHeaders = () => {
-    // 檢查並輸出 accessToken 的值，方便調試
-    if (!accessToken) {
-      console.warn('getAuthHeaders: accessToken 為空');
-    } else {
-      console.log('getAuthHeaders: 使用令牌', accessToken.substring(0, 10) + '...');
-    }
-    
-    return {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    };
-  };
-  
-  // 處理認證錯誤
-  const handleAuthError = (errorMessage: string) => {
-    console.error('認證錯誤:', errorMessage);
-    setError(`認證失敗: ${errorMessage}。請重新登入系統。`);
-    setShowAuthWarning(true);
-    setLoading(false);
-  };
-  
-  // 重新登入
-  const handleRelogin = () => {
-    // 清除舊的令牌
-    localStorage.removeItem('accessToken');
-    document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
-    // 跳轉到登錄頁面
-    window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-  };
-
   // 獲取業主列表
   const fetchOwners = async (page = 1) => {
     // 檢查令牌是否存在
     if (!accessToken) {
-      // 尋找可能存在但未被狀態捕獲的令牌
-      const localToken = localStorage.getItem('accessToken');
-      if (localToken) {
-        console.log('找到localStorage中的令牌，嘗試使用它');
-        setAccessToken(localToken);
-        return; // 修改狀態後會觸發useEffect重新調用fetchOwners
-      }
-      
-      // 確實沒有令牌，顯示錯誤
-      console.error('獲取業主數據時缺少認證令牌');
-      setError('認證失敗，請重新登入系統');
-      setLoading(false);
+      handleAuthError('獲取業主資料時缺少認證令牌');
       return;
     }
   
@@ -376,22 +297,49 @@ export default function OwnersManagement() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold mb-8">業主管理</h1>
-      
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
+        <h1 className="text-2xl font-bold text-gray-900">業主管理</h1>
+        <div className="flex space-x-2">
+          <Link
+            href="/admin/bakery/owners/new"
+            className="inline-flex items-center bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+            新增業主
+          </Link>
+        </div>
+      </div>
+
       {/* 認證警告 */}
       {showAuthWarning && (
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
-          <div>認證失敗，請重新登入系統以獲取有效的認證憑證。</div>
-          <button 
-            onClick={handleRelogin}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
-          >
-            重新登入
-          </button>
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {error || '認證失敗，請重新登入系統'}
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRelogin();
+                  }}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  立即登入
+                </button>
+              </p>
+            </div>
+          </div>
         </div>
       )}
-      
+
       {/* 成功訊息 */}
       {deleteSuccess && (
         <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
@@ -452,13 +400,6 @@ export default function OwnersManagement() {
             </button>
           </div>
         </div>
-      </div>
-      
-      {/* 添加業主按鈕 */}
-      <div className="mb-6 flex justify-end">
-        <Link href="/admin/bakery/owners/new" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-          新增業主
-        </Link>
       </div>
       
       {/* 業主列表 */}

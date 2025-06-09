@@ -75,7 +75,7 @@ export default function Header() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="block">
+            <Link href="https://sunnyhausbakery.com.tw/" className="block">
               <Image 
                 src="https://sunnyhausbakery.com.tw/wp-content/uploads/2024/09/晴朗家-LOGO-1比1-e1725508365820.jpg" 
                 alt="晴朗家烘焙" 

@@ -2,29 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-
-// 訂單狀態映射 - 確保全部使用大寫鍵
-const statusMap: Record<string, string> = {
-  'PENDING': '待處理',
-  'PROCESSING': '處理中',
-  'SHIPPED': '已出貨',
-  'DELIVERED': '已送達',
-  'CANCELLED': '已取消',
-  'pending': '待處理',
-  'processing': '處理中',
-  'shipped': '已出貨',
-  'delivered': '已送達',
-  'cancelled': '已取消'
-};
-
-// 反向狀態映射 (用於API請求)
-const reverseStatusMap: Record<string, string> = {
-  '待處理': 'PENDING',
-  '處理中': 'PROCESSING',
-  '已出貨': 'SHIPPED',
-  '已送達': 'DELIVERED',
-  '已取消': 'CANCELLED'
-};
+import { useRouter } from 'next/navigation';
+import ExportOrdersModal from './export/ExportOrdersModal';
+import { fetchOrdersForExport } from './export/exportService';
+import { 
+  statusMap, 
+  reverseStatusMap, 
+  initializeAuth, 
+  getAuthHeaders as getAuthHeadersFromService,
+  handleAuthError as handleAuthErrorFromService,
+  handleRelogin as handleReloginFromService,
+  getStatusDisplay as getStatusDisplayFromService,
+  getStatusClass as getStatusClassFromService,
+  setupAuthWarningAutoHide
+} from '../utils/authService';
 
 // 訂單類型
 interface Order {
@@ -43,6 +34,10 @@ interface Order {
   address?: Address;
   line_user?: any;
   auth_user?: any;
+  salesperson?: {
+    id: string;
+    companyName: string;
+  };
 }
 
 // 訂單項目類型
@@ -99,7 +94,6 @@ interface EditOrderForm {
     city?: string;
     postal_code?: string;
   };
-  salesperson_code?: string;
   status?: string;
   notes?: string;
   lineid?: string;
@@ -121,6 +115,8 @@ export default function OrdersManagement() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<string>('');
+  const [companyNameFilter, setCompanyNameFilter] = useState<string>('');
+  const [customers, setCustomers] = useState<Array<{id: string, companyName: string}>>([]);
   const [limit] = useState<number>(10);
   const [accessToken, setAccessToken] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
@@ -131,7 +127,6 @@ export default function OrdersManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   
   // 編輯訂單狀態
-  const [showEditOrder, setShowEditOrder] = useState<boolean>(false);
   const [showStatusUpdate, setShowStatusUpdate] = useState<boolean>(false);
   const [editOrderForm, setEditOrderForm] = useState<EditOrderForm>({
     customer_info: {
@@ -169,6 +164,34 @@ export default function OrdersManagement() {
   });
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
 
+  const router = useRouter();
+
+  // 添加自定義日期範圍狀態
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showCustomDateRange, setShowCustomDateRange] = useState<boolean>(false);
+  
+  // 監聽日期篩選變更，控制自定義日期範圍的顯示
+  useEffect(() => {
+    setShowCustomDateRange(dateFilter === 'custom');
+    
+    // 如果不是自定義日期範圍，重置日期
+    if (dateFilter !== 'custom') {
+      setStartDate('');
+      setEndDate('');
+    } else {
+      // 設置默認自定義日期範圍（如果為空）
+      if (!startDate) {
+        const today = new Date();
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        
+        setStartDate(lastMonth.toISOString().split('T')[0]);
+        setEndDate(today.toISOString().split('T')[0]);
+      }
+    }
+  }, [dateFilter]);
+
   // 處理變更過濾條件
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -182,105 +205,112 @@ export default function OrdersManagement() {
     setDateFilter(e.target.value);
   };
 
+  // 添加公司名稱篩選處理
+  const handleCompanyNameChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCompanyNameFilter(e.target.value);
+  };
+
   // 獲取認證令牌
   const getAuthHeaders = () => {
-    // 檢查並輸出 accessToken 的值，方便調試
-    if (!accessToken) {
-      console.warn('getAuthHeaders: accessToken 為空');
-    } else {
-      console.log('getAuthHeaders: 使用令牌', accessToken.substring(0, 10) + '...');
-    }
-    
-    return {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    };
+    return getAuthHeadersFromService(accessToken);
   };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
   
   // 初始化獲取認證令牌
   useEffect(() => {
-    // 從cookies中讀取accessToken
-    const getCookieValue = (name: string) => {
-      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-      if (match) {
-        console.log(`找到 ${name} cookie`);
-        return decodeURIComponent(match[2]);
-      } else {
-        console.warn(`未找到 ${name} cookie`);
-        return '';
-      }
-    };
+    console.log('開始初始化認證流程');
     
-    // 獲取令牌的函數
-    const getToken = () => {
-      // 先檢查 localStorage 是否有令牌
-      let token = localStorage.getItem('accessToken');
-      if (token) {
-        console.log('從 localStorage 獲取令牌成功');
-        return token;
-      }
-      
-      // 如果 localStorage 沒有，再嘗試從 cookie 獲取
-      token = getCookieValue('accessToken');
-      if (token) {
-        console.log('從 cookie 獲取令牌成功');
-        // 將token也保存到localStorage，確保一致性
-        localStorage.setItem('accessToken', token);
-        return token;
-      }
-      
-      console.error('無法獲取認證令牌');
-      return '';
-    };
-    
-    // 嘗試獲取令牌
-    const token = getToken();
-    
-    if (token) {
-      console.log('成功獲取令牌，長度:', token.length);
-      setAccessToken(token);
-    } else {
-      setError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
-      setLoading(false);
-    }
-    
-    // 添加重試機制
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const retryFetchToken = () => {
-      if (retryCount >= maxRetries) return;
-      
-      console.log(`嘗試重新獲取令牌 (第 ${retryCount + 1} 次)`);
-      const newToken = getToken();
-      
-      if (newToken) {
-        console.log('重試獲取令牌成功');
-        setAccessToken(newToken);
-      } else {
-        retryCount++;
-        // 延遲重試
-        setTimeout(retryFetchToken, 1000);
-      }
-    };
-    
-    // 如果沒有token，嘗試重新獲取
-    if (!token) {
-      setTimeout(retryFetchToken, 1000);
-    }
+    // 使用共用的初始化認證函數
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
   }, []);
   
-  // 第一次載入時獲取訂單數據
+  // 處理認證錯誤
+  const handleAuthError = (errorMessage: string) => {
+    handleAuthErrorFromService(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleRelogin = () => {
+    handleReloginFromService();
+  };
+
+  // 第一次載入時獲取訂單數據和客戶列表
   useEffect(() => {
     // 確保已獲取到token後再發起請求
     if (accessToken) {
       console.log('accessToken 已設置，準備獲取訂單');
       fetchOrders();
+      // 獲取客戶列表以供篩選
+      fetchCustomers();
     } else {
       // 不立即顯示錯誤，等待可能的自動重試
       console.warn('useEffect: 暫時缺少accessToken，等待獲取中...');
     }
   }, [accessToken]);
+
+  // 獲取客戶列表
+  const fetchCustomers = async () => {
+    if (!accessToken) {
+      console.error('獲取客戶列表時缺少認證令牌');
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        limit: '100', // 獲取較多客戶以供篩選
+        sortBy: 'companyName',
+        order: 'ASC'
+      });
+
+      console.log(`發送請求: /api/customers?${params.toString()}`);
+      const response = await fetch(`/api/customers?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      
+      if (response.status === 401) {
+        handleAuthError('獲取客戶列表時認證失敗');
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (response.ok && data.data) {
+        // 過濾出有公司名稱的客戶
+        const customersWithCompany = data.data.filter((customer: any) => 
+          customer.companyName && customer.companyName.trim() !== ''
+        );
+        
+        // 去除重複的公司名稱
+        const uniqueCompanies = Array.from(new Set(
+          customersWithCompany.map((customer: any) => customer.companyName)
+        )).map(companyName => {
+          const customer = customersWithCompany.find((c: any) => c.companyName === companyName);
+          return {
+            id: customer.id,
+            companyName: companyName as string
+          };
+        });
+        
+        setCustomers(uniqueCompanies);
+        console.log(`已載入 ${uniqueCompanies.length} 個客戶公司`);
+      } else {
+        console.error('獲取客戶列表失敗:', data.message);
+      }
+    } catch (err) {
+      console.error('獲取客戶列表錯誤:', err);
+    }
+  };
 
   // 處理搜尋
   const handleFilter = () => {
@@ -294,27 +324,12 @@ export default function OrdersManagement() {
 
   // 獲取訂單列表
   const fetchOrders = async (page: number = 1) => {
-    // 檢查令牌是否存在
-    if (!accessToken) {
-      // 尋找可能存在但未被狀態捕獲的令牌
-      const localToken = localStorage.getItem('accessToken');
-      if (localToken) {
-        console.log('找到localStorage中的令牌，嘗試使用它');
-        setAccessToken(localToken);
-        return; // 修改狀態後會觸發useEffect重新調用fetchOrders
-      }
-      
-      // 確實沒有令牌，顯示錯誤
-      console.error('獲取訂單時缺少認證令牌');
-      setError('認證失敗，請重新登入系統');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(''); // 清除之前的錯誤
       console.log('開始獲取訂單，頁碼:', page);
+      console.log('當前 accessToken 狀態:', accessToken ? '已設置' : '未設置');
+      
       // 構建查詢參數
       const params = new URLSearchParams({
         page: page.toString(),
@@ -327,177 +342,90 @@ export default function OrdersManagement() {
       if (statusFilter) {
         params.append('status', reverseStatusMap[statusFilter] || statusFilter);
       }
-
-      // 添加日期過濾
+      
+      // 處理搜尋查詢
+      if (searchQuery) {
+        // 檢查是否為訂單號格式
+        if (/^ORD\d+$/.test(searchQuery.trim())) {
+          params.append('order_number', searchQuery.trim());
+        } else if (searchQuery.includes('@')) {
+          // 可能是電子郵件
+          params.append('customer_email', searchQuery.trim());
+        } else if (/^[0-9-]+$/.test(searchQuery.trim())) {
+          // 可能是電話號碼
+          params.append('customer_phone', searchQuery.trim());
+        } else {
+          // 視為客戶名稱
+          params.append('customer_name', searchQuery.trim());
+        }
+      }
+      
+      // 添加公司名稱篩選
+      if (companyNameFilter) {
+        params.append('companyName', companyNameFilter);
+      }
+      
+      // 處理日期過濾
       if (dateFilter) {
-        const now = new Date();
-        let startDate = '';
-
-        switch (dateFilter) {
-          case 'today':
-            startDate = new Date(now.setHours(0, 0, 0, 0)).toISOString();
+        // 使用新的 date_range 參數
+        if (['today', 'yesterday', 'this_week', 'this_month', 'last_month'].includes(dateFilter)) {
+          params.append('date_range', dateFilter);
+        } else if (dateFilter === 'custom') {
+          // 自定義日期範圍
+          if (startDate) {
             params.append('startDate', startDate);
-            break;
-          case 'yesterday':
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-            yesterday.setHours(0, 0, 0, 0);
-            startDate = yesterday.toISOString();
-            const endYesterday = new Date(yesterday);
-            endYesterday.setHours(23, 59, 59, 999);
-            params.append('startDate', startDate);
-            params.append('endDate', endYesterday.toISOString());
-            break;
-          case 'this_week':
-            const thisWeekStart = new Date(now);
-            thisWeekStart.setDate(now.getDate() - now.getDay());
-            thisWeekStart.setHours(0, 0, 0, 0);
-            params.append('startDate', thisWeekStart.toISOString());
-            break;
-          case 'this_month':
-            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            params.append('startDate', thisMonthStart.toISOString());
-            break;
-          case 'last_month':
-            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-            params.append('startDate', lastMonthStart.toISOString());
-            params.append('endDate', lastMonthEnd.toISOString());
-            break;
+          }
+          if (endDate) {
+            params.append('endDate', endDate);
+          }
         }
       }
 
-      // 如果有搜尋查詢，改為使用查詢API
-      if (searchQuery) {
-        // 嘗試確定查詢類型 (訂單號或客戶資訊)
-        const isOrderNumber = /^ORD-\d+$/.test(searchQuery.trim());
-        
-        if (isOrderNumber) {
-          // 查詢特定訂單
-          const orderCheckResponse = await fetch('/api/orders/check', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              order_number: searchQuery.trim(),
-            }),
-            credentials: 'include',
-          });
-          
-          if (orderCheckResponse.status === 401) {
-            handleAuthError('查詢訂單時認證失敗');
-            return;
-          }
-          
-          const orderData = await orderCheckResponse.json();
-          
-          if (orderCheckResponse.ok) {
-            // 設置為單一訂單結果
-            setOrders([{
-              id: orderData.id,
-              order_number: orderData.order_number,
-              customer_name: orderData.customer_name,
-              customer_email: orderData.customer_email,
-              customer_phone: orderData.customer_phone,
-              status: orderData.status,
-              total_amount: orderData.total_amount,
-              created_at: new Date(orderData.created_at).toLocaleString('zh-TW'),
-              orderItems: orderData.orderItems || [],
-              address: orderData.address
-            }]);
-            setTotalOrders(1);
-            setTotalPages(1);
-            setCurrentPage(1);
-          } else {
-            setOrders([]);
-            setTotalOrders(0);
-            setTotalPages(0);
-            setError(orderData.message || '獲取訂單失敗');
-          }
-        } else {
-          // 嘗試作為客戶資訊查詢
-          // 假設搜尋字串可能是客戶姓名、電話或郵件，先查詢
-          const response = await fetch('/api/orders/query', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              customer_email: searchQuery.includes('@') ? searchQuery : undefined,
-              customer_phone: /^[0-9-]+$/.test(searchQuery) ? searchQuery : undefined,
-              customer_name: !searchQuery.includes('@') && !/^[0-9-]+$/.test(searchQuery) ? searchQuery : undefined
-            }),
-            credentials: 'include',
-          });
-          
-          if (response.status === 401) {
-            handleAuthError('查詢客戶訂單時認證失敗');
-            return;
-          }
-          
-          const data = await response.json();
-          
-          if (response.ok) {
-            setOrders(data.orders.map((order: any) => ({
-              id: order.id,
-              order_number: order.order_number,
-              customer_name: order.customer_name,
-              customer_email: order.customer_email || '',
-              customer_phone: order.customer_phone || '',
-              status: order.status,
-              total_amount: order.total_amount,
-              created_at: new Date(order.created_at).toLocaleString('zh-TW'),
-              orderItems: order.orderItems || []
-            })));
-            setTotalOrders(data.count);
-            setTotalPages(Math.ceil(data.count / limit));
-            setCurrentPage(1);
-          } else {
-            // 如果客戶查詢失敗，回退到標準訂單列表
-            const listResponse = await fetch(`/api/orders?${params.toString()}`, {
-              headers: getAuthHeaders(),
-              credentials: 'include',
-            });
-            
-            if (listResponse.status === 401) {
-              handleAuthError('獲取訂單列表時認證失敗');
-              return;
-            }
-            
-            const listData: OrdersResponse = await listResponse.json();
-            
-            if (listResponse.ok) {
-              setOrders(listData.orders);
-              setTotalOrders(listData.total);
-              setTotalPages(listData.totalPages);
-              setCurrentPage(listData.page);
-            } else {
-              throw new Error(listData.message || '獲取訂單失敗');
-            }
-          }
-        }
-      } else {
-        // 標準訂單列表API調用
-        console.log(`發送請求: /api/orders?${params.toString()}`);
-        const response = await fetch(`/api/orders?${params.toString()}`, {
-          headers: getAuthHeaders(),
-          credentials: 'include',
-        });
-        
-        // 處理認證失敗
-        if (response.status === 401) {
-          handleAuthError('獲取訂單列表時認證失敗');
-          return;
-        }
-        
-        const data: OrdersResponse = await response.json();
-        console.log('訂單數據回應:', data);
-        
-        if (response.ok) {
-          setOrders(data.orders || []);
+      // 標準訂單列表API調用
+      console.log(`發送請求: /api/orders?${params.toString()}`);
+      const response = await fetch(`/api/orders?${params.toString()}`, {
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      });
+      
+      // 處理認證失敗
+      if (response.status === 401) {
+        handleAuthError('獲取訂單列表時認證失敗');
+        setLoading(false);
+        return;
+      } else if (response.status === 403) {
+        setError('您沒有權限訪問此資源，請聯繫管理員');
+        setLoading(false);
+        return;
+      } else if (response.status === 429) {
+        setError('請求頻率過高，請稍後再試');
+        setLoading(false);
+        return;
+      } else if (response.status >= 500) {
+        setError('伺服器錯誤，請稍後再試或聯繫技術支持');
+        setLoading(false);
+        return;
+      }
+      
+      const data: OrdersResponse = await response.json();
+      console.log('訂單數據回應:', data);
+      
+      if (response.ok) {
+        if (data.orders && data.orders.length > 0) {
+          setOrders(data.orders);
           setTotalOrders(data.total || 0);
           setTotalPages(data.totalPages || 1);
           setCurrentPage(data.page || 1);
         } else {
-          throw new Error(data.message || '獲取訂單失敗');
+          setOrders([]);
+          setTotalOrders(0);
+          setTotalPages(0);
+          setCurrentPage(1);
+          // 不顯示錯誤，因為這是有效的空結果
+          console.log('沒有找到符合條件的訂單');
         }
+      } else {
+        throw new Error(data.message || '獲取訂單失敗');
       }
 
       setLoading(false);
@@ -505,9 +433,15 @@ export default function OrdersManagement() {
       if (err.message?.includes('fetch') || err.message?.includes('network')) {
         // 網絡錯誤，可能是暫時性問題
         setError('網絡連接問題，請檢查您的網絡連接並稍後重試');
+      } else if (err.message?.includes('JSON')) {
+        // JSON解析錯誤
+        setError('數據解析錯誤，可能是伺服器回應格式異常，請聯繫技術支持');
+      } else if (err.message?.includes('timeout')) {
+        // 請求超時
+        setError('請求超時，伺服器可能繁忙，請稍後再試');
       } else {
         // 其他錯誤
-        setError(err.message || '獲取訂單時出錯');
+        setError(err.message || '獲取訂單時出錯，請重試或聯繫技術支持');
       }
       setLoading(false);
       console.error('獲取訂單錯誤:', err);
@@ -519,76 +453,6 @@ export default function OrdersManagement() {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
     fetchOrders(page);
-  };
-
-  // 處理匯出
-  const handleExport = async () => {
-    try {
-      // 構建查詢參數
-      const params = new URLSearchParams({
-        format: 'excel',
-      });
-
-      // 添加過濾條件
-      if (statusFilter) {
-        params.append('status', reverseStatusMap[statusFilter] || statusFilter);
-      }
-
-      if (dateFilter === 'custom' && dateFilter) {
-        // 這裡可以根據需要添加自定義日期範圍
-      } else if (dateFilter) {
-        const now = new Date();
-        let startDate = '';
-
-        switch (dateFilter) {
-          case 'today':
-            startDate = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-            params.append('startDate', startDate);
-            break;
-          case 'yesterday':
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-            yesterday.setHours(0, 0, 0, 0);
-            startDate = yesterday.toISOString();
-            const endYesterday = new Date(yesterday);
-            endYesterday.setHours(23, 59, 59, 999);
-            params.append('startDate', startDate);
-            params.append('endDate', endYesterday.toISOString());
-            break;
-          case 'this_week':
-            const thisWeekStart = new Date(now);
-            thisWeekStart.setDate(now.getDate() - now.getDay());
-            thisWeekStart.setHours(0, 0, 0, 0);
-            params.append('startDate', thisWeekStart.toISOString());
-            break;
-          case 'this_month':
-            const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            params.append('startDate', thisMonthStart.toISOString());
-            break;
-          case 'last_month':
-            const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-            params.append('startDate', lastMonthStart.toISOString());
-            params.append('endDate', lastMonthEnd.toISOString());
-            break;
-        }
-      }
-
-      // 設置認證頭
-      const headers = getAuthHeaders();
-      
-      // 使用認證頭建立請求
-      const request = new Request(`/api/orders/export?${params.toString()}`, {
-        headers: headers,
-        credentials: 'include',
-      });
-      
-      // 開始下載
-      window.location.href = request.url;
-    } catch (err) {
-      console.error('匯出訂單錯誤:', err);
-      alert('匯出訂單時出錯');
-    }
   };
 
   // 取消訂單
@@ -643,40 +507,7 @@ export default function OrdersManagement() {
     }
   };
 
-  // 處理認證錯誤
-  const handleAuthError = (errorMessage: string) => {
-    console.error(errorMessage);
-    // 先檢查localStorage和cookie，確認令牌是否已丟失
-    const hasLocalStorageToken = !!localStorage.getItem('accessToken');
-    const hasCookieToken = document.cookie.includes('accessToken=');
-    
-    if (!hasLocalStorageToken && !hasCookieToken) {
-      setError('認證令牌已丟失，請重新登入系統');
-    } else {
-      // 令牌存在但可能已過期或無效
-      setError('認證失敗，請嘗試重新登入系統');
-    }
-    setLoading(false);
-  };
-  
-  // 重新登入功能
-  const handleRelogin = () => {
-    console.log('執行重新登入流程');
-    
-    // 清除當前令牌
-    localStorage.removeItem('accessToken');
-    
-    // 刪除 cookie (透過設置過期時間為過去)
-    document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
-    // 記錄當前URL，以便登錄後返回
-    const returnUrl = encodeURIComponent(window.location.pathname);
-    
-    // 跳轉到登入頁面
-    window.location.href = `/login?returnUrl=${returnUrl}`;
-  };
-
-  // 查看訂單詳情 - 使用新的 API
+  // 查看訂單詳情
   const handleViewOrderDetail = async (orderNumber: string) => {
     if (!accessToken) {
       setError('認證失敗，請重新登入系統');
@@ -685,12 +516,12 @@ export default function OrdersManagement() {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/orders/check`, {
-        method: 'POST',
+      const params = new URLSearchParams({
+        order_number: orderNumber
+      });
+      
+      const response = await fetch(`/api/orders?${params.toString()}`, {
         headers: getAuthHeaders(),
-        body: JSON.stringify({ 
-          order_number: orderNumber 
-        }),
         credentials: 'include',
       });
 
@@ -702,12 +533,14 @@ export default function OrdersManagement() {
 
       const data = await response.json();
       
-      if (response.ok) {
+      if (response.ok && data.orders && data.orders.length > 0) {
+        const orderData = data.orders[0];
+        
         // 確保 orderItems 的 price 字段正確設置
-        if (data.orderItems && data.orderItems.length > 0) {
-          console.log('原始訂單項目數據:', data.orderItems);
+        if (orderData.orderItems && orderData.orderItems.length > 0) {
+          console.log('原始訂單項目數據:', orderData.orderItems);
           
-          data.orderItems = data.orderItems.map((item: any) => {
+          orderData.orderItems = orderData.orderItems.map((item: any) => {
             // 確保 price 欄位有值，優先使用 price，如果沒有則使用 unit_price
             const itemPrice = item.price !== undefined && item.price !== null 
               ? Number(item.price) 
@@ -724,10 +557,10 @@ export default function OrdersManagement() {
             };
           });
           
-          console.log('處理後的訂單項目數據:', data.orderItems);
+          console.log('處理後的訂單項目數據:', orderData.orderItems);
         }
         
-        setSelectedOrder(data);
+        setSelectedOrder(orderData);
         setShowOrderDetail(true);
         
         // 預先載入商品列表以便編輯
@@ -756,34 +589,11 @@ export default function OrdersManagement() {
 
   // 開啟編輯訂單模態視窗
   const handleOpenEditOrder = (order: Order) => {
-    // 預設填入當前訂單資訊
-    setEditOrderForm({
-      customer_info: {
-        name: order.customer_name,
-        email: order.customer_email,
-        phone: order.customer_phone,
-      },
-      shipping_address: order.address ? {
-        recipientName: order.address.recipient_name,
-        phone: order.address.phone,
-        address1: order.address.address1,
-        city: order.address.city,
-        postal_code: order.address.postal_code,
-      } : undefined,
-      status: order.status,
-      notes: order.notes,
-      lineid: order.lineid,
-      items: order.orderItems?.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-    });
-    setSelectedOrder(order);
-    setShowEditOrder(true);
+    // 導航到編輯頁面，不再使用模態視窗
+    router.push(`/admin/bakery/orders/edit/${order.order_number}`);
   };
 
-  // 更新訂單資訊
+  // 更新訂單資訊 - 移除此函數，因為編輯功能已經移至獨立頁面
   const handleUpdateOrder = async () => {
     if (!accessToken || !selectedOrder) {
       setError('認證失敗或缺少訂單資訊');
@@ -810,7 +620,7 @@ export default function OrdersManagement() {
       if (response.ok) {
         setSuccess('訂單更新成功');
         // 更新成功後關閉模態視窗
-        setShowEditOrder(false);
+        setShowStatusUpdate(false);
         // 重新獲取訂單列表
         fetchOrders(currentPage);
         
@@ -834,6 +644,12 @@ export default function OrdersManagement() {
     setSelectedOrder(order);
     setStatusNote('');
     setShowStatusUpdate(true);
+    
+    // 確保狀態表單中填入當前訂單狀態
+    setEditOrderForm({
+      ...editOrderForm,
+      status: order.status
+    });
   };
 
   // 更新訂單狀態
@@ -1215,18 +1031,18 @@ export default function OrdersManagement() {
   const renderActionButtons = (order: Order) => {
   return (
       <div className="flex space-x-3">
-        <button 
-          onClick={() => handleViewOrderDetail(order.order_number)}
+        <Link 
+          href={`/admin/bakery/orders/${order.order_number}`}
           className="text-blue-600 hover:text-blue-900"
         >
           詳情
-        </button>
-        <button 
-          onClick={() => handleOpenEditOrder(order)}
+        </Link>
+        <Link 
+          href={`/admin/bakery/orders/edit/${order.order_number}`}
           className="text-indigo-600 hover:text-indigo-900"
         >
           編輯
-        </button>
+        </Link>
         <button 
           onClick={() => handleOpenStatusUpdate(order)}
           className="text-amber-600 hover:text-amber-900"
@@ -1238,56 +1054,14 @@ export default function OrdersManagement() {
     );
   };
 
-  // 自動隱藏認證警告條
-  useEffect(() => {
-    if (error && error.includes('認證')) {
-      setShowAuthWarning(true);
-      
-      // 5秒後自動隱藏頂部警告條，但保留錯誤訊息
-      const timer = setTimeout(() => {
-        setShowAuthWarning(false);
-      }, 5000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
   // 獲取訂單狀態的中文顯示
   const getStatusDisplay = (status: string): string => {
-    if (!status) return '未知';
-    
-    // 嘗試直接從映射中獲取
-    const display = statusMap[status];
-    if (display) return display;
-    
-    // 如果找不到，嘗試轉換為大寫再查找
-    const uppercaseDisplay = statusMap[status.toUpperCase()];
-    if (uppercaseDisplay) return uppercaseDisplay;
-    
-    // 如果仍找不到，返回原始狀態
-    return status;
+    return getStatusDisplayFromService(status);
   };
 
   // 獲取訂單狀態的樣式類
   const getStatusClass = (status: string): string => {
-    const upperStatus = status?.toUpperCase() || '';
-    
-    let styleClass = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full ';
-    
-    switch (upperStatus) {
-      case 'DELIVERED':
-        return styleClass + 'bg-green-100 text-green-800';
-      case 'PENDING':
-        return styleClass + 'bg-yellow-100 text-yellow-800';
-      case 'PROCESSING':
-        return styleClass + 'bg-blue-100 text-blue-800';
-      case 'SHIPPED':
-        return styleClass + 'bg-indigo-100 text-indigo-800';
-      case 'CANCELLED':
-        return styleClass + 'bg-red-100 text-red-800';
-      default:
-        return styleClass + 'bg-gray-100 text-gray-800';
-    }
+    return getStatusClassFromService(status);
   };
 
   // 判斷訂單是否可以取消
@@ -1295,6 +1069,34 @@ export default function OrdersManagement() {
     if (!status) return false;
     const upperStatus = status.toUpperCase();
     return upperStatus === 'PENDING' || upperStatus === 'PROCESSING';
+  };
+
+  const [showExportModal, setShowExportModal] = useState<boolean>(false);
+  
+  // 匯出訂單功能
+  const handleExportOrders = () => {
+    setShowExportModal(true);
+  };
+  
+  // 獲取匯出數據
+  const fetchExportData = async (exportAll: boolean) => {
+    if (!accessToken) {
+      throw new Error('認證失敗，請重新登入系統');
+    }
+    
+    // 調用匯出服務
+    return await fetchOrdersForExport(
+      {
+        searchQuery,
+        statusFilter,
+        dateFilter,
+        companyNameFilter,
+        startDate,
+        endDate
+      },
+      exportAll,
+      getAuthHeaders
+    );
   };
 
   return (
@@ -1329,18 +1131,18 @@ export default function OrdersManagement() {
         <h1 className="text-2xl font-bold text-gray-900">訂單管理</h1>
         <button 
           className="inline-flex items-center bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-          onClick={handleExport}
+          onClick={handleExportOrders}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
+          </svg>
           匯出訂單
         </button>
       </div>
 
       {/* 過濾器區域 */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">搜尋訂單</label>
             <div className="relative">
@@ -1352,7 +1154,7 @@ export default function OrdersManagement() {
               <input
                 type="text"
                 id="search"
-                placeholder="訂單編號或客戶名稱"
+                placeholder="訂單編號/客戶名稱/電話/郵件"
                 className="pl-10 w-full rounded-md border border-gray-300 py-2 px-3 focus:ring-amber-500 focus:border-amber-500"
                 value={searchQuery}
                 onChange={handleSearchChange}
@@ -1378,6 +1180,23 @@ export default function OrdersManagement() {
           </div>
           
           <div>
+            <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">客戶公司</label>
+            <select
+              id="companyName"
+              className="w-full rounded-md border border-gray-300 py-2 px-3 focus:ring-amber-500 focus:border-amber-500"
+              value={companyNameFilter}
+              onChange={handleCompanyNameChange}
+            >
+              <option value="">所有公司</option>
+              {customers.map((customer) => (
+                <option key={customer.id} value={customer.companyName}>
+                  {customer.companyName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">訂單日期</label>
             <select
               id="date"
@@ -1394,7 +1213,35 @@ export default function OrdersManagement() {
               <option value="custom">自訂日期範圍</option>
             </select>
           </div>
+          
         </div>
+        
+        {/* 自定義日期範圍選擇器 */}
+        {showCustomDateRange && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">開始日期</label>
+              <input
+                type="date"
+                id="startDate"
+                className="w-full rounded-md border border-gray-300 py-2 px-3 focus:ring-amber-500 focus:border-amber-500"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">結束日期</label>
+              <input
+                type="date"
+                id="endDate"
+                className="w-full rounded-md border border-gray-300 py-2 px-3 focus:ring-amber-500 focus:border-amber-500"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate} // 確保結束日期不早於開始日期
+              />
+            </div>
+          </div>
+        )}
         
         <div className="flex justify-end mt-4">
           <button 
@@ -1409,11 +1256,25 @@ export default function OrdersManagement() {
         </div>
       </div>
 
-      {/* 錯誤訊息顯示 */}
+      {/* 錯誤訊息顯示 - 增強版 */}
       {error && (
         <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700">
-          <div className="flex justify-between">
-            <p>{error}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-start">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="font-semibold">發生錯誤</p>
+                <p>{error}</p>
+                {error.includes('網絡') && (
+                  <p className="text-sm mt-1">建議檢查您的網絡連接，或重新整理頁面再試。</p>
+                )}
+                {error.includes('認證') && (
+                  <p className="text-sm mt-1">您的登入可能已過期，請嘗試重新登入後再訪問此頁面。</p>
+                )}
+              </div>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setError('')}
@@ -1483,9 +1344,11 @@ export default function OrdersManagement() {
                   客戶資訊
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  客戶業主
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   日期
                 </th>
-                 
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   總金額
                 </th>
@@ -1510,10 +1373,13 @@ export default function OrdersManagement() {
                       <div className="text-sm text-gray-500">{order.customer_email}</div>
                       <div className="text-sm text-gray-500">{order.customer_phone}</div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                     <div className="text-sm text-gray-500">{order.salesperson?.id}</div>
+                      <div className="text-sm font-medium text-gray-900">{order.salesperson?.companyName}</div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(order.created_at).toLocaleString('zh-TW')}
                   </td>
-                   
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       NT${typeof order.total_amount === 'number' ? order.total_amount.toLocaleString('zh-TW') : order.total_amount}
                   </td>
@@ -1533,735 +1399,84 @@ export default function OrdersManagement() {
         )}
         
         {/* 分頁控制 */}
-        <div className="my-5 flex justify-between items-center">
-          {/* 頁碼顯示 */}
-          <div className="text-sm text-gray-700">
-            共 <span className="font-medium">{totalOrders}</span> 筆訂單，
-            頁數 <span className="font-medium">{currentPage}</span> / <span className="font-medium">{totalPages}</span>
-          </div>
-          
-          {/* 分頁按鈕 */}
-          <div className="flex space-x-2">
-            <button
-              onClick={() => fetchOrders(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className={`px-3 py-1 rounded ${
-                currentPage <= 1 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              上一頁
-            </button>
-            <button
-              onClick={() => fetchOrders(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className={`px-3 py-1 rounded ${
-                currentPage >= totalPages 
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-            >
-              下一頁
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 訂單詳情模態視窗 */}
-      {showOrderDetail && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">訂單詳情 #{selectedOrder.order_number}</h3>
-              <button 
-                onClick={handleCloseOrderDetail}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-                <h4 className="font-medium text-gray-700 mb-2">訂單資訊</h4>
-                <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-600">訂單編號：</span> {selectedOrder.order_number}</p>
-                  <p><span className="text-gray-600">訂單狀態：</span> <span className={getStatusClass(selectedOrder.status)}>{getStatusDisplay(selectedOrder.status)}</span></p>
-                  <p><span className="text-gray-600">訂單日期：</span> {new Date(selectedOrder.created_at).toLocaleString('zh-TW').replace(/\//g, '/')}</p>
-                  <p><span className="text-gray-600">總金額：</span> NT${typeof selectedOrder.total_amount === 'number' ? selectedOrder.total_amount.toLocaleString('zh-TW') : selectedOrder.total_amount}</p>
-                  {selectedOrder.notes && (
-                    <p><span className="text-gray-600">備註：</span> {selectedOrder.notes}</p>
-                  )}
-                  {selectedOrder.lineid && (
-                    <p><span className="text-gray-600">Line ID：</span> {selectedOrder.lineid}</p>
-                  )}
-                </div>
-            </div>
-            <div>
-                <h4 className="font-medium text-gray-700 mb-2">客戶資訊</h4>
-                <div className="space-y-2 text-sm">
-                  <p><span className="text-gray-600">姓名：</span> {selectedOrder.customer_name}</p>
-                  <p><span className="text-gray-600">電話：</span> {selectedOrder.customer_phone}</p>
-                  <p><span className="text-gray-600">電子郵件：</span> {selectedOrder.customer_email}</p>
-                </div>
-                
-                {selectedOrder.address && (
-                  <div className="mt-4">
-                    <h4 className="font-medium text-gray-700 mb-2">收貨地址</h4>
-                    <div className="space-y-2 text-sm">
-                      <p><span className="text-gray-600">收件人：</span> {selectedOrder.address.recipient_name}</p>
-                      <p><span className="text-gray-600">電話：</span> {selectedOrder.address.phone}</p>
-                      <p><span className="text-gray-600">地址：</span> {selectedOrder.address.postal_code} {selectedOrder.address.city} {selectedOrder.address.address1}</p>
-                    </div>
-                  </div>
-                )}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 bg-white border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-700">
+                顯示 <span className="font-medium">{(currentPage - 1) * limit + 1}</span> 到 
+                <span className="font-medium">{Math.min(currentPage * limit, totalOrders)}</span> 項，
+                共 <span className="font-medium">{totalOrders}</span> 項
               </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-2">訂單項目</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        商品
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        數量
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        單價
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        小計
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        操作
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {selectedOrder.orderItems && selectedOrder.orderItems.map((item, index) => {
-                      // 計算小計
-                      const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
-                      const price = typeof item.price === 'number' ? item.price : 0;
-                      const subtotal = quantity * price;
-                      
-                      return (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {item.product?.name || item.product_name}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {quantity}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            NT${price.toLocaleString('zh-TW')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            NT${subtotal.toLocaleString('zh-TW')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleOpenEditItem(item)}
-                                className="text-indigo-600 hover:text-indigo-900"
-                                disabled={loading}
-                              >
-                                編輯
-                              </button>
-                              <button
-                                onClick={() => handleDeleteOrderItem(item.id)}
-                                className="text-red-600 hover:text-red-900 ml-2"
-                                disabled={loading}
-                              >
-                                刪除
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {(!selectedOrder.orderItems || selectedOrder.orderItems.length === 0) && (
-                      <tr>
-                        <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                          訂單中沒有商品
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                  <tfoot className="bg-gray-50">
-                    <tr>
-                      <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-500">
-                        總計:
-                      </td>
-                      <td className="px-6 py-3 text-left text-sm font-medium text-gray-900">
-                        NT${typeof selectedOrder.total_amount === 'number' ? selectedOrder.total_amount.toLocaleString('zh-TW') : selectedOrder.total_amount}
-                      </td>
-                      <td className="px-6 py-3">
-                        <button
-                          onClick={handleOpenAddItem}
-                          className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                          disabled={loading}
-                        >
-                          新增商品
-                        </button>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={handleCloseOrderDetail}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                關閉
-            </button>
-              <button
-                onClick={() => {
-                  handleCloseOrderDetail();
-                  handleOpenEditOrder(selectedOrder);
-                }}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                編輯訂單
-            </button>
-              <button
-                onClick={() => {
-                  handleCloseOrderDetail();
-                  handleOpenStatusUpdate(selectedOrder);
-                }}
-                className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
-              >
-                更新狀態
-                </button>
-              {canCancelOrder(selectedOrder.status) && (
+              <div className="flex space-x-2">
                 <button
-                  onClick={() => {
-                    if (window.confirm('確定要取消此訂單嗎？')) {
-                      handleCancelOrder(selectedOrder.order_number);
-                      handleCloseOrderDetail();
-                    }
-                  }}
-                  className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1 rounded-md ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
-                  取消訂單
+                  上一頁
                 </button>
-              )}
-          </div>
-          </div>
-        </div>
-      )}
-
-      {/* 編輯訂單模態視窗 */}
-      {showEditOrder && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">編輯訂單 #{selectedOrder.order_number}</h3>
-              <button 
-                onClick={() => setShowEditOrder(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              {/* 客戶資訊 */}
-            <div>
-                <h4 className="font-medium text-gray-700 mb-3">客戶資訊</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-                    <input
-                      type="text"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.customer_info?.name || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        customer_info: {
-                          ...editOrderForm.customer_info,
-                          name: e.target.value
-                        }
-                      })}
-                    />
-            </div>
-            <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
-                    <input
-                      type="email"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.customer_info?.email || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        customer_info: {
-                          ...editOrderForm.customer_info,
-                          email: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">電話</label>
-                    <input
-                      type="tel"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.customer_info?.phone || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        customer_info: {
-                          ...editOrderForm.customer_info,
-                          phone: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 配送地址 */}
-              <div>
-                <h4 className="font-medium text-gray-700 mb-3">配送地址</h4>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">收件人</label>
-                    <input
-                      type="text"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.shipping_address?.recipientName || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        shipping_address: {
-                          ...editOrderForm.shipping_address,
-                          recipientName: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">聯絡電話</label>
-                    <input
-                      type="tel"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.shipping_address?.phone || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        shipping_address: {
-                          ...editOrderForm.shipping_address,
-                          phone: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">郵遞區號</label>
-                    <input
-                      type="text"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.shipping_address?.postal_code || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        shipping_address: {
-                          ...editOrderForm.shipping_address,
-                          postal_code: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">城市</label>
-                    <input
-                      type="text"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.shipping_address?.city || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        shipping_address: {
-                          ...editOrderForm.shipping_address,
-                          city: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">詳細地址</label>
-                    <input
-                      type="text"
-                      className="w-full rounded-md border border-gray-300 p-2"
-                      value={editOrderForm.shipping_address?.address1 || ''}
-                      onChange={(e) => setEditOrderForm({
-                        ...editOrderForm,
-                        shipping_address: {
-                          ...editOrderForm.shipping_address,
-                          address1: e.target.value
-                        }
-                      })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <h4 className="font-medium text-gray-700 mb-3">其他資訊</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">訂單狀態</label>
-                  <select
-                    className="w-full rounded-md border border-gray-300 p-2"
-                    value={editOrderForm.status || ''}
-                    onChange={(e) => setEditOrderForm({
-                      ...editOrderForm,
-                      status: e.target.value
-                    })}
-                  >
-                    <option value="PENDING">待處理</option>
-                    <option value="PROCESSING">處理中</option>
-                    <option value="SHIPPED">已出貨</option>
-                    <option value="DELIVERED">已送達</option>
-                    <option value="CANCELLED">已取消</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">業務代表代碼</label>
-                  <input
-                    type="text"
-                    className="w-full rounded-md border border-gray-300 p-2"
-                    value={editOrderForm.salesperson_code || ''}
-                    onChange={(e) => setEditOrderForm({
-                      ...editOrderForm,
-                      salesperson_code: e.target.value
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Line ID</label>
-                  <input
-                    type="text"
-                    className="w-full rounded-md border border-gray-300 p-2"
-                    value={editOrderForm.lineid || ''}
-                    onChange={(e) => setEditOrderForm({
-                      ...editOrderForm,
-                      lineid: e.target.value
-                    })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">訂單備註</label>
-                  <textarea
-                    className="w-full rounded-md border border-gray-300 p-2"
-                    rows={3}
-                    value={editOrderForm.notes || ''}
-                    onChange={(e) => setEditOrderForm({
-                      ...editOrderForm,
-                      notes: e.target.value
-                    })}
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-
-            {/* 注意: 編輯訂單項目需要更複雜的交互，暫時不實現 */}
-            <div className="flex justify-end space-x-3 mt-4">
-              <button
-                onClick={() => setShowEditOrder(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleUpdateOrder}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                disabled={loading}
-              >
-                {loading ? '處理中...' : '保存更改'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 更新訂單狀態模態視窗 */}
-      {showStatusUpdate && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">更新訂單狀態 #{selectedOrder.order_number}</h3>
-              <button 
-                onClick={() => setShowStatusUpdate(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-4">
-                當前訂單狀態: <span className={getStatusClass(selectedOrder.status)}>{getStatusDisplay(selectedOrder.status)}</span>
-              </p>
-              
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">新訂單狀態</label>
-                <select
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editOrderForm.status || selectedOrder.status}
-                  onChange={(e) => setEditOrderForm({
-                    ...editOrderForm,
-                    status: e.target.value
-                  })}
+                
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNum = index + 1;
+                  // 只顯示前後 2 頁和當前頁
+                  if (
+                    pageNum === 1 ||
+                    pageNum === totalPages ||
+                    (pageNum >= currentPage - 2 && pageNum <= currentPage + 2)
+                  ) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-1 rounded-md ${
+                          currentPage === pageNum
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                  
+                  // 顯示省略號
+                  if (
+                    (pageNum === currentPage - 3 && pageNum > 1) ||
+                    (pageNum === currentPage + 3 && pageNum < totalPages)
+                  ) {
+                    return <span key={pageNum} className="px-1">...</span>;
+                  }
+                  
+                  return null;
+                })}
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-3 py-1 rounded-md ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
                 >
-                  <option value="PENDING">待處理</option>
-                  <option value="PROCESSING">處理中</option>
-                  <option value="SHIPPED">已出貨</option>
-                  <option value="DELIVERED">已送達</option>
-                  <option value="CANCELLED">已取消</option>
-                </select>
+                  下一頁
+                </button>
+              </div>
+            </div>
           </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
-                <textarea
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  rows={3}
-                  placeholder="請輸入狀態變更的原因或其他備註"
-                  value={statusNote}
-                  onChange={(e) => setStatusNote(e.target.value)}
-                ></textarea>
-        </div>
+        )}
       </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowStatusUpdate(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                取消
-                </button>
-              <button
-                onClick={handleUpdateStatus}
-                className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
-                disabled={loading}
-              >
-                {loading ? '處理中...' : '更新狀態'}
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 編輯商品模態視窗 */}
-      {showEditItem && selectedOrder && currentItem && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">編輯商品</h3>
-              <button 
-                onClick={() => setShowEditItem(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">商品</label>
-                <select
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.product_id}
-                  onChange={(e) => {
-                    const selectedProduct = availableProducts.find(p => p.id === e.target.value);
-                    setEditItemForm({
-                      ...editItemForm,
-                      product_id: e.target.value,
-                      price: selectedProduct?.price || 0
-                    });
-                  }}
-                >
-                  <option value="">-- 選擇商品 --</option>
-                  {availableProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - NT${typeof product.price === 'number' ? product.price.toLocaleString('zh-TW') : product.price}
-                    </option>
-                  ))}
-                </select>
-                {editItemForm.product_id && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {availableProducts.find(p => p.id === editItemForm.product_id)?.specification || ''}
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">數量</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.quantity}
-                  onChange={(e) => setEditItemForm({
-                    ...editItemForm,
-                    quantity: parseInt(e.target.value) || 1
-                  })}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">單價 (NT$)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.price}
-                  onChange={(e) => setEditItemForm({
-                    ...editItemForm,
-                    price: parseFloat(e.target.value) || 0
-                  })}
-                />
-                <p className="mt-1 text-xs text-gray-500">若留空，將使用商品的默認價格</p>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
-                  小計: NT${typeof editItemForm.quantity === 'number' && typeof editItemForm.price === 'number' ? (editItemForm.quantity * editItemForm.price).toLocaleString('zh-TW') : '計算中...'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowEditItem(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                取消
-                </button>
-              <button
-                onClick={handleUpdateOrderItem}
-                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                disabled={loading || !editItemForm.product_id}
-              >
-                {loading ? '處理中...' : '保存更改'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 添加商品模態視窗 */}
-      {showAddItem && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">添加商品到訂單</h3>
-              <button 
-                onClick={() => setShowAddItem(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">選擇商品 <span className="text-red-500">*</span></label>
-                <select
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.product_id}
-                  onChange={(e) => {
-                    const selectedProduct = availableProducts.find(p => p.id === e.target.value);
-                    setEditItemForm({
-                      ...editItemForm,
-                      product_id: e.target.value,
-                      price: selectedProduct?.price || 0
-                    });
-                  }}
-                >
-                  <option value="">-- 選擇商品 --</option>
-                  {availableProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} - NT${typeof product.price === 'number' ? product.price.toLocaleString('zh-TW') : product.price}
-                    </option>
-                  ))}
-                </select>
-                {editItemForm.product_id && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {availableProducts.find(p => p.id === editItemForm.product_id)?.specification || ''}
-                  </p>
-                )}
-          </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">數量</label>
-                <input
-                  type="number"
-                  min="1"
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.quantity}
-                  onChange={(e) => setEditItemForm({
-                    ...editItemForm,
-                    quantity: parseInt(e.target.value) || 1
-                  })}
-                />
-        </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">單價 (NT$)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  className="w-full rounded-md border border-gray-300 p-2"
-                  value={editItemForm.price}
-                  onChange={(e) => setEditItemForm({
-                    ...editItemForm,
-                    price: parseFloat(e.target.value) || 0
-                  })}
-                />
-                <p className="mt-1 text-xs text-gray-500">若留空，將使用商品的默認價格</p>
-      </div>
-              
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
-                  預估小計: NT${typeof editItemForm.quantity === 'number' && typeof editItemForm.price === 'number' ? (editItemForm.quantity * editItemForm.price).toLocaleString('zh-TW') : '計算中...'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowAddItem(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleAddOrderItem}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                disabled={loading || !editItemForm.product_id}
-              >
-                {loading ? '處理中...' : '添加商品'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 匯出訂單模態窗 */}
+      <ExportOrdersModal 
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        filters={{
+          searchQuery,
+          statusFilter,
+          dateFilter,
+          companyNameFilter,
+          startDate,
+          endDate
+        }}
+        fetchExportData={fetchExportData}
+      />
     </div>
   );
 } 

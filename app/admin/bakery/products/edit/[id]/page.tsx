@@ -2,6 +2,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { 
+  initializeAuth, 
+  getAuthHeaders, 
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../../utils/authService';
 
 // 定義分類類型
 interface Category {
@@ -21,10 +28,11 @@ interface Product {
   description: string;
   price: number;
   discount_price: number | null;
-  category_id: number;
+  categoryId: number;
   images: string[] | string;
   status: string;
   specification: string | null;
+  unit_code: string | null;
   created_at: string;
   updated_at: string;
   category?: Category;
@@ -39,13 +47,15 @@ export default function EditProduct() {
 
   // 表單狀態
   const [formData, setFormData] = useState<Partial<Product>>({
+    id: 0,
     name: '',
     description: '',
     price: 0,
     discount_price: null,
-    category_id: 0,
+    categoryId: 0,
     images: [],
     specification: '',
+    unit_code: '',
     status: 'active'
   });
 
@@ -62,10 +72,30 @@ export default function EditProduct() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
 
   // 在狀態定義部分添加新的狀態變量
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [showPreviewAnimation, setShowPreviewAnimation] = useState(false);
+  
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
 
   // 載入產品資料和分類資料
   useEffect(() => {
@@ -73,9 +103,25 @@ export default function EditProduct() {
       try {
         setLoading(true);
         setError(null);
+        
+        // 檢查令牌是否存在
+        if (!accessToken) {
+          handleAuthError('獲取產品資料時缺少認證令牌', setError, setLoading, setShowAuthWarning);
+          return;
+        }
 
         // 載入產品資料
-        const productResponse = await fetch(`/api/products/${productId}`);
+        const productResponse = await fetch(`/api/products/${productId}`, {
+          headers: getAuthHeaders(accessToken),
+          credentials: 'include'
+        });
+        
+        // 處理認證錯誤
+        if (productResponse.status === 401) {
+          handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
+          return;
+        }
+        
         if (!productResponse.ok) {
           throw new Error('無法獲取產品資料');
         }
@@ -111,18 +157,30 @@ export default function EditProduct() {
         
         // 轉換產品資料格式以符合表單需求
         setFormData({
+          id: productData.id,
           name: productData.name,
           description: productData.description,
           price: parseFloat(productData.price),
           discount_price: productData.discount_price ? parseFloat(productData.discount_price) : null,
-          category_id: productData.category?.id || productData.category_id,
+          categoryId: productData.category?.id || productData.categoryId,
           images: singleImagePath, // 確保始終設置為字串形式
           specification: productData.specification || '',
+          unit_code: productData.unit_code || '',
           status: productData.status
         });
 
         // 載入分類資料
-        const categoryResponse = await fetch('/api/categories');
+        const categoryResponse = await fetch('/api/categories', {
+          headers: getAuthHeaders(accessToken),
+          credentials: 'include'
+        });
+        
+        // 處理認證錯誤
+        if (categoryResponse.status === 401) {
+          handleAuthError('獲取分類資料時認證失敗', setError, setLoading, setShowAuthWarning);
+          return;
+        }
+        
         if (!categoryResponse.ok) {
           throw new Error('無法獲取分類資料');
         }
@@ -135,10 +193,10 @@ export default function EditProduct() {
       }
     };
 
-    if (productId) {
+    if (productId && accessToken) {
       fetchData();
     }
-  }, [productId]);
+  }, [productId, accessToken]);
 
   // 處理表單輸入變更
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -182,8 +240,8 @@ export default function EditProduct() {
     try {
       // 設定檔案名稱為產品名稱（不含產品ID，實現同名覆蓋）
       const fileName = `${formData.name?.trim().replace(/\s+/g, '_')}-${productId}.jpg`;
-      // 基本路徑，用於保存到資料庫
-      const basePath = `/bakery/${fileName}`;
+      // 基本路徑，用於保存到資料庫 - 使用API路徑
+      const basePath = `/api/images/bakery/${fileName}`;
       // 添加時間戳參數防止瀏覽器快取
       const cacheBustPath = `${basePath}?t=${Date.now()}`;
       
@@ -274,7 +332,7 @@ export default function EditProduct() {
     }
   }, []);
 
-  // 提交表單
+  // 處理表單提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -283,66 +341,66 @@ export default function EditProduct() {
       setError(null);
       setSuccessMessage(null);
       
-      // 如果有上傳圖片，先處理圖片上傳
-      if (uploadedImage) {
-        const formDataUpload = new FormData();
-        const fileName = `${formData.name?.trim().replace(/\s+/g, '_')}-${productId}.jpg`;
-        
-        formDataUpload.append('file', uploadedImage, fileName);
-        formDataUpload.append('destination', 'public/bakery');
-        
-        // 發送圖片上傳請求
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload,
-        });
-        
-        if (!uploadResponse.ok) {
-          const uploadError = await uploadResponse.json();
-          throw new Error(uploadError.message || '圖片上傳失敗');
-        }
-        
-        // 確保在上傳成功後，更新 formData 中的圖片路徑（不含時間戳）
-        const basePath = `/bakery/${fileName}`;
-        setFormData(prev => ({
-          ...prev,
-          images: basePath
-        }));
-      } else if (existingImagePath && !uploadedImagePath) {
-        // 如果有現有圖片但沒有選擇新圖片，確保使用現有圖片路徑（去除時間戳參數）
-        const cleanPath = existingImagePath.split('?')[0];
-        setFormData(prev => ({
-          ...prev,
-          images: cleanPath
-        }));
+      // 檢查令牌是否存在
+      if (!accessToken) {
+        handleAuthError('更新產品時缺少認證令牌', setError, setLoading, setShowAuthWarning);
+        return;
       }
       
-      // 準備要提交的數據
-      const dataToSubmit = { ...formData };
+      // 構建要提交的資料
+      const productFormData = new FormData();
       
-      // 發送 PUT 請求更新產品資料
+      // 添加基本欄位
+      productFormData.append('name', formData.name || '');
+      productFormData.append('description', formData.description || '');
+      productFormData.append('price', formData.price?.toString() || '0');
+      productFormData.append('discount_price', formData.discount_price?.toString() || '');
+      productFormData.append('categoryId', formData.categoryId?.toString() || '');
+      productFormData.append('status', formData.status || 'active');
+      productFormData.append('specification', formData.specification || '');
+      productFormData.append('unit_code', formData.unit_code || '');
+      
+      // 添加圖片檔案（如果有）
+      if (uploadedImage) {
+        productFormData.append('image', uploadedImage);
+      } else if (existingImagePath) {
+        // 如果沒有新上傳的圖片，但有現有圖片，則保留現有圖片路徑
+        // 去除可能的時間戳參數
+        const cleanImagePath = existingImagePath.split('?')[0];
+        productFormData.append('images', cleanImagePath);
+      }
+      
+      // 發送請求
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
         },
-        body: JSON.stringify(dataToSubmit),
+        body: productFormData
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '更新產品失敗');
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthError('更新產品時認證失敗', setError, setLoading, setShowAuthWarning);
+        return;
       }
       
-      const result = await response.json();
-      setSuccessMessage('產品更新成功！');
+      const data = await response.json();
       
-      // 延遲後導航回產品列表
+      if (!response.ok) {
+        throw new Error(data.message || '更新產品失敗');
+      }
+      
+      setSuccessMessage('產品已成功更新');
+      
+      // 延遲後跳轉回產品列表
       setTimeout(() => {
         router.push('/admin/bakery/products');
       }, 1500);
+      
     } catch (err) {
-      setError(err instanceof Error ? err.message : '發生錯誤');
+      setError(err instanceof Error ? err.message : '發生未知錯誤');
+      setSuccessMessage(null);
     } finally {
       setSubmitting(false);
     }
@@ -359,18 +417,19 @@ export default function EditProduct() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
-        <h1 className="text-2xl font-bold text-gray-900">編輯產品</h1>
-        <button 
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">編輯產品</h1>
+        <button
           onClick={() => router.back()}
-          className="inline-flex items-center bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
         >
           返回
         </button>
       </div>
-
-      {error && (
+      
+      {/* 認證警告 */}
+      {showAuthWarning && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -379,12 +438,24 @@ export default function EditProduct() {
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700">
+                {error || '認證失敗，請重新登入系統'}
+                <button 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleRelogin();
+                  }}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  立即登入
+                </button>
+              </p>
             </div>
           </div>
         </div>
       )}
 
+      {/* 成功消息 */}
       {successMessage && (
         <div className="bg-green-50 border-l-4 border-green-500 p-4">
           <div className="flex">
@@ -407,7 +478,24 @@ export default function EditProduct() {
             <h2 className="text-lg font-medium text-gray-900 mb-4">基本資訊</h2>
             
             <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-6">
+              <div className="sm:col-span-3">
+                <label htmlFor="id" className="block text-sm font-medium text-gray-700">
+                  產品編號<span className="text-red-500">*</span>
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    name="id"
+                    id="id"
+                    required
+                    value={formData.id || ''}
+                    readOnly
+                    className="shadow-sm bg-gray-100 focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-sm border-gray-300 rounded-md cursor-not-allowed"
+                  />
+                </div>
+              </div>
+              
+              <div className="sm:col-span-3">
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                   產品名稱<span className="text-red-500">*</span>
                 </label>
@@ -468,15 +556,15 @@ export default function EditProduct() {
               </div>
 
               <div className="sm:col-span-3">
-                <label htmlFor="category_id" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
                   分類<span className="text-red-500">*</span>
                 </label>
                 <div className="mt-1">
                   <select
-                    id="category_id"
-                    name="category_id"
+                    id="categoryId"
+                    name="categoryId"
                     required
-                    value={formData.category_id || ''}
+                    value={formData.categoryId || ''}
                     onChange={handleInputChange}
                     className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-sm border-gray-300 rounded-md"
                   >
@@ -508,6 +596,27 @@ export default function EditProduct() {
                     <option value="out_of_stock">缺貨中</option>
                     <option value="low_stock">庫存不足</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="sm:col-span-3">
+                <label htmlFor="unit_code" className="block text-sm font-medium text-gray-700">
+                  單位代號
+                </label>
+                <div className="mt-1">
+                  <input
+                    type="text"
+                    name="unit_code"
+                    id="unit_code"
+                    value={formData.unit_code || ''}
+                    onChange={(e) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        unit_code: e.target.value.toUpperCase()
+                      }));
+                    }}
+                    className="shadow-sm focus:ring-amber-500 focus:border-amber-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  />
                 </div>
               </div>
 

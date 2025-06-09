@@ -83,11 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 登入函數
   const login = async (email: string, password: string) => {
     try {
+      console.log('開始登入');
       const response = await apiService.login(email, password);
       
-      if (response.data.success && response.data.data) {
+      // 注意: 由於改用fetch，response結構已經改變，不再需要 .data 層級
+      if (response.success && response.data) {
         // 存儲token到localStorage
-        const { accessToken, refreshToken } = response.data.data;
+        const { accessToken, refreshToken } = response.data.tokens || response.data;
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
         
@@ -143,23 +145,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         // 設置用戶信息
-        setUser(response.data.data.user);
+        setUser(response.data.user);
         
         return { 
           success: true, 
-          userData: response.data.data.user  // 返回用戶數據
+          userData: response.data.user  // 返回用戶數據
         };
       } else {
         return { 
           success: false, 
-          message: response.data.message || '登入失敗' 
+          message: response.message || '登入失敗' 
         };
       }
     } catch (error: any) {
       if (isDev) console.error('登入錯誤:', error);
       return { 
         success: false, 
-        message: error.response?.data?.message || '登入時發生錯誤' 
+        message: error.message || '登入時發生錯誤' 
       };
     }
   };

@@ -15,16 +15,39 @@ interface Customer {
   industry: string;
   status: string;
   notes: string;
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
+  lineId: string;
+  displayName: string;
+  customerId: string;
+}
+
+// 關聯客戶類型
+interface RelatedCustomer {
+  id: string;
+  companyName: string;
+  name: string;
+  email: string;
+  address: string;
+}
+
+// API 響應類型
+interface ApiResponse {
+  status: string;
+  message: string;
+  data: {
+    lineUser: Customer;
+    customer?: RelatedCustomer;
+  };
 }
 
 export default function CustomerDetails() {
   const params = useParams();
   const router = useRouter();
-  const customerId = params.id;
+  const lineId = params.id; // 直接使用URL參數作為lineId
   
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [relatedCustomer, setRelatedCustomer] = useState<RelatedCustomer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -40,26 +63,44 @@ export default function CustomerDetails() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/customers/${customerId}`);
+        // 獲取認證頭部
+        const getAuthHeaders = () => {
+          const accessToken = localStorage.getItem('accessToken');
+          return {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          };
+        };
+        
+        // 直接使用lineId獲取完整LINE用戶數據
+        const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
+          headers: getAuthHeaders(),
+        });
         
         if (!response.ok) {
-          throw new Error(`無法獲取客戶資料: ${response.status}`);
+          throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
         }
         
-        const data = await response.json();
-        setCustomer(data);
+        const responseData: ApiResponse = await response.json();
+        
+        if (responseData.status !== 'success') {
+          throw new Error(responseData.message || '獲取LINE用戶資料失敗');
+        }
+        
+        setCustomer(responseData.data.lineUser);
+        setRelatedCustomer(responseData.data.customer || null);
       } catch (err) {
-        console.error('獲取客戶詳情錯誤:', err);
+        console.error('獲取LINE用戶詳情錯誤:', err);
         setError(err instanceof Error ? err.message : '發生錯誤');
       } finally {
         setLoading(false);
       }
     };
     
-    if (customerId) {
+    if (lineId) {
       fetchCustomerDetails();
     }
-  }, [customerId]);
+  }, [lineId]);
 
   // 獲取狀態樣式
   const getStatusStyle = (status: string) => {
@@ -87,15 +128,53 @@ export default function CustomerDetails() {
 
   // 格式化日期時間
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('zh-TW', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+    // 確保dateString有值且為有效的字串
+    if (!dateString) {
+      return '-';
+    }
+    
+    try {
+      // 嘗試直接創建Date對象
+      const date = new Date(dateString);
+      
+      // 檢查date是否為有效日期
+      if (isNaN(date.getTime())) {
+        // 如果無效，嘗試其他日期格式解析方法
+        
+        // 檢查是否為ISO格式但缺少時區信息
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          const [year, month, day] = dateString.split('-').map(Number);
+          const newDate = new Date(year, month - 1, day); // 月份從0開始
+          
+          if (!isNaN(newDate.getTime())) {
+            return newDate.toLocaleString('zh-TW', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            });
+          }
+        }
+        
+        // 如果其他嘗試都失敗，返回原始字串
+        return dateString;
+      }
+      
+      // 日期有效，使用toLocaleString格式化
+      return date.toLocaleString('zh-TW', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+    } catch (error) {
+      console.error('日期格式化錯誤:', error);
+      return dateString || '-'; // 返回原始字串或'-'
+    }
   };
 
   // 處理刪除按鈕點擊
@@ -116,24 +195,38 @@ export default function CustomerDetails() {
       setIsDeleting(true);
       setDeleteError(null);
       
-      const response = await fetch(`/api/customers/${customerId}`, {
-        method: 'DELETE',
-        headers: {
+      if (!customer || !customer.lineId) {
+        throw new Error('找不到LINE ID，無法刪除用戶');
+      }
+      
+      // 獲取認證頭部
+      const getAuthHeaders = () => {
+        const accessToken = localStorage.getItem('accessToken');
+        return {
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
-        },
+        };
+      };
+      
+      // 使用lineId刪除LINE用戶
+      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || '刪除客戶失敗');
+        throw new Error(errorData.message || '刪除LINE用戶失敗');
       }
+      
+      const data = await response.json();
       
       // 刪除成功後導航回客戶列表頁面
       router.push('/admin/bakery/customers');
       
     } catch (err) {
-      console.error('刪除客戶錯誤:', err);
-      setDeleteError(err instanceof Error ? err.message : '刪除客戶時發生錯誤');
+      console.error('刪除LINE用戶錯誤:', err);
+      setDeleteError(err instanceof Error ? err.message : '刪除LINE用戶時發生錯誤');
       setIsDeleting(false);
       // 不關閉彈窗，讓用戶可以看到錯誤訊息
     }
@@ -189,12 +282,12 @@ export default function CustomerDetails() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">客戶詳情</h1>
+        <h1 className="text-2xl font-semibold">LINE用戶詳情</h1>
         <div className="flex gap-2">
           <Link href="/admin/bakery/customers" className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500">
             返回列表
           </Link>
-          <Link href={`/admin/bakery/customers/edit/${customer.id}`} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <Link href={`/admin/bakery/customers/edit/${customer.lineId}`} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
             編輯
           </Link>
           <button
@@ -209,71 +302,80 @@ export default function CustomerDetails() {
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 基本信息 */}
+            {/* LINE基本信息 */}
             <div className="col-span-1 md:col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">基本資訊</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">LINE基本資訊</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">客戶 ID</p>
+                  <p className="text-sm text-gray-500">用戶 ID</p>
                   <p className="text-lg">{customer.id}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">狀態</p>
-                  <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusStyle(customer.status)}`}>
-                    {translateStatus(customer.status)}
-                  </span>
+                  <p className="text-sm text-gray-500">LINE ID</p>
+                  <p className="text-lg">{customer.lineId}</p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-500">LINE暱稱</p>
+                  <p className="text-lg font-medium">{customer.displayName || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">客戶業主編號</p>
+                  <p className="text-lg">{customer.customerId || '-'}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* 個人資訊 */}
+            <div className="col-span-1 md:col-span-2">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">個人資訊</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <p className="text-sm text-gray-500">姓名</p>
-                  <p className="text-lg font-medium">{customer.name}</p>
+                  <p className="text-lg font-medium">{customer.name || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">電子郵件</p>
-                  <p className="text-lg">{customer.email}</p>
+                  <p className="text-lg">{customer.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">電話</p>
-                  <p className="text-lg">{customer.phone || '未提供'}</p>
+                  <p className="text-lg">{customer.phone || '-'}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">行業別</p>
-                  <p className="text-lg">{customer.industry || '未分類'}</p>
+                  <p className="text-sm text-gray-500">地址</p>
+                  <p className="text-lg">{customer.address || '-'}</p>
                 </div>
               </div>
             </div>
             
-            {/* 公司信息 */}
-            <div className="col-span-1 md:col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">公司資訊</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">公司名稱</p>
-                  <p className="text-lg">{customer.companyName || '未提供'}</p>
+            {/* 關聯業主資訊 */}
+            {relatedCustomer && (
+              <div className="col-span-1 md:col-span-2">
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">關聯業主資訊</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">客戶ID</p>
+                    <p className="text-lg">{relatedCustomer.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">公司名稱</p>
+                    <p className="text-lg font-medium">{relatedCustomer.companyName || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">聯絡人</p>
+                    <p className="text-lg">{relatedCustomer.name || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">電子郵件</p>
+                    <p className="text-lg">{relatedCustomer.email || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">地址</p>
+                    <p className="text-lg">{relatedCustomer.address || '-'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">統一編號</p>
-                  <p className="text-lg">{customer.companyId || '未提供'}</p>
-                </div>
               </div>
-            </div>
-            
-            {/* 地址信息 */}
-            <div className="col-span-1 md:col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">地址資訊</h2>
-              <div>
-                <p className="text-sm text-gray-500">地址</p>
-                <p className="text-lg">{customer.address || '未提供'}</p>
-              </div>
-            </div>
-            
-            {/* 附加信息 */}
-            <div className="col-span-1 md:col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">附加資訊</h2>
-              <div>
-                <p className="text-sm text-gray-500">備註</p>
-                <p className="text-lg whitespace-pre-wrap">{customer.notes || '無備註'}</p>
-              </div>
-            </div>
+            )}
             
             {/* 系統信息 */}
             <div className="col-span-1 md:col-span-2">
@@ -281,11 +383,11 @@ export default function CustomerDetails() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-500">建立時間</p>
-                  <p className="text-md">{formatDateTime(customer.created_at)}</p>
+                  <p className="text-md">{formatDateTime(customer.createdAt)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">最後更新時間</p>
-                  <p className="text-md">{formatDateTime(customer.updated_at)}</p>
+                  <p className="text-md">{formatDateTime(customer.updatedAt)}</p>
                 </div>
               </div>
             </div>

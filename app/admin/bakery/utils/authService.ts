@@ -96,9 +96,9 @@ export const handleRelogin = (returnUrl?: string): void => {
   
   // 記錄當前URL，以便登錄後返回
   const redirectUrl = returnUrl || encodeURIComponent(window.location.pathname);
-  
+  alert("已超過使用期間，請重新登入");
   // 跳轉到登入頁面
-  window.location.href = `/login?returnUrl=${redirectUrl}`;
+  window.location.href = `/login`;
 };
 
 /**

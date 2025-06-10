@@ -267,10 +267,13 @@ export default function CheckoutPage() {
 
   // 處理發票類型選擇
   const handleInvoiceTypeChange = (type: 'taxId' | 'carrier') => {
-    setFormData({
-      ...formData,
-      invoiceType: type
-    });
+    // 只有在對應欄位有值時才允許選擇
+    if ((type === 'taxId' && formData.taxId) || (type === 'carrier' && formData.carrier)) {
+      setFormData({
+        ...formData,
+        invoiceType: type
+      });
+    }
   };
 
   // 配送方式變更處理
@@ -787,6 +790,26 @@ export default function CheckoutPage() {
                   className="w-full px-3 py-2 border rounded-md border-gray-300"
                   placeholder="請輸入統一編號"
                 />
+                {/* 當統編和載具都有值時，顯示選擇器 */}
+                {formData.taxId && formData.carrier && (
+                  <div 
+                    className={`flex items-center p-2 mt-2 border rounded-md cursor-pointer transition-colors ${
+                      formData.invoiceType === 'taxId' 
+                        ? 'border-amber-500 bg-amber-100' 
+                        : 'border-gray-300 bg-white hover:bg-gray-50'
+                    }`}
+                    onClick={() => handleInvoiceTypeChange('taxId')}
+                  >
+                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-2 flex items-center justify-center">
+                      {formData.invoiceType === 'taxId' && (
+                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">使用統一編號</span>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div>
@@ -800,55 +823,35 @@ export default function CheckoutPage() {
                   className="w-full px-3 py-2 border rounded-md border-gray-300"
                   placeholder="/手機條碼載具"
                 />
-              </div>
-            </div>
-
-            {/* 當統編和載具都有值時，顯示選擇器 */}
-            {formData.taxId && formData.carrier && (
-              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-md">
-                <p className="text-amber-800 font-medium mb-3">請選擇要使用的類型：</p>
-                <div className="space-y-2">
+                {/* 當統編和載具都有值時，顯示選擇器 */}
+                {formData.taxId && formData.carrier && (
                   <div 
-                    className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${
-                      formData.invoiceType === 'taxId' 
-                        ? 'border-amber-500 bg-amber-100' 
-                        : 'border-gray-300 bg-white hover:bg-gray-50'
-                    }`}
-                    onClick={() => handleInvoiceTypeChange('taxId')}
-                  >
-                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-3 flex items-center justify-center">
-                      {formData.invoiceType === 'taxId' && (
-                        <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-medium">統一編號</div>
-                      <div className="text-sm text-gray-600">{formData.taxId}</div>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${
+                    className={`flex items-center p-2 mt-2 border rounded-md cursor-pointer transition-colors ${
                       formData.invoiceType === 'carrier' 
                         ? 'border-amber-500 bg-amber-100' 
                         : 'border-gray-300 bg-white hover:bg-gray-50'
                     }`}
                     onClick={() => handleInvoiceTypeChange('carrier')}
                   >
-                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-3 flex items-center justify-center">
+                    <div className="w-4 h-4 rounded-full border-2 border-amber-500 mr-2 flex items-center justify-center">
                       {formData.invoiceType === 'carrier' && (
                         <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
                       )}
                     </div>
-                    <div>
-                      <div className="font-medium">載具編號</div>
-                      <div className="text-sm text-gray-600">{formData.carrier}</div>
+                    <div className="text-sm">
+                      <span className="font-medium">使用載具編號</span>
                     </div>
                   </div>
-                </div>
+                )}
+              </div>
+            </div>
+
+            {formData.taxId && formData.carrier && (
+              <div className="mb-4 text-sm text-amber-600 mt-2">
+                <p>請選擇要使用的類型（統一編號和載具編號只能擇一使用）</p>
               </div>
             )}
-
+            
             <div className="mb-4 text-sm text-gray-500">
               <p>註：統一編號和載具編號只能擇一使用</p>
             </div>

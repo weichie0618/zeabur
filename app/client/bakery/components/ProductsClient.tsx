@@ -22,7 +22,7 @@ interface Product {
   price: number;
   original_price?: number;
   images: string;
-  category: string;
+  category: Category;
   description?: string;
   is_new?: boolean;
   quantity?: number;
@@ -35,6 +35,7 @@ interface Category {
   name: string;
   value: string;
   status?: string;
+  sort?: number;
 }
 
 interface ProductsClientProps {
@@ -98,7 +99,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
       result = result.filter(product => product.categoryId === activeCategoryId);
     } else {
       // 當顯示所有商品時，先按照類別ID排序
-      result.sort((a, b) => a.categoryId - b.categoryId);
+      result.sort((a, b) => (a.category.sort || 0) - (b.category.sort || 0));
     }
     
     // 根據搜尋字詞篩選（如果有）

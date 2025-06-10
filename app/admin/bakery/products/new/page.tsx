@@ -4,6 +4,14 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+// 定義產品圖片介面
+interface ProductImage {
+  url: string;
+  sort: number;
+  file?: File;
+  noCacheUrl?: string; // 添加可選的無快取URL
+}
+
 // 定義分類類型
 interface Category {
   id: number;
@@ -46,11 +54,12 @@ export default function NewProduct() {
   const dropAreaRef = useRef<HTMLDivElement>(null);
   
   // 新增檔案上傳狀態
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
-  const [uploadedImagePath, setUploadedImagePath] = useState<string>('');
+  const [uploadedImages, setUploadedImages] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [targetIndex, setTargetIndex] = useState<number | null>(null);
   
   // 預覽相關狀態
-  const [previewUrl, setPreviewUrl] = useState<string>('');
   const [showPreviewAnimation, setShowPreviewAnimation] = useState(false);
   
   // 分類列表
@@ -68,7 +77,7 @@ export default function NewProduct() {
     status: 'active', // 預設為 active
     specification: '', // 新增產品規格欄位
     unit_code: '', // 新增單位代號欄位
-    images: '' // 新增儲存圖片路徑
+    productImages: [] as ProductImage[] // 改為productImages陣列並指定類型
   });
 
   // 表單錯誤狀態
@@ -78,6 +87,10 @@ export default function NewProduct() {
     price: false,
     categoryId: false
   });
+
+  // 新增上傳狀態追蹤
+  const [uploadingImages, setUploadingImages] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<{[key: number]: boolean}>({});
 
   // 載入分類資料
   useEffect(() => {
@@ -179,38 +192,28 @@ export default function NewProduct() {
     return true;
   };
 
-  // 處理圖片上傳 - 改進支援圖片預覽
+  // 處理圖片上傳 - 改進支援多圖片預覽
   const processImagePreview = async (file: File) => {
     try {
-      // 設定檔案名稱為產品名稱和ID
-      const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${formData.id}.jpg`;
-      
       // 使用 FileReader 創建本地預覽 URL
       const reader = new FileReader();
       reader.onload = (e) => {
         if (e.target?.result) {
-          setPreviewUrl(e.target.result as string);
+          const newPreviewUrl = e.target.result as string;
           
-          // 顯示動畫效果
-          setShowPreviewAnimation(true);
-          setTimeout(() => setShowPreviewAnimation(false), 1000);
+          setPreviewUrls(prevUrls => [...prevUrls, newPreviewUrl]);
+          
+          // 添加新圖片到uploadedImages
+          setUploadedImages(prevImages => [...prevImages, file]);
+          
+          // 準備上傳圖片
+          uploadImage(file, formData.productImages.length);
         }
       };
       reader.readAsDataURL(file);
       
-      // 保存上傳的文件信息
-      setUploadedImage(file);
-      // 更新API路徑格式
-      setUploadedImagePath(`/api/images/bakery/${fileName}`);
-      
-      // 更新表單數據中的圖片路徑
-      setFormData(prev => ({
-        ...prev,
-        images: `/api/images/bakery/${fileName}`
-      }));
-      
       setErrorMessage('');
-      setSuccessMessage('圖片已準備好上傳，將在儲存產品時一併處理');
+      setSuccessMessage('圖片處理中，請稍後...');
     } catch (error) {
       console.error('處理圖片預覽失敗:', error);
       setErrorMessage('處理圖片預覽失敗，請重試');
@@ -220,11 +223,36 @@ export default function NewProduct() {
   // 處理檔案上傳
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
+      // 處理所有選中的文件
+      const files = Array.from(e.target.files);
       
-      if (validateFile(file)) {
-        processImagePreview(file);
-      }
+      // 重設上傳進度
+      setUploadProgress({});
+      setUploadingImages(true);
+      
+      // 逐一處理每個文件
+      files.forEach((file, i) => {
+        if (validateFile(file)) {
+          // 使用 FileReader 創建本地預覽 URL
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            if (e.target?.result) {
+              const newPreviewUrl = e.target.result as string;
+              setPreviewUrls(prevUrls => [...prevUrls, newPreviewUrl]);
+              setUploadedImages(prevImages => [...prevImages, file]);
+              
+              // 計算當前索引，考慮已有的圖片數量
+              const currentIndex = formData.productImages.length + i;
+              // 準備上傳圖片
+              uploadImage(file, currentIndex);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+      
+      setErrorMessage('');
+      setSuccessMessage('圖片處理中，請稍後...');
     }
     
     // 無論如何都清空檔案輸入框，以便可以再次選擇相同的檔案
@@ -233,10 +261,129 @@ export default function NewProduct() {
     }
   };
 
-  // 處理拖放
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  // 修改上傳圖片功能
+  const uploadImage = async (file: File, index: number) => {
+    try {
+      // 先添加一個臨時的圖片對象用於預覽，使用blob URL
+      const tempImageObj: ProductImage = {
+        url: URL.createObjectURL(file), // 臨時URL，實際上傳時會替換
+        sort: formData.productImages.length + 1, // 新圖片的排序
+        file: file // 保存文件引用，用於後續上傳
+      };
+      
+      // 更新formData
+      const updatedImages = [...formData.productImages, tempImageObj];
+      
+      // 確保排序正確
+      const sortedImages = updatedImages.map((img, idx) => ({
+        ...img,
+        sort: idx + 1
+      }));
+      
+      setFormData(prev => ({
+        ...prev,
+        productImages: sortedImages
+      }));
+      
+      // 顯示動畫效果
+      setShowPreviewAnimation(true);
+      setTimeout(() => setShowPreviewAnimation(false), 1000);
+      
+      // 設定此圖片為上傳中
+      setUploadingImages(true);
+      setUploadProgress(prev => ({...prev, [index]: false}));
+      
+      // 立即開始上傳圖片
+      const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${formData.id}-${index + 1}.jpg`;
+      
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file, fileName);
+      formDataUpload.append('destination', 'uploads/bakery');
+      
+      // 發送圖片上傳請求
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      });
+      
+      if (!uploadResponse.ok) {
+        const uploadError = await uploadResponse.json();
+        throw new Error(uploadError.message || `圖片上傳失敗`);
+      }
+      
+      // 獲取上傳後的URL
+      const uploadResult = await uploadResponse.json();
+      console.log(uploadResult);
+      const finalUrl = uploadResult.url || `/api/images/bakery/${fileName}`;
+      // 添加時間戳到URL以防止快取
+      const noCacheUrl = `${finalUrl}?t=${Date.now()}`;
+      
+      // 更新表單數據中的圖片URL為實際的伺服器URL
+      setFormData(prev => {
+        const updatedImages = [...(prev.productImages || [])];
+        if (updatedImages[index]) {
+          updatedImages[index] = {
+            ...updatedImages[index],
+            url: finalUrl,
+            noCacheUrl: noCacheUrl, // 添加無快取URL
+            file: undefined // 清除文件引用，因為已上傳完成
+          };
+        }
+        return {
+          ...prev,
+          productImages: updatedImages
+        };
+      });
+      
+      // 更新預覽URLs
+      setPreviewUrls(prev => {
+        const newUrls = [...prev];
+        if (newUrls[index]) {
+          newUrls[index] = noCacheUrl; // 使用無快取URL
+        }
+        return newUrls;
+      });
+      
+      // 標記此圖片上傳完成
+      setUploadProgress(prev => ({...prev, [index]: true}));
+      
+      // 檢查是否所有圖片都已上傳完成
+      const allUploaded = Object.values({...uploadProgress, [index]: true}).every(status => status === true);
+      if (allUploaded) {
+        setUploadingImages(false);
+      }
+      
+      setSuccessMessage('圖片上傳成功');
+      setTimeout(() => setSuccessMessage(''), 2000);
+      
+    } catch (error) {
+      console.error('上傳圖片失敗:', error);
+      setErrorMessage('上傳圖片失敗，請重試');
+      
+      // 標記上傳失敗，但不阻止其他圖片上傳
+      setUploadProgress(prev => ({...prev, [index]: true}));
+      
+      // 檢查是否所有圖片處理完成（成功或失敗）
+      const allProcessed = Object.values(uploadProgress).every(status => status === true);
+      if (allProcessed) {
+        setUploadingImages(false);
+      }
+    }
+  };
+
+  // 處理圖片排序
+  const handleDragStart = (index: number) => {
+    setDraggingIndex(index);
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>, index?: number) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (index !== undefined) {
+      setTargetIndex(index);
+    }
+    
     if (dropAreaRef.current) {
       dropAreaRef.current.classList.add('border-amber-500');
       dropAreaRef.current.classList.remove('border-dashed');
@@ -247,6 +394,7 @@ export default function NewProduct() {
   const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
+    
     if (dropAreaRef.current) {
       dropAreaRef.current.classList.remove('border-amber-500');
       dropAreaRef.current.classList.add('border-dashed');
@@ -254,7 +402,7 @@ export default function NewProduct() {
     }
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>, index?: number) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -264,14 +412,93 @@ export default function NewProduct() {
       dropAreaRef.current.classList.remove('border-solid');
     }
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    // 處理圖片排序
+    if (index !== undefined && draggingIndex !== null && draggingIndex !== index) {
+      // 獲取當前圖片列表的排序副本
+      const currentImages = [...formData.productImages].sort((a, b) => a.sort - b.sort);
+      
+      // 使用當前索引獲取實際拖動的項目和目標位置
+      const draggedItem = currentImages[draggingIndex];
+      
+      // 移除拖曳的項目
+      currentImages.splice(draggingIndex, 1);
+      
+      // 插入到目標位置
+      currentImages.splice(index, 0, draggedItem);
+      
+      // 重新計算排序號，確保連續且從1開始
+      const updatedImages = currentImages.map((img, idx) => ({
+        ...img,
+        sort: idx + 1
+      }));
+      
+      console.log('拖拽後的圖片排序:', updatedImages.map(img => img.sort));
+      
+      // 更新formData
+      setFormData(prev => ({
+        ...prev,
+        productImages: updatedImages
+      }));
+      
+      // 同時更新預覽URLs順序
+      const sortedPreviewUrls = [...previewUrls];
+      const draggedUrl = sortedPreviewUrls[draggingIndex];
+      sortedPreviewUrls.splice(draggingIndex, 1);
+      sortedPreviewUrls.splice(index, 0, draggedUrl);
+      setPreviewUrls(sortedPreviewUrls);
+      
+      // 更新上傳的圖片檔案順序
+      const newUploadedImages = [...uploadedImages];
+      const draggedFile = newUploadedImages[draggingIndex];
+      newUploadedImages.splice(draggingIndex, 1);
+      newUploadedImages.splice(Math.min(index, newUploadedImages.length), 0, draggedFile);
+      setUploadedImages(newUploadedImages);
+      
+      // 顯示排序更新成功消息
+      setSuccessMessage('圖片排序已更新');
+      setTimeout(() => setSuccessMessage(''), 2000);
+    }
+    
+    // 處理從外部拖曳的新圖片
+    if (index === undefined && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
       
       if (validateFile(file)) {
         processImagePreview(file);
       }
     }
-  }, []);
+    
+    setDraggingIndex(null);
+    setTargetIndex(null);
+  }, [draggingIndex, formData.productImages, previewUrls, uploadedImages]);
+
+  // 移除圖片
+  const handleRemoveImage = (index: number) => {
+    // 更新formData
+    const newProductImages = [...formData.productImages];
+    newProductImages.splice(index, 1);
+    
+    // 更新排序號
+    const updatedImages = newProductImages.map((img, idx) => ({
+      ...img,
+      sort: idx + 1
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      productImages: updatedImages
+    }));
+    
+    // 更新預覽URLs
+    const newPreviewUrls = [...previewUrls];
+    newPreviewUrls.splice(index, 1);
+    setPreviewUrls(newPreviewUrls);
+    
+    // 更新上傳的圖片檔案
+    const newUploadedImages = [...uploadedImages];
+    newUploadedImages.splice(index, 1);
+    setUploadedImages(newUploadedImages);
+  };
 
   // 表單驗證
   const validateForm = () => {
@@ -295,31 +522,41 @@ export default function NewProduct() {
       return;
     }
     
+    // 檢查是否有圖片正在上傳中
+    if (uploadingImages) {
+      setErrorMessage('請等待所有圖片上傳完成後再儲存');
+      return;
+    }
+    
+    // 檢查是否有Blob URL需要上傳
+    const hasBlobUrls = formData.productImages.some(
+      image => image.url.startsWith('blob:')
+    );
+    
+    if (hasBlobUrls) {
+      setErrorMessage('有圖片尚未完成上傳，請等待所有圖片上傳完成後再儲存');
+      return;
+    }
+    
     setIsSubmitting(true);
     setErrorMessage('');
     setSuccessMessage('');
     
     try {
-      // 如果有上傳圖片，先處理圖片上傳
-      if (uploadedImage) {
-        const formDataUpload = new FormData();
-        const fileName = `${formData.name.trim().replace(/\s+/g, '_')}-${formData.id}.jpg`;
-        
-        formDataUpload.append('file', uploadedImage, fileName);
-        // 更新目標路徑為uploads/bakery
-        formDataUpload.append('destination', 'uploads/bakery');
-        
-        // 發送圖片上傳請求
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formDataUpload,
-        });
-        
-        if (!uploadResponse.ok) {
-          const uploadError = await uploadResponse.json();
-          throw new Error(uploadError.message || '圖片上傳失敗');
-        }
-      }
+      // 處理所有圖片，確保排序正確
+      // 先按照當前顯示的順序獲取圖片
+      const orderedImages = [...formData.productImages].sort((a, b) => a.sort - b.sort);
+      
+      // 然後重新指定排序號
+      const validImages = orderedImages.map((image, index) => {
+        const newSort = index + 1;
+        return {
+          url: image.url,
+          sort: newSort
+        };
+      });
+      
+      console.log('提交前的圖片排序:', validImages.map(img => img.sort));
       
       // 準備API請求資料
       const apiData = {
@@ -329,7 +566,7 @@ export default function NewProduct() {
         price: Number(formData.price),
         discount_price: formData.discount_price ? Number(formData.discount_price) : undefined,
         categoryId: Number(formData.categoryId),
-        images: uploadedImagePath, // 更新為上傳後的圖片路徑
+        productImages: validImages,
         specification: formData.specification || undefined, // 添加產品規格
         unit_code: formData.unit_code || undefined, // 添加單位代號
         status: formData.status || 'active'
@@ -338,7 +575,10 @@ export default function NewProduct() {
       // 發送API請求
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        },
         body: JSON.stringify(apiData)
       });
       
@@ -669,41 +909,94 @@ export default function NewProduct() {
                 <div 
                   ref={dropAreaRef}
                   className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md transition-all duration-200"
-                  onDragOver={handleDragOver}
+                  onDragOver={(e) => handleDragOver(e)}
                   onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
+                  onDrop={(e) => handleDrop(e)}
                 >
-                  <div className="space-y-1 text-center">
-                    {uploadedImagePath ? (
-                      <div className="flex flex-col items-center">
-                        <div className={`mb-2 h-32 w-32 overflow-hidden rounded-md transition-all duration-300 ${showPreviewAnimation ? 'ring-4 ring-amber-400 scale-105' : ''}`}>
-                          <Image
-                            src={previewUrl || uploadedImagePath}
-                            alt="產品圖片"
-                            width={128}
-                            height={128}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <p className="text-sm text-gray-900 font-medium">
-                          <span className="flex items-center">
-                            <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${showPreviewAnimation ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                            已選擇圖片
-                          </span>
+                  <div className="space-y-1 text-center w-full">
+                    {formData.productImages.length > 0 ? (
+                      <div className="flex flex-col items-center w-full">
+                        <p className="text-sm text-gray-900 font-medium mb-3">
+                          已上傳 {formData.productImages.length} 張圖片
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">{uploadedImage?.name}</p>
-                        <button 
-                          type="button"
-                          className="mt-3 text-xs text-red-600 hover:text-red-800"
-                          onClick={() => {
-                            setUploadedImage(null);
-                            setUploadedImagePath('');
-                            setPreviewUrl('');
-                            setFormData(prev => ({ ...prev, images: '' }));
-                          }}
-                        >
-                          移除圖片
-                        </button>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-4 w-full max-w-3xl">
+                          {formData.productImages && [...formData.productImages]
+                            .sort((a, b) => a.sort - b.sort) // 確保按sort屬性排序顯示
+                            .map((image, displayIndex) => (
+                              <div
+                                key={`img-${image.sort}-${displayIndex}-${Date.now()}`} // 添加時間戳使key更唯一
+                                className={`relative border rounded-md overflow-hidden group transition-all duration-200 ${
+                                  draggingIndex === displayIndex ? 'opacity-50' : 'opacity-100'
+                                } ${
+                                  targetIndex === displayIndex ? 'border-amber-500 border-2' : 'border-gray-200'
+                                }`}
+                                draggable
+                                onDragStart={() => handleDragStart(displayIndex)}
+                                onDragOver={(e) => handleDragOver(e, displayIndex)}
+                                onDrop={(e) => handleDrop(e, displayIndex)}
+                              >
+                                <div className="relative pt-[100%]">
+                                  <Image
+                                    src={image.noCacheUrl || previewUrls[displayIndex] || `${image.url}?t=${Date.now()}`} // 優先使用無快取URL
+                                    alt={`產品圖片 ${displayIndex + 1}`}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized={true} // 禁用Next.js的圖片優化，避免額外的快取層
+                                  />
+                                  <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity duration-200 flex items-center justify-center">
+                                    <div className="hidden group-hover:flex items-center gap-1 text-xs text-white bg-black bg-opacity-50 px-2 py-1 rounded-full">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                                      </svg>
+                                      <span>拖曳排序</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="absolute top-1 right-1 bg-white bg-opacity-80 rounded-full p-1 shadow-sm invisible group-hover:visible">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(displayIndex)}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                  </button>
+                                </div>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-2 py-1 flex justify-between">
+                                  <span>排序: {image.sort}</span>
+                                  <span>位置: {displayIndex + 1}</span>
+                                </div>
+                              </div>
+                            ))}
+                          
+                          {/* 添加新圖片按鈕 */}
+                          <div 
+                            className="border-2 border-dashed border-gray-300 rounded-md flex items-center justify-center cursor-pointer hover:border-amber-500 transition-colors duration-200"
+                            style={{ aspectRatio: '1/1' }}
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <div className="text-center p-4">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              <span className="mt-2 text-sm text-gray-500 block">添加圖片</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-gray-500 mt-1">拖曳圖片可調整順序</p>
+                        <p className="text-xs text-gray-500">圖片將使用產品名稱作為檔案名稱</p>
+                        
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg"
+                          multiple
+                          className="sr-only"
+                          onChange={handleFileChange}
+                        />
                       </div>
                     ) : (
                       <>
@@ -733,21 +1026,21 @@ export default function NewProduct() {
                               name="file-upload"
                               type="file"
                               accept="image/jpeg"
+                              multiple
                               className="sr-only"
                               onChange={handleFileChange}
                             />
                           </label>
                         </div>
                         <p className="text-xs text-gray-500 font-bold">僅支援JPG圖片格式</p>
+                        <p className="text-xs text-gray-500">可一次選擇多張圖片上傳</p>
                         <p className="text-xs text-gray-500">圖片將使用產品名稱作為檔案名稱</p>
-                        <p className="text-xs text-gray-500">建議尺寸：300x200像素</p>
+                        <p className="text-xs text-gray-500">建議尺寸：300x300像素</p>
                       </>
                     )}
                   </div>
                 </div>
-                {uploadedImagePath && (
-                  <p className="mt-2 text-sm text-green-600">圖片將保存為: {uploadedImagePath}</p>
-                )}
+                <p className="mt-2 text-sm text-gray-600">可上傳多張產品圖片，第一張圖片將作為主圖顯示</p>
               </div>
             </div>
 
@@ -756,14 +1049,14 @@ export default function NewProduct() {
                 type="button"
                 className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
                 onClick={() => router.push('/admin/bakery/products')}
-                disabled={isSubmitting}
+                disabled={isSubmitting || uploadingImages}
               >
                 取消
               </button>
               <button
                 type="submit"
                 className="bg-amber-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 flex items-center"
-                disabled={isSubmitting}
+                disabled={isSubmitting || uploadingImages}
               >
                 {isSubmitting && (
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -771,7 +1064,7 @@ export default function NewProduct() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 )}
-                {isSubmitting ? '處理中...' : '儲存產品'}
+                {isSubmitting ? '處理中...' : uploadingImages ? '圖片上傳中...' : '儲存產品'}
               </button>
             </div>
           </form>

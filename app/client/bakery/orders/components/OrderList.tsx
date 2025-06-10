@@ -126,7 +126,7 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">
-        找到 {orders.length} 筆訂單
+       {orders.length} 筆訂單
       </h2>
 
       <div className="space-y-4">

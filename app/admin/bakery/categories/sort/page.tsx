@@ -219,27 +219,80 @@ export default function CategoriesSortPage() {
           )
         : categories;
       
-      const oldIndex = filteredCategories.findIndex(cat => cat.id === active.id);
-      const newIndex = filteredCategories.findIndex(cat => cat.id === over.id);
-      
-      // 創建新的排序後數組
-      const newFilteredCategories = [...filteredCategories];
-      const [movedItem] = newFilteredCategories.splice(oldIndex, 1);
-      newFilteredCategories.splice(newIndex, 0, movedItem);
-      
-      // 更新排序值
-      const updatedFilteredCategories = newFilteredCategories.map((cat, index) => ({
-        ...cat,
-        sort: (index + 1) * 10 // 使用10的倍數作為排序值，以便將來在中間插入
-      }));
-      
-      // 更新總的分類列表
-      const updatedCategories = [...categories];
-      updatedFilteredCategories.forEach(updatedCat => {
-        const index = updatedCategories.findIndex(cat => cat.id === updatedCat.id);
-        if (index !== -1) {
-          updatedCategories[index] = updatedCat;
+      // 先按目前的排序值排序
+      const sortedCategories = [...filteredCategories].sort((a, b) => {
+        if (a.sort !== undefined && b.sort !== undefined) {
+          return a.sort - b.sort;
+        } else if (a.sort !== undefined) {
+          return -1;
+        } else if (b.sort !== undefined) {
+          return 1;
         }
+        return a.id - b.id;
+      });
+      
+      const oldIndex = sortedCategories.findIndex(cat => cat.id === active.id);
+      const newIndex = sortedCategories.findIndex(cat => cat.id === over.id);
+      
+      // 取得被移動的項目
+      const movedItem = sortedCategories[oldIndex];
+      
+      // 判斷移動方向
+      const movingDown = oldIndex < newIndex;
+      
+      // 計算新的排序值
+      let newSortValue: number;
+      
+      if (newIndex === 0) {
+        // 移動到最前面
+        newSortValue = (sortedCategories[0].sort || 10) - 5;
+      } else if (newIndex === sortedCategories.length - 1) {
+        // 移動到最後面
+        newSortValue = (sortedCategories[sortedCategories.length - 1].sort || 0) + 10;
+      } else {
+        // 移動到中間位置
+        const prevItem = sortedCategories[movingDown ? newIndex : newIndex - 1];
+        const nextItem = sortedCategories[movingDown ? newIndex + 1 : newIndex];
+        
+        const prevSort = prevItem.sort || 0;
+        const nextSort = nextItem.sort || (prevSort + 20);
+        
+        // 計算中間值
+        newSortValue = Math.floor((prevSort + nextSort) / 2);
+        
+        // 如果新的排序值與相鄰值相同，需要重新調整所有項目的排序值
+        if (newSortValue === prevSort || newSortValue === nextSort) {
+          // 重新分配所有排序值
+          const updatedSortedCategories = [...sortedCategories];
+          // 先移除原項目
+          updatedSortedCategories.splice(oldIndex, 1);
+          // 插入到新位置
+          updatedSortedCategories.splice(newIndex > oldIndex ? newIndex - 1 : newIndex, 0, movedItem);
+          
+          // 重新分配排序值，間隔為10
+          const updatedFilteredCategories = updatedSortedCategories.map((cat, index) => ({
+            ...cat,
+            sort: (index + 1) * 10
+          }));
+          
+          // 更新總的分類列表
+          const updatedCategories = categories.map(category => {
+            const updatedCategory = updatedFilteredCategories.find(c => c.id === category.id);
+            return updatedCategory || category;
+          });
+          
+          setCategories(updatedCategories);
+          setIsDirty(true);
+          return;
+        }
+      }
+      
+      // 更新被移動項目的排序值
+      const updatedCategories = categories.map(category => {
+        if (category.id === movedItem.id) {
+          return { ...category, sort: newSortValue };
+        }
+        return category;
       });
       
       setCategories(updatedCategories);
@@ -268,7 +321,7 @@ export default function CategoriesSortPage() {
       const response = await fetch('/api/categories/sort', {
         method: 'PUT',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ categories: sortData }),
+        body: JSON.stringify({ sortData }),
         credentials: 'include',
       });
       
@@ -306,6 +359,24 @@ export default function CategoriesSortPage() {
           : cat.parent_id === parseInt(selectedParentId)
       )
     : categories;
+    
+  // 確保分類按照排序值顯示
+  const sortedFilteredCategories = [...filteredCategories].sort((a, b) => {
+    // 如果都有排序值，按排序值排序
+    if (a.sort !== undefined && b.sort !== undefined) {
+      return a.sort - b.sort;
+    }
+    // 如果只有a有排序值，a排在前面
+    else if (a.sort !== undefined) {
+      return -1;
+    }
+    // 如果只有b有排序值，b排在前面
+    else if (b.sort !== undefined) {
+      return 1;
+    }
+    // 如果都沒有排序值，按ID排序
+    return a.id - b.id;
+  });
   
   // 獲取可作為父分類的分類列表（一級分類）
   const parentCategories = categories.filter(cat => cat.level === 1);
@@ -442,9 +513,9 @@ export default function CategoriesSortPage() {
             onDragEnd={handleDragEnd}
             modifiers={[restrictToVerticalAxis]}
           >
-            <SortableContext items={filteredCategories.map(cat => cat.id)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={sortedFilteredCategories.map(cat => cat.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-2">
-                {filteredCategories.map(category => (
+                {sortedFilteredCategories.map(category => (
                   <SortableItem key={category.id} category={category} />
                 ))}
               </div>

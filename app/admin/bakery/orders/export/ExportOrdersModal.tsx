@@ -2,33 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { ExportFilters, Order, OrderItem } from '../types';
+import { formatCurrency, formatDate } from '../utils';
+import { getStatusDisplay, getStatusClass } from '../status';
 
 interface ExportOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
-  filters: {
-    searchQuery: string;
-    statusFilter: string;
-    dateFilter: string;
-    companyNameFilter: string;
-    startDate: string;
-    endDate: string;
-  };
+  filters: ExportFilters;
   fetchExportData: (exportAll: boolean) => Promise<any[]>;
-}
-
-// 訂單項目類型
-interface OrderItem {
-  id: string;
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  price: number;
-  product?: {
-    id: string;
-    name: string;
-    specification?: string;
-  };
 }
 
 export default function ExportOrdersModal({ 
@@ -40,19 +22,12 @@ export default function ExportOrdersModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportAll, setExportAll] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // 格式化日期顯示
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('zh-TW');
-  };
 
   // 獲取日期範圍的顯示文字
   const getDateRangeDisplay = () => {
@@ -68,7 +43,7 @@ export default function ExportOrdersModal({
       case 'last_month':
         return '上個月';
       case 'custom':
-        return `${formatDate(filters.startDate)} 至 ${formatDate(filters.endDate)}`;
+        return `${formatDate(filters.startDate, false)} 至 ${formatDate(filters.endDate, false)}`;
       default:
         return '所有時間';
     }
@@ -139,22 +114,8 @@ export default function ExportOrdersModal({
       const worksheet = XLSX.utils.aoa_to_sheet([
         // 第一列：標題
         [
-          '訂貨日期', '交貨日期', '客戶代號', '客戶名稱', '客戶全名', '統一編號', 
-          '訂單單號/客戶單號', '訂貨部門', '部門名稱', '業務人員代號', '業務人員姓名', 
-          '預收訂金', '訂貨人', '訂貨電話', '提貨人', '提貨電話', '送貨方式', 
-          '提貨門市', '提貨門市名稱', '送貨地址', '發票地址', '配送方式', '幣別', 
-          '匯率', '備註', '類別', '品號', '品名', '規格', '單位', '單位名稱', 
-          '庫別', '庫別名稱', '數量', '單價', '折扣率', '明細備註'
-        ],
-        // 第二列：代碼
-        [
-          'ODMF003', 'ODMF092', 'ODMF004', 'CUST003', 'ODMF055', 'ODMF074', 
-          'ODMF007', 'ODMF008', 'DEPT002', 'ODMF009', 'PA51004', 'ODMFA3FAMNT', 
-          'ODMF005', 'ODMF080', 'ODMF079', 'ODMF081', 'ODMF096', 'ODMF102', 
-          'ODMF102NAME', 'ODMF049', 'ODMF075', 'ODMF143', 'ODMF010', 'ODMFA01EXRA', 
-          'ODMF054', 'ODDT005', 'ODDT004', 'ODDT043', 'ODDT044', 'ODDT009', 
-          'UTMF002', 'ODDT010', 'STRG002', 'ODDTA01IQTY', 'ODDTA1FPRIC', 
-          'ODDTA01IRAT', 'ODDT026'
+          '訂單編號', '客戶資訊-name', '客戶資訊-email', '客戶資訊-phone', '客戶公司-id', '客戶公司-name', '日期', '總金額', 
+          
         ],
         ...exportData
       ]);
@@ -183,7 +144,7 @@ export default function ExportOrdersModal({
   };
 
   // 創建匯出行數據
-  const createExportRow = (order: any, item: OrderItem | null) => {
+  const createExportRow = (order: Order, item: OrderItem | null) => {
     const orderDate = new Date(order.created_at);
     const formatOrderDate = `${orderDate.getFullYear()}/${(orderDate.getMonth() + 1).toString().padStart(2, '0')}/${orderDate.getDate().toString().padStart(2, '0')}`;
     
@@ -194,95 +155,16 @@ export default function ExportOrdersModal({
     
     // 建立基本行數據（訂單級別）
     return [
-      formatOrderDate,                                      // 訂貨日期 ODMF003
-      formatDeliveryDate,                                   // 交貨日期 ODMF092
-        'WEB01',                                            // 客戶代號 ODMF004
-      '',                                                    // 客戶名稱 CUST003
-      '',                                                    // 客戶全名 ODMF055
-      order.tax_id || '',                                          // 統一編號 ODMF074
-      order.order_number || '',                                   // 訂單單號 ODMF007
-      '',                                                   // 訂貨部門 ODMF008
-      '',                                                   // 部門名稱 DEPT002
-      '',                                                   // 業務人員代號 ODMF009
-      '',                                                   // 業務人員姓名 PA51004
-      '0',                                                  // 預收訂金 ODMFA3FAMNT
-      order.customer_name || '',                            // 訂貨人 ODMF005
-      order.customer_phone || '',                           // 訂貨電話 ODMF080
-      order.address?.recipient_name || order.customer_name || '', // 提貨人 ODMF079
-      order.address?.phone || order.customer_phone || '',   // 提貨電話 ODMF081
-      '1',                                                  // 送貨方式 ODMF096
-      '',                                                   // 提貨門市 ODMF102
-      '',                                                   // 提貨門市名稱 ODMF102NAME
-      order.address  ||  '',                // 送貨地址 ODMF049
-       '',                                          // 發票地址 ODMF075
-      '',                                                  // 配送方式 ODMF143
-      '',                                                // 幣別 ODMF010
-      '',                                                  // 匯率 ODMFA01EXRA
-      order.salesperson?.id + '-' + order.notes || '',                                    // 備註 ODMF054
-      item ? '' : '',                                       // 類別 ODDT005
-      item ? item.product_id || '' : '',                    // 品號 ODDT004
-      item ? item.product_name || '' : '',                  // 品名 ODDT043
-      item && item.product ? item.product.specification || '' : '', // 規格 ODDT044
-      item ? 'PCS' : '',                                    // 單位 ODDT009
-      item ? '個' : '',                                     // 單位名稱 UTMF002
-      '01',                                                // 庫別 ODDT010
-      '總倉',                                               // 庫別名稱 STRG002
-      item ? item.quantity || '0' : '0',                    // 數量 ODDTA01IQTY
-      item ? item.price || '0' : '0',                       // 單價 ODDTA1FPRIC
-      '0',                                                  // 折扣率 ODDTA01IRAT
-      ''                                                    // 明細備註 ODDT026
+      order.order_number || '',                                   // 訂單編號
+      order.customer_name || '',                                  // 客戶資訊-name
+      order.customer_email || '',                                 // 客戶資訊-email
+      order.customer_phone || '',                                 // 客戶資訊-phone
+      order.salesperson_id || '',                            // 客戶公司-id
+      order.salesperson?.companyName || '',                          // 客戶公司-name
+      formatOrderDate,                                           // 日期
+      order.total_amount || '0',                                 // 總金額
+      // 其他需要的數據可以根據需要添加
     ];
-  };
-
-  // 獲取訂單狀態的中文顯示
-  const getStatusDisplay = (status: string): string => {
-    if (!status) return '未知';
-    
-    const statusMap: Record<string, string> = {
-      'PENDING': '待處理',
-      'PROCESSING': '處理中',
-      'SHIPPED': '已出貨',
-      'DELIVERED': '已送達',
-      'CANCELLED': '已取消',
-      'pending': '待處理',
-      'processing': '處理中',
-      'shipped': '已出貨',
-      'delivered': '已送達',
-      'cancelled': '已取消'
-    };
-    
-    // 嘗試直接從映射中獲取
-    const display = statusMap[status];
-    if (display) return display;
-    
-    // 如果找不到，嘗試轉換為大寫再查找
-    const uppercaseDisplay = statusMap[status.toUpperCase()];
-    if (uppercaseDisplay) return uppercaseDisplay;
-    
-    // 如果仍找不到，返回原始狀態
-    return status;
-  };
-
-  // 獲取訂單狀態的樣式類
-  const getStatusClass = (status: string): string => {
-    const upperStatus = status?.toUpperCase() || '';
-    
-    let styleClass = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full ';
-    
-    switch (upperStatus) {
-      case 'DELIVERED':
-        return styleClass + 'bg-green-100 text-green-800';
-      case 'PENDING':
-        return styleClass + 'bg-yellow-100 text-yellow-800';
-      case 'PROCESSING':
-        return styleClass + 'bg-blue-100 text-blue-800';
-      case 'SHIPPED':
-        return styleClass + 'bg-indigo-100 text-indigo-800';
-      case 'CANCELLED':
-        return styleClass + 'bg-red-100 text-red-800';
-      default:
-        return styleClass + 'bg-gray-100 text-gray-800';
-    }
   };
 
   // 計算分頁
@@ -462,13 +344,14 @@ export default function ExportOrdersModal({
                           <div className="text-sm text-gray-500">{order.customer_phone}</div>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{order.salesperson_id}</div>
                           <div className="text-sm font-medium text-gray-900">{order.salesperson?.companyName || '-'}</div>
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(order.created_at).toLocaleString('zh-TW')}
+                          {formatDate(order.created_at)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
-                          NT${typeof order.total_amount === 'number' ? order.total_amount.toLocaleString('zh-TW') : order.total_amount}
+                          {formatCurrency(order.total_amount)}
                         </td>
                         <td className="px-4 py-2 whitespace-nowrap">
                           <span className={getStatusClass(order.status)}>

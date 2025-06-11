@@ -181,7 +181,21 @@ export default function EditOwner() {
         }
         
         const data = await response.json();
-        setFormData(data);
+        
+        // 確保所有字段都不為 null，用空字符串替代
+        const safeData = {
+          id: data.id || '',
+          name: data.name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          companyName: data.companyName || '',
+          location: data.location || '',
+          status: data.status || 'active',
+          notes: data.notes || ''
+        };
+        
+        setFormData(safeData);
       } catch (err) {
         console.error('獲取業主詳情錯誤:', err);
         setFetchError(err instanceof Error ? err.message : '發生錯誤');

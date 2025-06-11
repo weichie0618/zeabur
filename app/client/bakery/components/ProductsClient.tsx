@@ -28,6 +28,16 @@ interface Product {
   quantity?: number;
   categoryId: number;
   specification?: string;
+  productImages?: ProductImage[]; // 添加商品圖片陣列
+}
+
+interface ProductImage {
+  id: number;
+  productId: number;
+  imageUrl: string;
+  sort: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Category {
@@ -67,6 +77,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const [animatingButtons, setAnimatingButtons] = useState<Set<number>>(new Set());
   // 添加模態視窗數量選擇狀態
   const [modalQuantity, setModalQuantity] = useState<number>(1);
+  // 添加當前顯示圖片索引狀態
+  const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
+  // 添加時間戳避免圖片快取
+  const [timestamp, setTimestamp] = useState<number>(Date.now());
 
   // 檢測是否是移動設備
   useEffect(() => {
@@ -333,6 +347,8 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     setShowModal(true);
     // 重置模態視窗數量為1
     setModalQuantity(1);
+    // 重置當前圖片索引為0
+    setCurrentImageIndex(0);
     // 模態視窗開啟時禁止捲動
     document.body.style.overflow = 'hidden';
   }, []);
@@ -354,6 +370,48 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const decreaseModalQuantity = useCallback(() => {
     setModalQuantity(prev => (prev > 1 ? prev - 1 : 1));
   }, []);
+
+  // 切換到下一張圖片
+  const nextImage = useCallback(() => {
+    if (!selectedProduct || !selectedProduct.productImages?.length) return;
+    
+    // 只使用productImages的總數量
+    const totalImages = selectedProduct.productImages.length;
+    
+    setCurrentImageIndex(prevIndex => (prevIndex + 1) % totalImages);
+  }, [selectedProduct]);
+
+  // 切換到上一張圖片
+  const prevImage = useCallback(() => {
+    if (!selectedProduct || !selectedProduct.productImages?.length) return;
+    
+    // 只使用productImages的總數量
+    const totalImages = selectedProduct.productImages.length;
+    
+    setCurrentImageIndex(prevIndex => (prevIndex - 1 + totalImages) % totalImages);
+  }, [selectedProduct]);
+  
+  // 獲取當前顯示的圖片URL
+  const getCurrentImageUrl = useCallback(() => {
+    if (!selectedProduct) return '';
+    
+    // 如果沒有productImages或長度為0，顯示主圖片
+    if (!selectedProduct.productImages?.length) {
+      // 添加時間戳避免快取
+      return `${selectedProduct.images}?t=${timestamp}`;
+    }
+    
+    // 排序productImages按sort字段
+    const sortedImages = [...selectedProduct.productImages].sort((a, b) => a.sort - b.sort);
+    
+    // 從排序後的productImages中獲取，並添加時間戳避免快取
+    return `${sortedImages[currentImageIndex]?.imageUrl || selectedProduct.images}?t=${timestamp}`;
+  }, [selectedProduct, currentImageIndex, timestamp]);
+
+  // 添加防止圖片快取的函數
+  const getImageUrlWithTimestamp = useCallback((url: string) => {
+    return `${url}?t=${timestamp}`;
+  }, [timestamp]);
 
   return (
     <>
@@ -415,141 +473,223 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
             onClick={closeModal}
           >
             <motion.div 
-              className="relative bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-auto"
+              className="relative bg-white rounded-lg md:max-w-4xl w-full max-h-[90vh] overflow-auto"
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
               <button 
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10 bg-white rounded-full p-1.5 border-2 border-white shadow-md flex items-center justify-center"
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-50 bg-white rounded-full p-2 border-2 border-white shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform duration-200"
                 onClick={closeModal}
+                aria-label="關閉"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
               
-              <div className="relative h-64 bg-gray-100">
-                <Image
-                  src={selectedProduct.images}
-                  alt={selectedProduct.name}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  className="object-cover"
-                />
-              </div>
-              
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className={`font-bold text-gray-900 break-words mr-2 ${
-                    selectedProduct.name.length > 25 ? 'text-xl' : 'text-2xl'
-                  }`}>
-                    {selectedProduct.name}
-                  </h3>
-                  {selectedProduct.is_new && (
-                    <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full flex-shrink-0">新品</span>
-                  )}
-                </div>
-                
-                <p className="text-amber-600 text-xl font-bold mb-4">
-                  ${selectedProduct.price}
-                  {selectedProduct.original_price && (
-                    <span className="text-gray-400 text-base line-through ml-2">
-                      ${selectedProduct.original_price}
-                    </span>
-                  )}
-                </p>
-                
-                {selectedProduct.description && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-1">商品描述</h4>
-                    <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
-                  </div>
-                )}
-                
-                {selectedProduct.specification && (
-                  <div className="mb-6">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-1 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
-                      </svg>
-                      商品規格
-                    </h4>
-                    <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
-                      <p className="text-gray-600 text-sm whitespace-pre-line">{selectedProduct.specification}</p>
-                    </div>
-                  </div>
-                )}
-                
-                {/* 新增數量選擇器 */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                    </svg>
-                    購買數量
-                  </h4>
-                  <div className="flex items-center justify-start">
-                    <button 
-                      onClick={decreaseModalQuantity}
-                      className="w-10 h-10 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                    <div className="w-12 h-10 flex items-center justify-center border-t border-b border-amber-200 bg-white text-gray-800 font-medium">
-                      {modalQuantity}
-                    </div>
-                    <button 
-                      onClick={increaseModalQuantity}
-                      className="w-10 h-10 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <button 
-                  onClick={() => {
-                    // 修改加入購物車函數，將選擇的數量添加到購物車
-                    const existingItem = cart.find(item => item.id === selectedProduct.id);
+              {/* 電腦版水平佈局，手機版垂直佈局 */}
+              <div className="flex flex-col md:flex-row">
+                {/* 圖片區塊 - 在桌面設備上佔一半寬度 */}
+                <div className="md:w-1/2">
+                  <div className="relative h-72 md:h-96 bg-gray-100">
+                    <Image
+                      src={getCurrentImageUrl()}
+                      alt={selectedProduct.name}
+                      fill
+                      style={{ objectFit: 'cover' }}
+                      className="object-cover"
+                    />
                     
-                    if (existingItem) {
-                      // 如果產品已在購物車，增加選擇的數量
-                      setCart(cart.map(item => 
-                        item.id === selectedProduct.id 
-                          ? { ...item, quantity: (item.quantity || 1) + modalQuantity } 
-                          : item
-                      ));
-                    } else {
-                      // 否則添加新產品，數量為選擇的數量
-                      setCart([...cart, { ...selectedProduct, quantity: modalQuantity }]);
-                    }
-                    closeModal();
-                  }}
-                  className={`w-full py-3 ${
-                    isMobile 
-                      ? 'bg-amber-500 active:bg-amber-600' // 移動設備使用 active 而非 hover
-                      : 'bg-amber-500 hover:bg-amber-600'
-                  } text-white rounded-md transition-colors font-medium flex items-center justify-center overflow-hidden group relative`}
-                >
-                  <motion.div 
-                    className="absolute top-0 left-0 w-full h-full bg-amber-600 origin-left"
-                    initial={{ scaleX: 0 }}
-                    whileTap={{ scaleX: 1 }}
-                    transition={{ duration: 0.3 }}
-                  />
-                  <div className="relative flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-2 ${isMobile ? '' : 'group-hover:animate-bounce'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    加入購物車 ({modalQuantity} 件)
+                    {/* 只有當商品有多張圖片時才顯示導航按鈕 */}
+                    {(selectedProduct.productImages && selectedProduct.productImages.length > 1) && (
+                      <>
+                        {/* 左箭頭 - 上一張圖片 */}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            prevImage();
+                          }}
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        
+                        {/* 右箭頭 - 下一張圖片 */}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            nextImage();
+                          }}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                        
+                        {/* 圖片指示器 */}
+                        <div className="absolute bottom-2 left-0 right-0 flex justify-center space-x-1.5">
+                          {/* 所有圖片指示器 */}
+                          {selectedProduct.productImages.sort((a, b) => a.sort - b.sort).map((_, idx) => (
+                            <button 
+                              key={idx}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCurrentImageIndex(idx);
+                              }}
+                              className={`w-2 h-2 rounded-full transition-all ${currentImageIndex === idx ? 'bg-amber-500 w-4' : 'bg-gray-300 hover:bg-gray-400'}`}
+                            />
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                </button>
+                  
+                  {/* 縮略圖畫廊 - 只有當有多張圖片時才顯示 */}
+                  {(selectedProduct.productImages && selectedProduct.productImages.length > 1) && (
+                    <div className="px-4 py-3 border-b md:border-b-0 border-gray-100">
+                      <div className="flex space-x-2 overflow-x-auto pb-2">
+                        {/* 所有圖片縮略圖 */}
+                        {selectedProduct.productImages.sort((a, b) => a.sort - b.sort).map((image, idx) => (
+                          <button 
+                            key={image.id}
+                            onClick={() => setCurrentImageIndex(idx)}
+                            className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all ${
+                              currentImageIndex === idx ? 'border-amber-500 shadow-md' : 'border-transparent hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="relative w-full h-full">
+                              <Image
+                                src={getImageUrlWithTimestamp(image.imageUrl)}
+                                alt={`${selectedProduct.name} - 圖片 ${idx + 1}`}
+                                fill
+                                style={{ objectFit: 'cover' }}
+                                className="object-cover"
+                              />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 商品詳情區塊 - 在桌面設備上佔一半寬度 */}
+                <div className="md:w-1/2 p-6">
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className={`font-bold text-gray-900 break-words mr-2 ${
+                      selectedProduct.name.length > 25 ? 'text-xl' : 'text-2xl'
+                    }`}>
+                      {selectedProduct.name}
+                    </h3>
+                    {selectedProduct.is_new && (
+                      <span className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full flex-shrink-0">新品</span>
+                    )}
+                  </div>
+                  
+                  <p className="text-amber-600 text-xl font-bold mb-4">
+                    ${selectedProduct.price}
+                    {selectedProduct.original_price && (
+                      <span className="text-gray-400 text-base line-through ml-2">
+                        ${selectedProduct.original_price}
+                      </span>
+                    )}
+                  </p>
+                  
+                  {selectedProduct.description && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-1">商品描述</h4>
+                      <p className="text-gray-600 text-sm">{selectedProduct.description}</p>
+                    </div>
+                  )}
+                  
+                  {selectedProduct.specification && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-1 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clipRule="evenodd" />
+                        </svg>
+                        商品規格
+                      </h4>
+                      <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                        <p className="text-gray-600 text-sm whitespace-pre-line">{selectedProduct.specification}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 新增數量選擇器 */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                      </svg>
+                      購買數量
+                    </h4>
+                    <div className="flex items-center justify-start">
+                      <button 
+                        onClick={decreaseModalQuantity}
+                        className="w-10 h-10 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <div className="w-12 h-10 flex items-center justify-center border-t border-b border-amber-200 bg-white text-gray-800 font-medium">
+                        {modalQuantity}
+                      </div>
+                      <button 
+                        onClick={increaseModalQuantity}
+                        className="w-10 h-10 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <button 
+                    onClick={() => {
+                      // 修改加入購物車函數，將選擇的數量添加到購物車
+                      const existingItem = cart.find(item => item.id === selectedProduct.id);
+                      
+                      if (existingItem) {
+                        // 如果產品已在購物車，增加選擇的數量
+                        setCart(cart.map(item => 
+                          item.id === selectedProduct.id 
+                            ? { ...item, quantity: (item.quantity || 1) + modalQuantity } 
+                            : item
+                        ));
+                      } else {
+                        // 否則添加新產品，數量為選擇的數量
+                        setCart([...cart, { ...selectedProduct, quantity: modalQuantity }]);
+                      }
+                      closeModal();
+                    }}
+                    className={`w-full py-3 ${
+                      isMobile 
+                        ? 'bg-amber-500 active:bg-amber-600' // 移動設備使用 active 而非 hover
+                        : 'bg-amber-500 hover:bg-amber-600'
+                    } text-white rounded-md transition-colors font-medium flex items-center justify-center overflow-hidden group relative`}
+                  >
+                    <motion.div 
+                      className="absolute top-0 left-0 w-full h-full bg-amber-600 origin-left"
+                      initial={{ scaleX: 0 }}
+                      whileTap={{ scaleX: 1 }}
+                      transition={{ duration: 0.3 }}
+                    />
+                    <div className="relative flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 mr-2 ${isMobile ? '' : 'group-hover:animate-bounce'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      加入購物車 ({modalQuantity} 件)
+                    </div>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -617,7 +757,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                 >
                   {/* 顯示商品圖片 */}
                   <Image
-                    src={product.images}
+                    src={getImageUrlWithTimestamp(product.images)}
                     alt={product.name.trim()}
                     fill
                     style={{ objectFit: 'cover' }}

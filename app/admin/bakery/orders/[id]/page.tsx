@@ -3,93 +3,38 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+
+// 引入類型
+import { Order, OrderItem, Product } from '../types';
+
+// 引入API服務
 import { 
-  statusMap, 
-  reverseStatusMap, 
+  fetchOrderDetail, 
+  fetchAvailableProducts, 
+  updateOrderItem, 
+  deleteOrderItem, 
+  addOrderItem,
+  cancelOrder 
+} from '../api';
+
+// 引入狀態處理
+import { getStatusDisplay, getStatusClass, canCancelOrder } from '../status';
+
+// 引入工具函數
+import { 
   initializeAuth, 
-  getAuthHeaders as getAuthHeadersFromService,
-  handleAuthError as handleAuthErrorFromService,
-  handleRelogin as handleReloginFromService,
-  getStatusDisplay as getStatusDisplayFromService,
-  getStatusClass as getStatusClassFromService,
-  setupAuthWarningAutoHide
-} from '../../utils/authService';
+  handleAuthError, 
+  handleRelogin, 
+  setupAuthWarningAutoHide,
+  formatCurrency,
+  formatDate,
+  getAuthHeaders,
+  formatOrderData
+} from '../utils';
 
-// 訂單類型
-interface Order {
-  id: string;
-  order_number: string;
-  salesperson_id: string;
-  customer_name: string;
-  customer_email: string;
-  customer_phone: string;
-  status: string;
-  total_amount: number;
-  subtotal?: number; // 新增 subtotal 欄位
-  created_at: string;
-  updated_at?: string;
-  notes?: string | null; // 允許 notes 為 null
-  lineid?: string;
-  orderItems?: OrderItem[];
-  address?: string; // 修改為 string 類型
-  line_user?: {
-    id: number;
-    lineId: string;
-    displayName: string;
-    name?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    address?: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
-  auth_user?: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-  };
-  shipping_method?: string;
-  salesperson?: {
-    id: string;
-    companyName: string;
-  };
-  payment_method?: string; // 新增 payment_method 欄位
-  payment_status?: string; // 新增 payment_status 欄位
-  shipping_status?: string; // 新增 shipping_status 欄位
-  shipping_fee?: number; // 新增 shipping_fee 欄位
-}
-
-// 訂單項目類型
-interface OrderItem {
-  id: string;
-  product_id: string;
-  product_name: string;
-  quantity: number;
-  price: number;
-  unit_price?: number;
-  product?: Product;
-}
-
-// 商品類型
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  discount_price?: number;
-  category?: string;
-  specification?: string;
-}
-
-// 地址類型
-interface Address {
-  id: string;
-  recipient_name: string;
-  phone: string;
-  address1: string;
-  city: string;
-  postal_code: string;
-}
+// 引入共用組件
+import AuthWarning from '../components/AuthWarning';
+import OrderItemsTable from '../components/OrderItemsTable';
 
 export default function OrderDetail() {
   const params = useParams();
@@ -119,30 +64,10 @@ export default function OrderDetail() {
   });
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   
-  // 獲取認證令牌
-  const getAuthHeaders = () => {
-    return getAuthHeadersFromService(accessToken);
-  };
-  
   // 初始化獲取認證令牌
   useEffect(() => {
-    initializeAuth(
-      setAccessToken,
-      setError,
-      setLoading,
-      setShowAuthWarning
-    );
+    initializeAuth(setAccessToken, setError, setLoading, setShowAuthWarning);
   }, []);
-  
-  // 處理認證錯誤
-  const handleAuthError = (errorMessage: string) => {
-    handleAuthErrorFromService(errorMessage, setError, setLoading, setShowAuthWarning);
-  };
-  
-  // 重新登入功能
-  const handleRelogin = () => {
-    handleReloginFromService();
-  };
   
   // 自動隱藏認證警告
   useEffect(() => {
@@ -150,83 +75,51 @@ export default function OrderDetail() {
     return cleanup;
   }, [error]);
   
+  // 新增useEffect調用fetchAvailableProducts
+  useEffect(() => {
+    if (accessToken && (showEditItem || showAddItem)) {
+      handleFetchAvailableProducts();
+    }
+  }, [accessToken, showEditItem, showAddItem]);
+  
   // 獲取訂單詳情
   useEffect(() => {
     if (!accessToken || !orderNumber) return;
     
-    const fetchOrderDetail = async () => {
+    const loadOrderDetails = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`/api/orders/check`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ 
-            order_number: orderNumber 
-          }),
-          credentials: 'include',
-        });
-        
-        if (response.status === 401) {
-          handleAuthError('獲取訂單詳情時認證失敗');
-          return;
-        }
-        
-        const data = await response.json();
-        
-        if (response.ok && data.order) {
-          setOrder(data.order);
-        } else {
-          setError(data.message || '獲取訂單詳情失敗');
-        }
+        const orderData = await fetchOrderDetail(accessToken, orderNumber);
+        // 使用formatOrderData處理API返回的數據格式
+        const formattedOrder = formatOrderData(orderData);
+        setOrder(formattedOrder);
       } catch (err: any) {
-        setError(err.message || '處理訂單詳情時出錯');
+        if (err.message?.includes('認證失敗')) {
+          handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+        } else {
+          setError(err.message || '獲取訂單詳情失敗');
+          setLoading(false);
+        }
         console.error('獲取訂單詳情錯誤:', err);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchOrderDetail();
+    loadOrderDetails();
   }, [accessToken, orderNumber]);
 
   // 獲取可用商品列表
-  const fetchAvailableProducts = async () => {
+  const handleFetchAvailableProducts = async () => {
     try {
-      const response = await fetch('/api/products?fetchAll=true', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        setError('認證失敗，請嘗試重新登入系統');
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        // 過濾出狀態為 active 的商品
-        const activeProducts = data.data.filter((product: any) => product.status === 'active');
-        
-        // 將 API 回應格式轉換為組件使用的格式
-        const formattedProducts = activeProducts.map((product: any) => ({
-          id: product.id.toString(),
-          name: `${product.name} ${product.specification ? `(${product.specification})` : ''} - ${product.category?.name || ''}`,
-          price: parseFloat(product.price),
-          discount_price: product.discount_price ? parseFloat(product.discount_price) : undefined,
-          category: product.category?.name || '',
-          specification: product.specification || ''
-        }));
-        
-        setAvailableProducts(formattedProducts);
-        console.log(`已載入 ${formattedProducts.length} 個活動商品`);
-      } else {
-        console.error('獲取產品列表失敗:', data.message);
-      }
-    } catch (err) {
+      const products = await fetchAvailableProducts(accessToken);
+      setAvailableProducts(products);
+      console.log(`已載入 ${products.length} 個活動商品`);
+    } catch (err: any) {
       console.error('獲取產品列表錯誤:', err);
+      // 不顯示錯誤，因為這不是核心功能
     }
   };
 
@@ -240,6 +133,10 @@ export default function OrderDetail() {
       price: item.price || 0
     });
     setShowEditItem(true);
+    // 確保商品列表已載入
+    if (availableProducts.length === 0) {
+      handleFetchAvailableProducts();
+    }
   };
 
   // 更新訂單商品
@@ -252,80 +149,41 @@ export default function OrderDetail() {
     try {
       setLoading(true);
       
-      const items = [];
+      const items = [{
+        id: editItemForm.id,
+        product_id: editItemForm.product_id,
+        quantity: editItemForm.quantity,
+        price: editItemForm.price
+      }];
       
-      // 如果有item ID，則是更新現有商品
-      if (editItemForm.id) {
-        items.push({
-          id: editItemForm.id,
-          product_id: editItemForm.product_id,
-          quantity: editItemForm.quantity,
-          price: editItemForm.price
-        });
-      } else {
-        // 否則是添加新商品（不應該走到這裡，因為有單獨的添加商品函數）
-        items.push({
-          product_id: editItemForm.product_id,
-          quantity: editItemForm.quantity,
-          price: editItemForm.price
-        });
-      }
+      const data = await updateOrderItem(accessToken, order.id, items);
       
-      const response = await fetch(`/api/orders/${order.id}/items`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ items }),
-        credentials: 'include',
+      setSuccess('訂單商品更新成功');
+      
+      // 使用formatOrderData處理API返回的數據格式
+      const formattedOrder = formatOrderData(data.order);
+      
+      // 更新當前訂單的商品資訊
+      setOrder({
+        ...order,
+        orderItems: formattedOrder.orderItems || [],
+        total_amount: formattedOrder.total_amount
       });
-
-      // 處理認證錯誤
-      if (response.status === 401) {
-        setError('認證失敗，請嘗試重新登入系統');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
       
-      if (response.ok) {
-        setSuccess('訂單商品更新成功');
-        
-        // 處理返回的訂單項目數據
-        if (data.order && data.order.items) {
-          data.order.items = data.order.items.map((item: any) => {
-            const itemPrice = item.price !== undefined && item.price !== null 
-              ? Number(item.price) 
-              : (item.unit_price !== undefined && item.unit_price !== null 
-                ? Number(item.unit_price) 
-                : 0);
-            
-            return {
-              ...item,
-              price: itemPrice,
-              quantity: Number(item.quantity)
-            };
-          });
-        }
-        
-        // 更新當前訂單的商品資訊
-        setOrder({
-          ...order,
-          orderItems: data.order.items,
-          total_amount: data.order.total_amount
-        });
-        
-        // 關閉編輯模態視窗
-        setShowEditItem(false);
-        
-        // 3秒後清除成功訊息
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
-      } else {
-        setError(data.message || '更新訂單商品失敗');
-      }
+      // 關閉編輯模態視窗
+      setShowEditItem(false);
+      
+      // 3秒後清除成功訊息
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
     } catch (err: any) {
-      setError(err.message || '處理訂單商品更新時出錯');
+      if (err.message?.includes('認證失敗')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err.message || '更新訂單商品失敗');
+        setLoading(false);
+      }
       console.error('更新訂單商品錯誤:', err);
     } finally {
       setLoading(false);
@@ -346,58 +204,31 @@ export default function OrderDetail() {
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/orders/${order.id}/items/${itemId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-
-      // 處理認證錯誤
-      if (response.status === 401) {
-        setError('認證失敗，請嘗試重新登入系統');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
+      const data = await deleteOrderItem(accessToken, order.id, itemId);
       
-      if (response.ok) {
-        setSuccess(data.message || '訂單商品刪除成功');
-        
-        // 確保 orderItems 的 price 字段正確設置
-        if (data.order && data.order.items) {
-          data.order.items = data.order.items.map((item: any) => {
-            // 確保 price 欄位有值
-            const itemPrice = item.price !== undefined && item.price !== null 
-              ? Number(item.price) 
-              : (item.unit_price !== undefined && item.unit_price !== null 
-                ? Number(item.unit_price) 
-                : 0);
-            
-            return {
-              ...item,
-              price: itemPrice,
-              quantity: Number(item.quantity)
-            };
-          });
-        }
-        
-        // 更新當前訂單的商品資訊
-        setOrder({
-          ...order,
-          orderItems: data.order.items,
-          total_amount: data.order.total_amount
-        });
-        
-        // 3秒後清除成功訊息
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
-      } else {
-        setError(data.message || '刪除訂單商品失敗');
-      }
+      setSuccess(data.message || '訂單商品刪除成功');
+      
+      // 使用formatOrderData處理API返回的數據格式
+      const formattedOrder = formatOrderData(data.order);
+      
+      // 更新當前訂單的商品資訊
+      setOrder({
+        ...order,
+        orderItems: formattedOrder.orderItems || [],
+        total_amount: formattedOrder.total_amount
+      });
+      
+      // 3秒後清除成功訊息
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
     } catch (err: any) {
-      setError(err.message || '處理訂單商品刪除時出錯');
+      if (err.message?.includes('認證失敗')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err.message || '刪除訂單商品失敗');
+        setLoading(false);
+      }
       console.error('刪除訂單商品錯誤:', err);
     } finally {
       setLoading(false);
@@ -412,6 +243,10 @@ export default function OrderDetail() {
       price: 0
     });
     setShowAddItem(true);
+    // 確保商品列表已載入
+    if (availableProducts.length === 0) {
+      handleFetchAvailableProducts();
+    }
   };
 
   // 添加商品到訂單
@@ -424,79 +259,44 @@ export default function OrderDetail() {
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/orders/${order.id}/items`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          product_id: editItemForm.product_id,
-          quantity: editItemForm.quantity,
-          price: editItemForm.price
-        }),
-        credentials: 'include',
-      });
-
-      // 處理認證錯誤
-      if (response.status === 401) {
-        setError('認證失敗，請嘗試重新登入系統');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
+      const data = await addOrderItem(
+        accessToken, 
+        order.id, 
+        editItemForm.product_id, 
+        editItemForm.quantity, 
+        editItemForm.price
+      );
       
-      if (response.ok) {
-        setSuccess('商品成功添加到訂單');
-        
-        // 處理返回的訂單項目數據
-        if (data.order && data.order.items) {
-          data.order.items = data.order.items.map((item: any) => {
-            const itemPrice = item.price !== undefined && item.price !== null 
-              ? Number(item.price) 
-              : (item.unit_price !== undefined && item.unit_price !== null 
-                ? Number(item.unit_price) 
-                : 0);
-            
-            return {
-              ...item,
-              price: itemPrice,
-              quantity: Number(item.quantity)
-            };
-          });
-        }
-        
-        // 更新當前訂單的商品資訊
-        setOrder({
-          ...order,
-          orderItems: data.order.items,
-          total_amount: data.order.total_amount
-        });
-        
-        // 關閉添加模態視窗
-        setShowAddItem(false);
-        
-        // 3秒後清除成功訊息
-        setTimeout(() => {
-          setSuccess(null);
-        }, 3000);
-      } else {
-        setError(data.message || '添加商品到訂單失敗');
-      }
+      setSuccess('商品成功添加到訂單');
+      
+      // 使用formatOrderData處理API返回的數據格式
+      const formattedOrder = formatOrderData(data.order);
+      
+      // 更新當前訂單的商品資訊
+      setOrder({
+        ...order,
+        orderItems: formattedOrder.orderItems || [],
+        total_amount: formattedOrder.total_amount
+      });
+      
+      // 關閉添加模態視窗
+      setShowAddItem(false);
+      
+      // 3秒後清除成功訊息
+      setTimeout(() => {
+        setSuccess(null);
+      }, 3000);
     } catch (err: any) {
-      setError(err.message || '處理添加商品時出錯');
+      if (err.message?.includes('認證失敗')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err.message || '添加商品到訂單失敗');
+        setLoading(false);
+      }
       console.error('添加商品到訂單錯誤:', err);
     } finally {
       setLoading(false);
     }
-  };
-
-  // 獲取訂單狀態的中文顯示
-  const getStatusDisplay = (status: string): string => {
-    return getStatusDisplayFromService(status);
-  };
-
-  // 獲取訂單狀態的樣式類
-  const getStatusClass = (status: string): string => {
-    return getStatusClassFromService(status);
   };
   
   // 取消訂單
@@ -508,46 +308,26 @@ export default function OrderDetail() {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/orders/cancel-by-number`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({
-          order_number: order.order_number
-        })
-      });
       
-      if (response.status === 401) {
-        setError('認證失敗，請嘗試重新登入系統');
-        setLoading(false);
-        return;
-      }
+      await cancelOrder(accessToken, order.order_number);
       
-      const data = await response.json();
+      setSuccess('訂單已成功取消');
       
-      if (response.ok) {
-        setSuccess('訂單已成功取消');
-        
-        // 重新獲取最新訂單資料
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-      } else {
-        setError(data.message || '取消訂單失敗');
-      }
+      // 重新獲取最新訂單資料
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (err: any) {
-      setError(err.message || '處理訂單時出錯');
+      if (err.message?.includes('認證失敗')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err.message || '取消訂單失敗');
+        setLoading(false);
+      }
       console.error('取消訂單錯誤:', err);
     } finally {
       setLoading(false);
     }
-  };
-  
-  // 判斷訂單是否可以取消
-  const canCancelOrder = (status: string): boolean => {
-    if (!status) return false;
-    const upperStatus = status.toUpperCase();
-    return upperStatus === 'PENDING' || upperStatus === 'PROCESSING';
   };
   
   // 載入中顯示
@@ -608,6 +388,13 @@ export default function OrderDetail() {
   
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* 認證警告組件 */}
+      <AuthWarning 
+        showWarning={!!(showAuthWarning && error?.includes('認證'))} 
+        onClose={() => setShowAuthWarning(false)}
+        message="未獲取到認證令牌，請重新登入系統"
+      />
+      
       {/* 成功訊息顯示 */}
       {success && (
         <div className="mb-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700">
@@ -664,12 +451,11 @@ export default function OrderDetail() {
                   </Link>
                 </p>
                 <p><span className="text-gray-600">訂單狀態：</span> <span className={getStatusClass(order.status)}>{getStatusDisplay(order.status)}</span></p>
-                <p><span className="text-gray-600">訂單日期：</span> {new Date(order.created_at).toLocaleString('zh-TW').replace(/\//g, '/')}</p>
-                <p><span className="text-gray-600">總金額：</span> NT${typeof order.total_amount === 'number' ? order.total_amount.toLocaleString('zh-TW') : order.total_amount}</p>
+                <p><span className="text-gray-600">訂單日期：</span> {formatDate(order.created_at)}</p>
+                <p><span className="text-gray-600">總金額：</span> {formatCurrency(order.total_amount)}</p>
                 {order.notes && (
                   <p><span className="text-gray-600">備註：</span> {order.notes}</p>
                 )}
-               
               </div>
             </div>
             <div>
@@ -712,114 +498,28 @@ export default function OrderDetail() {
                     )}
                     
                     {order.shipping_fee !== undefined && (
-                      <p><span className="text-gray-600">運費：</span> NT${typeof order.shipping_fee === 'number' ? order.shipping_fee.toLocaleString('zh-TW') : order.shipping_fee}</p>
+                      <p><span className="text-gray-600">運費：</span> {formatCurrency(order.shipping_fee)}</p>
                     )}
                   </div>
                 </div>
                
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p><span className="text-gray-600 font-medium">收貨地址：</span> {order.address}</p>
-                    <p><span className="text-gray-600 font-medium">訂單備註：</span> {order.notes}</p>
-                  </div>
-                
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p><span className="text-gray-600 font-medium">收貨地址：</span> {typeof order.address === 'string' ? order.address : order.address?.address1}</p>
+                  <p><span className="text-gray-600 font-medium">訂單備註：</span> {order.notes}</p>
+                </div>
               </div>
             </div>
           )}
 
           <div className="mb-6">
             <h4 className="font-medium text-gray-700 mb-2">訂單項目</h4>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      商品
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      數量
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      單價
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      小計
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      操作
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {order.orderItems && order.orderItems.map((item, index) => {
-                    // 計算小計
-                    const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
-                    const price = typeof item.price === 'number' ? item.price : 0;
-                    const subtotal = quantity * price;
-                    
-                    return (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.product?.name || item.product_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {quantity}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          NT${price.toLocaleString('zh-TW')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          NT${subtotal.toLocaleString('zh-TW')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleOpenEditItem(item)}
-                              className="text-indigo-600 hover:text-indigo-900"
-                              disabled={loading}
-                            >
-                              編輯
-                            </button>
-                            <button
-                              onClick={() => handleDeleteOrderItem(item.id)}
-                              className="text-red-600 hover:text-red-900 ml-2"
-                              disabled={loading}
-                            >
-                              刪除
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {(!order.orderItems || order.orderItems.length === 0) && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                        訂單中沒有商品
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-                <tfoot className="bg-gray-50">
-                  <tr>
-                    <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-500">
-                      總計:
-                    </td>
-                    <td className="px-6 py-3 text-left text-sm font-medium text-gray-900">
-                      NT${typeof order.total_amount === 'number' ? order.total_amount.toLocaleString('zh-TW') : order.total_amount}
-                    </td>
-                    <td className="px-6 py-3">
-                      <button
-                        onClick={handleOpenAddItem}
-                        className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                        disabled={loading}
-                      >
-                        新增商品
-                      </button>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <OrderItemsTable 
+              items={order.orderItems || []} 
+              totalAmount={order.total_amount}
+              onEdit={handleOpenEditItem} 
+              onDelete={handleDeleteOrderItem} 
+              onAddItem={handleOpenAddItem}
+            />
           </div>
         </div>
       </div>
@@ -858,7 +558,7 @@ export default function OrderDetail() {
                   <option value="">-- 選擇商品 --</option>
                   {availableProducts.map((product) => (
                     <option key={product.id} value={product.id}>
-                      {product.name} - NT${typeof product.price === 'number' ? product.price.toLocaleString('zh-TW') : product.price}
+                      {product.name} - {formatCurrency(product.price)}
                     </option>
                   ))}
                 </select>
@@ -901,7 +601,7 @@ export default function OrderDetail() {
               
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  小計: NT${typeof editItemForm.quantity === 'number' && typeof editItemForm.price === 'number' ? (editItemForm.quantity * editItemForm.price).toLocaleString('zh-TW') : '計算中...'}
+                  小計: {formatCurrency(editItemForm.quantity * editItemForm.price)}
                 </p>
               </div>
             </div>
@@ -959,7 +659,7 @@ export default function OrderDetail() {
                   <option value="">-- 選擇商品 --</option>
                   {availableProducts.map((product) => (
                     <option key={product.id} value={product.id}>
-                      {product.name} - NT${typeof product.price === 'number' ? product.price.toLocaleString('zh-TW') : product.price}
+                      {product.name} - {formatCurrency(product.price)}
                     </option>
                   ))}
                 </select>
@@ -1002,7 +702,7 @@ export default function OrderDetail() {
               
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  預估小計: NT${typeof editItemForm.quantity === 'number' && typeof editItemForm.price === 'number' ? (editItemForm.quantity * editItemForm.price).toLocaleString('zh-TW') : '計算中...'}
+                  預估小計: {formatCurrency(editItemForm.quantity * editItemForm.price)}
                 </p>
               </div>
             </div>

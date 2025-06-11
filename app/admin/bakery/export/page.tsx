@@ -56,6 +56,7 @@ interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  product_unit_code: string;
 }
 
 // 訂單響應類型
@@ -447,6 +448,105 @@ export default function OrderExportPage() {
     setSelectAll(newSelected.size === orders.length);
   };
   
+  // 創建匯出行數據
+  const createExportRow = (order: Order, item: OrderItem | null) => {
+    const orderDate = new Date(order.created_at);
+    const formatOrderDate = `${orderDate.getFullYear()}/${(orderDate.getMonth() + 1).toString().padStart(2, '0')}/${orderDate.getDate().toString().padStart(2, '0')}`;
+    
+    // 預計交貨日期（假設為訂單日期後7天）
+    const deliveryDate = new Date(orderDate);
+    deliveryDate.setDate(deliveryDate.getDate() + 7);
+    const formatDeliveryDate = `${deliveryDate.getFullYear()}/${(deliveryDate.getMonth() + 1).toString().padStart(2, '0')}/${deliveryDate.getDate().toString().padStart(2, '0')}`;
+    
+    // 建立基本行數據（訂單級別）
+    const baseRow = [
+      formatOrderDate,                                      // 訂貨日期 ODMF003
+      formatDeliveryDate,                                   // 交貨日期 ODMF092
+      'WEB01',                                              // 客戶代號 ODMF004
+      '',                 // 客戶名稱 CUST003
+      '',                 // 客戶全名 ODMF055
+      order.taxId || '',                                    // 統一編號 ODMF074
+      order.order_number || '',                             // 訂單單號 ODMF007
+      'AE01',                                                   // 訂貨部門 ODMF008
+      '',                                                   // 部門名稱 DEPT002
+      '',                // 業務人員代號 ODMF009
+      '',                        // 業務人員姓名 PA51004
+      '0',                                                  // 預收訂金 ODMFA3FAMNT
+      order.customer_name || '',                            // 訂貨人 ODMF005
+      order.customer_phone || '',                           // 訂貨電話 ODMF080
+      order.customer_name || '',                            // 提貨人 ODMF079
+      order.customer_phone || '',                           // 提貨電話 ODMF081
+      '1',                                                  // 送貨方式 ODMF096
+      '',                                                   // 提貨門市 ODMF102
+      '',                                                   // 提貨門市名稱 ODMF102NAME
+      order.address || '',                                  // 送貨地址 ODMF049
+      order.address || '',                                  // 發票地址 ODMF075
+      '1',                          // 配送方式 ODMF143
+      'NTD',                                                // 幣別 ODMF010
+      '1',                                                  // 匯率 ODMFA01EXRA
+      "推薦者:" +order.salesperson?.companyName + (order.shipping_fee>0 ? "/ 運費:" + order.shipping_fee + "/ ": "/ ") + (order.shipping_method==="pickup" ? "配送方式:"+order.address + "/ " : "配送方式:黑貓宅配/ ") + (order.carrier ? "載具:" + order.carrier +"/": order.taxId ? "統編:" + order.taxId +"/": "/"),                                    // 備註 ODMF054
+      item ? '' : '',                                       // 類別 ODDT005
+      item ? item.product_id.toString() || '' : '',         // 品號 ODDT004
+      item ? item.product_name || '' : '',                  // 品名 ODDT043
+      '',                                  // 規格 ODDT044
+      item ? item.product_unit_code: '',                                    // 單位 ODDT009
+      '',                                     // 單位名稱 UTMF002
+      '01',                                                 // 庫別 ODDT010
+      '總倉',                                               // 庫別名稱 STRG002
+      item ? item.quantity.toString() || '0' : '0',         // 數量 ODDTA01IQTY
+      item ? item.price.toString() || '0' : '0',            // 單價 ODDTA1FPRIC
+      '',                                                  // 折扣率 ODDTA01IRAT
+      ''                                                    // 明細備註 ODDT026
+    ];
+    
+    // 如果有運費，添加運費行
+    if (order.shipping_fee > 0 && !item) {
+      const shippingFeeRow = [
+        formatOrderDate,                                      // 訂貨日期 ODMF003
+        formatDeliveryDate,                                   // 交貨日期 ODMF092
+        'WEB01',                                              // 客戶代號 ODMF004
+        '',                 // 客戶名稱 CUST003
+        '',                 // 客戶全名 ODMF055
+        order.taxId || '',                                    // 統一編號 ODMF074
+        order.order_number || '',                             // 訂單單號 ODMF007
+        'AE01',                                                   // 訂貨部門 ODMF008
+        '',                                                   // 部門名稱 DEPT002
+        '',                // 業務人員代號 ODMF009
+        '',                        // 業務人員姓名 PA51004
+        '0',                                                  // 預收訂金 ODMFA3FAMNT
+        order.customer_name || '',                            // 訂貨人 ODMF005
+        order.customer_phone || '',                           // 訂貨電話 ODMF080
+        order.customer_name || '',                            // 提貨人 ODMF079
+        order.customer_phone || '',                           // 提貨電話 ODMF081
+        '1',                                                  // 送貨方式 ODMF096
+        '',                                                   // 提貨門市 ODMF102
+        '',                                                   // 提貨門市名稱 ODMF102NAME
+        order.address || '',                                  // 送貨地址 ODMF049
+        order.address || '',                                  // 發票地址 ODMF075
+        '1',                          // 配送方式 ODMF143
+        'NTD',                                                // 幣別 ODMF010
+        '1',                                                  // 匯率 ODMFA01EXRA
+        "推薦者:" +order.salesperson?.companyName + (order.shipping_fee>0 ? "/ 運費:" + order.shipping_fee + "/ ": "/ ") + (order.shipping_method==="pickup" ? "配送方式:"+order.address + "/ " : "配送方式:黑貓宅配/ ") + (order.carrier ? "載具:" + order.carrier +"/": order.taxId ? "統編:" + order.taxId +"/": "/"),                                    // 備註 ODMF054
+        '',                                       // 類別 ODDT005
+        '902002',         // 品號 ODDT004
+        '運費',                  // 品名 ODDT043
+        '',                                  // 規格 ODDT044
+        '',                                    // 單位 ODDT009
+        '',                                     // 單位名稱 UTMF002
+        '01',                                                 // 庫別 ODDT010
+        '總倉',                                               // 庫別名稱 STRG002
+        '1',         // 數量 ODDTA01IQTY
+        order.shipping_fee.toString(),            // 單價 ODDTA1FPRIC
+        '',                                                  // 折扣率 ODDTA01IRAT
+        ''                                                    // 明細備註 ODDT026
+      ];
+      
+      return [baseRow, shippingFeeRow];
+    }
+    
+    return [baseRow];
+  };
+
   // 匯出選中的訂單
   const handleExportSelected = async () => {
     try {
@@ -467,12 +567,28 @@ export default function OrderExportPage() {
         const orderItems = order.orderItems || [];
         
         if (orderItems.length === 0) {
-          // 如果沒有訂單項目，仍然返回一行主訂單數據
-          return [createExportRow(order, null)];
+          // 如果沒有訂單項目，返回主訂單數據（可能包含運費行）
+          return createExportRow(order, null);
         }
         
-        // 為每個訂單項目創建一行
-        return orderItems.map((item: OrderItem) => createExportRow(order, item));
+        // 為每個訂單項目創建一行，並在最後一個項目後添加運費行（如果有）
+        const itemRows = orderItems.map((item: OrderItem, index: number) => {
+          // 只在處理最後一個項目時檢查是否需要添加運費行
+          if (index === orderItems.length - 1 && order.shipping_fee > 0) {
+            const normalRow = createExportRow(order, item)[0]; // 獲取普通項目行
+            const rows = [normalRow];
+            // 手動創建運費行（類似於無項目情況下的運費行）
+            const shippingFeeRow = createExportRow(order, null)[1]; // 獲取運費行
+            if (shippingFeeRow) {
+              rows.push(shippingFeeRow);
+            }
+            return rows;
+          } else {
+            return [createExportRow(order, item)[0]]; // 普通項目只返回一行
+          }
+        }).flat();
+        
+        return itemRows;
       }).flat(); // 將嵌套數組展平
 
       // 創建工作表
@@ -520,58 +636,6 @@ export default function OrderExportPage() {
       alert(`匯出錯誤: ${err.message || '未知錯誤'}`);
       setExportLoading(false);
     }
-  };
-
-  // 創建匯出行數據
-  const createExportRow = (order: Order, item: OrderItem | null) => {
-    const orderDate = new Date(order.created_at);
-    const formatOrderDate = `${orderDate.getFullYear()}/${(orderDate.getMonth() + 1).toString().padStart(2, '0')}/${orderDate.getDate().toString().padStart(2, '0')}`;
-    
-    // 預計交貨日期（假設為訂單日期後7天）
-    const deliveryDate = new Date(orderDate);
-    deliveryDate.setDate(deliveryDate.getDate() + 7);
-    const formatDeliveryDate = `${deliveryDate.getFullYear()}/${(deliveryDate.getMonth() + 1).toString().padStart(2, '0')}/${deliveryDate.getDate().toString().padStart(2, '0')}`;
-    
-    // 建立基本行數據（訂單級別）
-    return [
-      formatOrderDate,                                      // 訂貨日期 ODMF003
-      formatDeliveryDate,                                   // 交貨日期 ODMF092
-      'WEB01',                                              // 客戶代號 ODMF004
-      order.salesperson?.companyName || '',                 // 客戶名稱 CUST003
-      order.salesperson?.companyName || '',                 // 客戶全名 ODMF055
-      order.taxId || '',                                    // 統一編號 ODMF074
-      order.order_number || '',                             // 訂單單號 ODMF007
-      '',                                                   // 訂貨部門 ODMF008
-      '',                                                   // 部門名稱 DEPT002
-      order.salesperson_id.toString() || '',                // 業務人員代號 ODMF009
-      order.salesperson?.name || '',                        // 業務人員姓名 PA51004
-      '0',                                                  // 預收訂金 ODMFA3FAMNT
-      order.customer_name || '',                            // 訂貨人 ODMF005
-      order.customer_phone || '',                           // 訂貨電話 ODMF080
-      order.customer_name || '',                            // 提貨人 ODMF079
-      order.customer_phone || '',                           // 提貨電話 ODMF081
-      '1',                                                  // 送貨方式 ODMF096
-      '',                                                   // 提貨門市 ODMF102
-      '',                                                   // 提貨門市名稱 ODMF102NAME
-      order.address || '',                                  // 送貨地址 ODMF049
-      order.address || '',                                  // 發票地址 ODMF075
-      order.shipping_method || '',                          // 配送方式 ODMF143
-      'NTD',                                                // 幣別 ODMF010
-      '1',                                                  // 匯率 ODMFA01EXRA
-      order.notes || '',                                    // 備註 ODMF054
-      item ? '' : '',                                       // 類別 ODDT005
-      item ? item.product_id.toString() || '' : '',         // 品號 ODDT004
-      item ? item.product_name || '' : '',                  // 品名 ODDT043
-      item ? '' : '',                                       // 規格 ODDT044
-      item ? 'PCS' : '',                                    // 單位 ODDT009
-      item ? '個' : '',                                     // 單位名稱 UTMF002
-      '01',                                                 // 庫別 ODDT010
-      '總倉',                                               // 庫別名稱 STRG002
-      item ? item.quantity.toString() || '0' : '0',         // 數量 ODDTA01IQTY
-      item ? item.price.toString() || '0' : '0',            // 單價 ODDTA1FPRIC
-      '0',                                                  // 折扣率 ODDTA01IRAT
-      ''                                                    // 明細備註 ODDT026
-    ];
   };
 
   // 獲取訂單狀態的中文顯示

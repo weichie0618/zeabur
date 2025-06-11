@@ -3,18 +3,12 @@
  * 用於處理訂單數據的匯出相關功能
  */
 
-import { reverseStatusMap } from '../../utils/authService';
+import { ExportFilters } from '../types';
+import { reverseStatusMap } from '../constants';
 
 // 構建匯出訂單的查詢參數
 export const buildExportQueryParams = (
-  filters: {
-    searchQuery: string;
-    statusFilter: string;
-    dateFilter: string;
-    companyNameFilter: string;
-    startDate: string;
-    endDate: string;
-  },
+  filters: ExportFilters,
   exportAll: boolean
 ): URLSearchParams => {
   // 如果選擇匯出所有，則不添加過濾條件
@@ -81,14 +75,7 @@ export const buildExportQueryParams = (
 
 // 獲取匯出所需的訂單數據
 export const fetchOrdersForExport = async (
-  filters: {
-    searchQuery: string;
-    statusFilter: string;
-    dateFilter: string;
-    companyNameFilter: string;
-    startDate: string;
-    endDate: string;
-  },
+  filters: ExportFilters,
   exportAll: boolean,
   getAuthHeaders: () => Record<string, string>
 ): Promise<any[]> => {

@@ -32,11 +32,11 @@ export default function SalesDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">業務儀表板</h1>
-        <div className="flex space-x-3">
-          <select className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">業務儀表板</h1>
+        <div className="w-full sm:w-auto flex space-x-3">
+          <select className="w-full sm:w-auto border border-gray-300 rounded-md px-3 py-1.5 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
             <option>今日</option>
             <option>本週</option>
             <option>本月</option>
@@ -46,31 +46,31 @@ export default function SalesDashboard() {
       </div>
 
       {/* 歡迎訊息 */}
-      <div className="bg-amber-50 rounded-lg p-6 border border-amber-200">
-        <h2 className="text-lg font-medium text-amber-800">歡迎回來，{user?.name || '業務夥伴'}！</h2>
-        <p className="mt-1 text-amber-700">
+      <div className="bg-amber-50 rounded-lg p-4 sm:p-6 border border-amber-200">
+        <h2 className="text-base sm:text-lg font-medium text-amber-800">歡迎回來，{user?.name || '業務夥伴'}！</h2>
+        <p className="mt-1 text-sm text-amber-700">
           今天是新的一天，您有 <span className="font-semibold">3</span> 個待跟進客戶和 <span className="font-semibold">2</span> 個待處理訂單。
         </p>
       </div>
 
       {/* 統計卡片區 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-            <p className="text-sm text-gray-500">{stat.title}</p>
-            <p className="text-2xl font-bold mt-2">{stat.value}</p>
-            <div className="flex items-center mt-2">
-              <span className={`text-sm ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
+          <div key={index} className="bg-white rounded-lg shadow-sm p-3 sm:p-6">
+            <p className="text-xs sm:text-sm text-gray-500">{stat.title}</p>
+            <p className="text-xl sm:text-2xl font-bold mt-1 sm:mt-2">{stat.value}</p>
+            <div className="flex items-center mt-1 sm:mt-2">
+              <span className={`text-xs sm:text-sm ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
                 {stat.change}
               </span>
-              <span className="text-gray-500 text-sm ml-1">較上期</span>
+              <span className="text-gray-500 text-xs sm:text-sm ml-1">較上期</span>
             </div>
           </div>
         ))}
       </div>
 
-      {/* 最近訂單 */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      {/* 最近訂單 - 桌面版 */}
+      <div className="hidden sm:block bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-medium">最近訂單</h2>
           <Link href="/sales/orders" className="text-amber-600 hover:text-amber-700 text-sm font-medium">
@@ -138,8 +138,55 @@ export default function SalesDashboard() {
         </div>
       </div>
 
-      {/* 待跟進客戶 */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      {/* 最近訂單 - 行動版 */}
+      <div className="sm:hidden space-y-3">
+        <div className="flex justify-between items-center px-1 py-2">
+          <h2 className="text-base font-medium">最近訂單</h2>
+          <Link href="/sales/orders" className="text-amber-600 hover:text-amber-700 text-xs font-medium">
+            查看全部
+          </Link>
+        </div>
+        
+        {recentOrders.map((order) => (
+          <div key={order.id} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div className="flex justify-between items-start mb-2">
+              <Link href={`/sales/orders/${order.id}`} className="text-amber-600 font-medium text-sm">
+                {order.id}
+              </Link>
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                order.status === '已完成' ? 'bg-green-100 text-green-800' :
+                'bg-yellow-100 text-yellow-800'
+              }`}>
+                {order.status}
+              </span>
+            </div>
+            
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">客戶:</span>
+                <span className="text-gray-900">{order.customer}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">日期:</span>
+                <span className="text-gray-900">{order.date}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">金額:</span>
+                <span className="text-gray-900 font-medium">{order.amount}</span>
+              </div>
+            </div>
+            
+            <div className="mt-3 pt-2 border-t border-gray-100">
+              <Link href={`/sales/orders/${order.id}`} className="text-amber-600 text-xs font-medium">
+                查看詳情
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 待跟進客戶 - 桌面版 */}
+      <div className="hidden sm:block bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-medium">待跟進客戶</h2>
           <Link href="/sales/customers" className="text-amber-600 hover:text-amber-700 text-sm font-medium">
@@ -202,6 +249,52 @@ export default function SalesDashboard() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* 待跟進客戶 - 行動版 */}
+      <div className="sm:hidden space-y-3">
+        <div className="flex justify-between items-center px-1 py-2">
+          <h2 className="text-base font-medium">待跟進客戶</h2>
+          <Link href="/sales/customers" className="text-amber-600 hover:text-amber-700 text-xs font-medium">
+            管理客戶
+          </Link>
+        </div>
+        
+        {followUpCustomers.map((customer) => (
+          <div key={customer.name} className="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-medium text-gray-900">{customer.name}</h3>
+              <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                customer.priority === 'high' ? 'bg-red-100 text-red-800' :
+                customer.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+              }`}>
+                {customer.priority === 'high' ? '高' :
+                 customer.priority === 'medium' ? '中' : '低'}
+              </span>
+            </div>
+            
+            <div className="space-y-2 text-sm">
+              <div>
+                <span className="text-gray-500">最後聯繫: </span>
+                <span className="text-gray-900">{customer.lastContact}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">備註: </span>
+                <span className="text-gray-900">{customer.note}</span>
+              </div>
+            </div>
+            
+            <div className="mt-3 pt-2 border-t border-gray-100 flex space-x-4">
+              <Link href={`/sales/customers/${customer.name}`} className="text-amber-600 text-xs font-medium">
+                聯繫
+              </Link>
+              <Link href={`/sales/customers/${customer.name}`} className="text-amber-600 text-xs font-medium">
+                檢視
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

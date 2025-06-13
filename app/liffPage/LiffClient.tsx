@@ -25,6 +25,18 @@ export default function LiffClient({ staticData }: LiffClientProps) {
   // 用於顯示公司名稱
   const [companyName, setCompanyName] = useState<string>('');
   
+  // 處理重試
+  const handleRetry = () => {
+    if (!liff) {
+      console.log('重試時 LIFF 尚未初始化');
+      window.location.reload();
+      return;
+    }
+    
+    console.log('重試：執行 LIFF 登入');
+    liff.login();
+  };
+  
   useEffect(() => {
     async function processUserData() {
       if (!liff) {
@@ -78,10 +90,8 @@ export default function LiffClient({ staticData }: LiffClientProps) {
         setSuccess(true);
         setLoading(false);
         
-        // 等待 1 秒後重定向到 LINE 官方帳號
-        setTimeout(() => {
-          window.location.href = 'https://line.me/R/ti/p/%40989xhjix';
-        }, 1000);
+        // 資料儲存成功後直接重定向到 LINE 官方帳號，不再等待 1 秒
+        window.location.href = 'https://line.me/R/ti/p/%40989xhjix';
         
       } catch (err) {
         console.error('處理用戶資料時出錯:', err);
@@ -109,7 +119,7 @@ export default function LiffClient({ staticData }: LiffClientProps) {
           <p className={styles.errorText}>{error}</p>
           <button 
             className={styles.retryButton}
-            onClick={() => window.location.reload()}
+            onClick={handleRetry}
           >
             重試
           </button>

@@ -3,6 +3,13 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { 
+  initializeAuth, 
+  getAuthHeaders, 
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../utils/authService';
 
 // 定義產品圖片介面
 interface ProductImage {
@@ -59,6 +66,10 @@ export default function NewProduct() {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const [targetIndex, setTargetIndex] = useState<number | null>(null);
   
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  
   // 預覽相關狀態
   const [showPreviewAnimation, setShowPreviewAnimation] = useState(false);
   
@@ -92,17 +103,56 @@ export default function NewProduct() {
   const [uploadingImages, setUploadingImages] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<{[key: number]: boolean}>({});
 
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setErrorMessage,
+      setIsSubmitting,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(errorMessage, setShowAuthWarning);
+    return cleanup;
+  }, [errorMessage]);
+
   // 載入分類資料
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         setLoadingCategories(true);
-        const response = await fetch('/api/categories');
+        
+        // 添加時間戳防止快取
+        const timestamp = Date.now();
+        const response = await fetch(`/api/categories?t=${timestamp}`, {
+          headers: getAuthHeaders(accessToken),
+          credentials: 'include'
+        });
+        
+        // 處理認證錯誤
+        if (response.status === 401) {
+          handleAuthError('獲取分類資料時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
+          setLoadingCategories(false);
+          return;
+        }
+        
         if (!response.ok) {
           throw new Error('無法獲取分類資料');
         }
+        
         const data = await response.json();
-        setCategories(data);
+        
+        // 處理兩種可能的API回傳格式
+        const categoriesArray = Array.isArray(data) 
+          ? data 
+          : (data.data && Array.isArray(data.data)) 
+            ? data.data 
+            : [];
+        
+        setCategories(categoriesArray);
       } catch (error) {
         console.error('載入分類失敗:', error);
         setErrorMessage('無法載入產品分類，請重新整理頁面');
@@ -111,8 +161,11 @@ export default function NewProduct() {
       }
     };
 
-    fetchCategories();
-  }, []);
+    // 只有在有認證令牌時才獲取分類
+    if (accessToken) {
+      fetchCategories();
+    }
+  }, [accessToken]); // 依賴於 accessToken
 
   // 處理輸入變更
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -300,11 +353,22 @@ export default function NewProduct() {
       formDataUpload.append('file', file, fileName);
       formDataUpload.append('destination', 'uploads/bakery');
       
-      // 發送圖片上傳請求
+      // 發送圖片上傳請求，添加認證頭
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
+        credentials: 'include'
       });
+      
+      // 處理認證錯誤
+      if (uploadResponse.status === 401) {
+        handleAuthError('上傳圖片時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
+        setUploadingImages(false);
+        return;
+      }
       
       if (!uploadResponse.ok) {
         const uploadError = await uploadResponse.json();
@@ -575,12 +639,15 @@ export default function NewProduct() {
       // 發送API請求
       const response = await fetch('/api/products', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-        },
+        headers: getAuthHeaders(accessToken),
         body: JSON.stringify(apiData)
       });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthError('新增產品時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
+        return;
+      }
       
       const result = await response.json();
       

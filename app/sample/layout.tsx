@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Header from "./components/Header";
+import ServerHeader from "./components/ServerHeader";
+import HeaderBehavior from "./components/HeaderBehavior";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "樣品申請網站",
   description: "申請您需要的商品樣品",
+  icons: {
+    icon: "/sample/favicon.ico",
+    shortcut: "/sample/favicon.ico",
+    apple: "/sample/favicon.ico",
+  },
 };
 
 export default function SampleLayout({
@@ -17,7 +23,8 @@ export default function SampleLayout({
 }) {
   return (
     <div className={inter.className}>
-      <Header />
+      <ServerHeader />
+      <HeaderBehavior />
       <main className="container mx-auto py-8 px-4">
         {children}
       </main>

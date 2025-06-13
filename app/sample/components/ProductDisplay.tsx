@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { FaSearch } from 'react-icons/fa';
 import { Product } from '../data/products';
 import ApplicationForm from './ApplicationForm';
 import { IoIosCheckmarkCircle } from 'react-icons/io';
+import ServerProductList from './ServerProductList';
 
 interface ProductDisplayProps {
   products: Product[];
@@ -33,6 +34,47 @@ export default function ProductDisplay({ products }: ProductDisplayProps) {
         : [...prev, productId];
     });
   };
+
+  // 客戶端掛載後初始化產品選擇功能
+  useEffect(() => {
+    // 為所有產品項目添加點擊事件
+    const productItems = document.querySelectorAll('.product-item');
+    
+    productItems.forEach(item => {
+      const productId = item.getAttribute('data-product-id');
+      if (productId) {
+        item.addEventListener('click', () => handleProductSelection(productId));
+      }
+    });
+
+    // 清理函數
+    return () => {
+      productItems.forEach(item => {
+        const productId = item.getAttribute('data-product-id');
+        if (productId) {
+          item.removeEventListener('click', () => handleProductSelection(productId));
+        }
+      });
+    };
+  }, []);
+
+  // 更新選擇狀態的視覺效果
+  useEffect(() => {
+    document.querySelectorAll('.product-item').forEach(item => {
+      const productId = item.getAttribute('data-product-id');
+      const overlay = item.querySelector('.product-selected-overlay') as HTMLElement;
+      
+      if (productId && overlay) {
+        if (selectedProducts.includes(productId)) {
+          item.classList.add('ring-2', 'ring-blue-500');
+          overlay.style.opacity = '1';
+        } else {
+          item.classList.remove('ring-2', 'ring-blue-500');
+          overlay.style.opacity = '0';
+        }
+      }
+    });
+  }, [selectedProducts]);
 
   // 移動到下一步
   const moveToNextStep = () => {
@@ -115,40 +157,8 @@ export default function ProductDisplay({ products }: ProductDisplayProps) {
             </div>
           </div>
 
-          {/* 產品列表 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-            {filteredProducts.map(product => (
-              <div 
-                key={product.id}
-                className={`border rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-                  selectedProducts.includes(product.id) ? 'ring-2 ring-blue-500' : ''
-                }`}
-                onClick={() => handleProductSelection(product.id)}
-              >
-                <div className="relative h-48 bg-gray-100">
-                  <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover"
-                    loading="lazy"
-                  />
-                  {selectedProducts.includes(product.id) && (
-                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 flex items-center justify-center">
-                      <div className="bg-blue-500 text-white rounded-full p-2">
-                        已選擇
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="text-sm font-medium line-clamp-2">{product.name.split('｜')[1]}</h3>
-                 
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* 使用伺服器端渲染的產品列表 */}
+          <ServerProductList products={filteredProducts} />
 
           {/* 產品選擇相關錯誤訊息 */}
           {selectedProducts.length === 0 && (

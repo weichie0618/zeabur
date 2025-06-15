@@ -15,6 +15,7 @@ interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  order_item_notes?: string; // 添加口味備註欄位
 }
 
 // 訂單接口
@@ -451,26 +452,41 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 },
                 ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
                   type: "box",
-                  layout: "horizontal",
+                  layout: "vertical",
+                  margin: "md",
                   contents: [
                     {
-                      type: "text",
-                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
-                      size: "sm",
-                      color: "#555555",
-                      flex: 5,
-                      margin: "sm"
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                          size: "sm",
+                          color: "#555555",
+                          flex: 5,
+                          margin: "sm"
+                        },
+                        {
+                          type: "text",
+                          text: `$${item.subtotal}`,
+                          size: "sm",
+                          align: "end",
+                          color: "#111111",
+                          flex: 2
+                        }
+                      ]
                     },
-                    {
+                    // 添加口味備註的顯示
+                    ...(item.order_item_notes ? [{
                       type: "text",
-                      text: `$${item.subtotal}`,
-                      size: "sm",
-                      align: "end",
-                      color: "#111111",
-                      flex: 2
-                    }
-                  ],
-                  margin: "md"
+                      text: `[口味: ${item.order_item_notes}]`,
+                      size: "xs",
+                      color: "#888888",
+                      margin: "sm",
+                      wrap: true
+                    }] : [])
+                  ]
                 })) : [{
                   type: "text",
                   text: "無法獲取訂單明細",
@@ -678,26 +694,41 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 },
                 ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
                   type: "box",
-                  layout: "horizontal",
+                  layout: "vertical",
+                  margin: "md",
                   contents: [
                     {
-                      type: "text",
-                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
-                      size: "sm",
-                      color: "#555555",
-                      flex: 5,
-                      margin: "sm"
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                          size: "sm",
+                          color: "#555555",
+                          flex: 5,
+                          margin: "sm"
+                        },
+                        {
+                          type: "text",
+                          text: `$${item.subtotal}`,
+                          size: "sm",
+                          align: "end",
+                          color: "#111111",
+                          flex: 2
+                        }
+                      ]
                     },
-                    {
+                    // 添加口味備註的顯示
+                    ...(item.order_item_notes ? [{
                       type: "text",
-                      text: `$${item.subtotal}`,
-                      size: "sm",
-                      align: "end",
-                      color: "#111111",
-                      flex: 2
-                    }
-                  ],
-                  margin: "md"
+                      text: `[口味: ${item.order_item_notes}]`,
+                      size: "xs",
+                      color: "#888888",
+                      margin: "sm",
+                      wrap: true
+                    }] : [])
+                  ]
                 })) : [{
                   type: "text",
                   text: "無法獲取訂單明細",
@@ -878,26 +909,41 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 },
                 ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
                   type: "box",
-                  layout: "horizontal",
+                  layout: "vertical",
+                  margin: "md",
                   contents: [
                     {
-                      type: "text",
-                      text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
-                      size: "sm",
-                      color: "#555555",
-                      flex: 5,
-                      margin: "sm"
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                          size: "sm",
+                          color: "#555555",
+                          flex: 5,
+                          margin: "sm"
+                        },
+                        {
+                          type: "text",
+                          text: `$${item.subtotal}`,
+                          size: "sm",
+                          align: "end",
+                          color: "#111111",
+                          flex: 2
+                        }
+                      ]
                     },
-                    {
+                    // 添加口味備註的顯示
+                    ...(item.order_item_notes ? [{
                       type: "text",
-                      text: `$${item.subtotal}`,
-                      size: "sm",
-                      align: "end",
-                      color: "#111111",
-                      flex: 2
-                    }
-                  ],
-                  margin: "md"
+                      text: `[口味: ${item.order_item_notes}]`,
+                      size: "xs",
+                      color: "#888888",
+                      margin: "sm",
+                      wrap: true
+                    }] : [])
+                  ]
                 })) : [{
                   type: "text",
                   text: "無法獲取訂單明細",
@@ -1218,12 +1264,12 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 {orderData && orderData.shipping_fee !== null && orderData.shipping_fee !== undefined && orderData.shipping_fee > 0 ?(
                   <div>
                     <h2 className="font-semibold text-gray-700">運費</h2>
-                    <p className="text-gray-900">${orderData.shipping_fee.toFixed(2)}</p>
+                    <p className="text-gray-900">${orderData.shipping_fee}</p>
                   </div>
                 ) : null}
                 <div>
                   <h2 className="font-semibold text-gray-700">訂單總額</h2>
-                  <p className="text-gray-900">${orderData?.total_amount.toFixed(2) || '0.00'}</p>
+                  <p className="text-gray-900">${orderData?.total_amount || '0'}</p>
                 </div>
               </div>
             </div>
@@ -1375,27 +1421,41 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                           },
                           ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
                             type: "box",
-                            layout: "horizontal",
+                            layout: "vertical",
+                            margin: "md",
                             contents: [
                               {
+                                type: "box",
+                                layout: "horizontal",
+                                contents: [
+                                  {
+                                    type: "text",
+                                    text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                                    size: "sm",
+                                    color: "#555555",
+                                    flex: 5,
+                                    margin: "sm"
+                                  },
+                                  {
+                                    type: "text",
+                                    text: `$${item.subtotal}`,
+                                    size: "sm",
+                                    align: "end",
+                                    color: "#111111",
+                                    flex: 2
+                                  }
+                                ]
+                              },
+                              // 添加口味備註的顯示
+                              ...(item.order_item_notes ? [{
                                 type: "text",
-                                text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
-                                size: "sm",
-                                color: "#555555",
-                                flex: 5,
+                                text: `[口味: ${item.order_item_notes}]`,
+                                size: "xs",
+                                color: "#888888",
                                 margin: "sm",
                                 wrap: true
-                              },
-                              {
-                                type: "text",
-                                text: `$${item.subtotal}`,
-                                size: "sm",
-                                align: "end",
-                                color: "#111111",
-                                flex: 2
-                              }
-                            ],
-                            margin: "md"
+                              }] : [])
+                            ]
                           })) : [{
                             type: "text",
                             text: "無法獲取訂單明細",

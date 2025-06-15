@@ -10,7 +10,18 @@ interface Product {
   price: number;
   quantity?: number;
   images: string;
+  selectedFlavors?: {[key: string]: number};
 }
+
+// 格式化選擇的口味
+const formatSelectedFlavors = (flavors?: {[key: string]: number}): string => {
+  if (!flavors || Object.keys(flavors).length === 0) return '';
+  
+  return Object.entries(flavors)
+    .filter(([_, count]) => count > 0)
+    .map(([flavor, count]) => `${flavor} x${count}`)
+    .join(', ');
+};
 
 interface ShoppingCartProps {
   cart: Product[];
@@ -113,6 +124,11 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
               {item.name}
             </h3>
             <p className="text-amber-600">${item.price}</p>
+            {item.selectedFlavors && (
+              <p className="text-xs text-amber-600 bg-amber-50 inline-block px-2 py-1 rounded-full mt-1">
+                {formatSelectedFlavors(item.selectedFlavors)}
+              </p>
+            )}
             <div className="flex items-center mt-1">
               <button 
                 onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
@@ -147,7 +163,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
     <div className={`border-t pt-4 ${isMobile ? 'pb-8' : ''}`}>
       <div className="flex justify-between items-center mb-4">
         <span className="font-bold">總計</span>
-        <span className="font-bold text-amber-600">${calculateTotal().toFixed(2)}</span>
+        <span className="font-bold text-amber-600">${calculateTotal()}</span>
       </div>
       <button 
         onClick={handleCheckout}

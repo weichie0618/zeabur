@@ -4,7 +4,7 @@ import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 const isDev = process.env.NODE_ENV === 'development';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-// 檢查API基礎URL是否已設置
+// 檢查API基礎URL是否已設置 - 僅在開發環境顯示警告
 if (isDev && !API_BASE_URL) {
   console.warn('警告: NEXT_PUBLIC_API_URL 環境變數未設置，API請求可能會失敗');
 }
@@ -33,7 +33,7 @@ const api = axios.create({
   },
 });
 
-// 記錄環境變數和API配置信息到控制台（僅開發環境）
+// 移除生產環境中的調試日誌
 if (isDev) {
   console.log('API基礎URL設置為:', API_BASE_URL || '(空)');
   console.log('當API路徑以斜線開頭時，會基於當前主機名處理');

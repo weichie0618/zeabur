@@ -29,6 +29,15 @@ interface Product {
   categoryId: number;
   specification?: string;
   productImages?: ProductImage[]; // 添加商品圖片陣列
+  flavors?: ProductFlavor[]; // 添加商品口味陣列
+  product_flavors?: any; // 產品口味設置，如果為null表示必選
+  selectedFlavors?: {[key: string]: number}; // 用戶選擇的口味和數量
+}
+
+interface ProductFlavor {
+  id: number;
+  flavor: string;
+  productId: number;
 }
 
 interface ProductImage {
@@ -54,8 +63,16 @@ interface ProductsClientProps {
 }
 
 export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts, breadCategories }) => {
-  // 添加日誌檢查初始產品數據
-  console.log('初始產品數據:', initialProducts);
+  // 只在組件首次加載時輸出日誌，使用useRef追蹤
+  const isFirstRender = React.useRef(true);
+  
+  // 只在首次渲染時輸出日誌 - 移除生產環境的日誌輸出
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      // 移除不必要的console.log
+      isFirstRender.current = false;
+    }
+  }, [initialProducts]);
   
   // 客戶端狀態管理
   const [filteredProducts, setFilteredProducts] = useState<Product[]>(initialProducts);
@@ -81,6 +98,12 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   // 添加時間戳避免圖片快取
   const [timestamp, setTimestamp] = useState<number>(Date.now());
+  // 添加口味選擇相關狀態
+  const [showFlavorModal, setShowFlavorModal] = useState<boolean>(false);
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+  const [selectedFlavors, setSelectedFlavors] = useState<{[key: string]: number}>({});
+  const [flavorSelectionRequired, setFlavorSelectionRequired] = useState<boolean>(false);
+  const [flavorSelectionError, setFlavorSelectionError] = useState<string>('');
 
   // 檢測是否是移動設備
   useEffect(() => {
@@ -147,6 +170,21 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const addToCart = useCallback((product: Product) => {
     // 防止重複快速點擊
     const productId = product.id;
+    
+    // 檢查產品是否有口味選項
+    if (product.flavors && product.flavors.length > 0) {
+      // 設置當前產品
+      setCurrentProduct(product);
+      // 判斷口味是否必選
+      setFlavorSelectionRequired(product.product_flavors !== undefined);
+      // 重置已選口味
+      setSelectedFlavors({});
+      // 清除錯誤提示
+      setFlavorSelectionError('');
+      // 顯示口味選擇模態框
+      setShowFlavorModal(true);
+      return;
+    }
     
     // 如果已經在模態視窗中，直接添加到購物車
     if (showModal) {
@@ -229,6 +267,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
 
   // 從購物車移除 - 使用 useCallback 優化
   const removeFromCart = useCallback((productId: number) => {
+    // 按原來的方式刪除
     const newCart = cart.filter(item => item.id !== productId);
     setCart(newCart);
     
@@ -263,8 +302,8 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
       // 導向結帳頁面
       window.location.href = '/client/checkout';
     } catch (error) {
-      console.error('無法保存購物車資料', error);
-      alert('處理訂單時發生錯誤，請稍後再試');
+      // 替換alert為更友好的錯誤處理
+      setError('處理訂單時發生錯誤，請稍後再試');
     }
   }, [cart]);
 
@@ -276,12 +315,12 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
         const parsedCart = JSON.parse(savedCart);
         // 只有當購物車為空時才設置購物車數據
         if (cart.length === 0 && parsedCart && parsedCart.length > 0) {
-          console.log('從 localStorage 載入購物車數據:', parsedCart);
+          // 移除不必要的console.log
           setCart(parsedCart);
         }
       }
     } catch (error) {
-      console.error('無法載入購物車資料', error);
+      // 移除不必要的console.log
     }
 
     // 設置初始化完成，預設隱藏購物車抽屜，防止動畫問題
@@ -301,7 +340,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   // 當購物車變化時，保存到 localStorage
   useEffect(() => {
     if (cart.length > 0) {
-      console.log('將購物車數據保存到 localStorage:', cart);
+      // 移除不必要的console.log
       localStorage.setItem('bakeryCart', JSON.stringify(cart));
     } else if (isInitialized) {
       // 只有在初始化完成後才清除 localStorage 中的購物車數據
@@ -412,6 +451,77 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   const getImageUrlWithTimestamp = useCallback((url: string) => {
     return `${url}?t=${timestamp}`;
   }, [timestamp]);
+
+  // 添加口味處理函數
+  const handleFlavorChange = useCallback((flavor: string, change: number) => {
+    // 清除錯誤提示
+    setFlavorSelectionError('');
+    
+    setSelectedFlavors(prev => {
+      const currentValue = prev[flavor] || 0;
+      const newValue = Math.max(0, currentValue + change);
+      
+      // 如果數量為0，則從選擇中移除該口味
+      if (newValue === 0) {
+        const newState = { ...prev };
+        delete newState[flavor];
+        return newState;
+      }
+      
+      return { ...prev, [flavor]: newValue };
+    });
+  }, []);
+
+  // 確認口味選擇並加入購物車
+  const confirmFlavorSelection = useCallback(() => {
+    if (!currentProduct) return;
+    
+    // 檢查是否有選擇口味（如果必選）
+    if (flavorSelectionRequired) {
+      // 計算已選擇的口味總數
+      const totalSelectedFlavors = Object.values(selectedFlavors).reduce((sum: number, count: number) => sum + count, 0);
+      
+      // 將product_flavors轉換為數字（如果是字串）
+      const requiredFlavors = typeof currentProduct.product_flavors === 'string' ? 
+        parseInt(currentProduct.product_flavors, 10) : currentProduct.product_flavors;
+      
+      // 如果product_flavors是數字或可以轉換為數字，則需要選擇指定數量的口味
+      if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+        if (totalSelectedFlavors !== requiredFlavors) {
+          setFlavorSelectionError(`請選擇總共 ${requiredFlavors} 個口味，您目前選擇了 ${totalSelectedFlavors} 個`);
+          return;
+        }
+      } else if (Object.keys(selectedFlavors).length === 0) {
+        // 如果product_flavors不是數字，則至少要選擇一種口味
+        setFlavorSelectionError('請至少選擇一種口味');
+        return;
+      }
+    }
+    
+    // 清除錯誤信息
+    setFlavorSelectionError('');
+    
+    // 將選擇的口味添加到產品中
+    const productWithFlavors = {
+      ...currentProduct,
+      selectedFlavors,
+      quantity: 1
+    };
+    
+    // 加入購物車
+    setCart(prev => [...prev, productWithFlavors]);
+    
+    // 關閉口味選擇模態框
+    setShowFlavorModal(false);
+    setCurrentProduct(null);
+  }, [currentProduct, selectedFlavors, flavorSelectionRequired]);
+
+  // 取消口味選擇
+  const cancelFlavorSelection = useCallback(() => {
+    setShowFlavorModal(false);
+    setCurrentProduct(null);
+    setSelectedFlavors({});
+  }, []);
 
   return (
     <>
@@ -621,6 +731,88 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                     </div>
                   )}
                   
+                  {/* 口味選擇區塊 - 只有當商品有口味選項時顯示 */}
+                  {selectedProduct.flavors && selectedProduct.flavors.length > 0 && (
+                    <div className="mb-6">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-1 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        </svg>
+                        口味選擇 
+                        {(() => {
+                          // 將product_flavors轉換為數字（如果是字串）
+                          const requiredFlavors = typeof selectedProduct.product_flavors === 'string' ? 
+                            parseInt(selectedProduct.product_flavors, 10) : selectedProduct.product_flavors;
+                          
+                          if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+                            return <span className="text-red-500 text-xs ml-1">(必選{requiredFlavors}個)</span>;
+                          } else if (selectedProduct.product_flavors !== undefined) {
+                            return <span className="text-red-500 text-xs ml-1">(必選)</span>;
+                          }
+                          return null;
+                        })()}
+                      </h4>
+                      <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+                        <div className="space-y-2">
+                          {selectedProduct.flavors.map((flavor) => (
+                            <div key={flavor.id} className="flex justify-between items-center">
+                              <span className="text-gray-700">{flavor.flavor}</span>
+                              <div className="flex items-center">
+                                <button 
+                                  onClick={() => handleFlavorChange(flavor.flavor, -1)}
+                                  className="w-7 h-7 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                                <div className="w-8 h-7 flex items-center justify-center border-t border-b border-amber-200 bg-white text-gray-800 font-medium text-sm">
+                                  {selectedFlavors[flavor.flavor] || 0}
+                                </div>
+                                <button 
+                                  onClick={() => handleFlavorChange(flavor.flavor, 1)}
+                                  className="w-7 h-7 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                                              {(() => {
+                        // 將product_flavors轉換為數字（如果是字串）
+                        const requiredFlavors = typeof selectedProduct.product_flavors === 'string' ? 
+                          parseInt(selectedProduct.product_flavors, 10) : selectedProduct.product_flavors;
+                        
+                        if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+                          const totalSelected = Object.values(selectedFlavors).reduce((sum: number, count: number) => sum + count, 0);
+                          return (
+                            <div className="mt-3 text-sm text-amber-700 bg-amber-50 p-2 rounded border border-amber-200">
+                              已選擇: {totalSelected} / {requiredFlavors} 個
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                        
+                        {/* 錯誤提示 */}
+                        {flavorSelectionError && (
+                          <div className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded border border-red-200">
+                            <div className="flex items-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                              </svg>
+                              <span>{flavorSelectionError}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* 新增數量選擇器 */}
                   <div className="mb-6">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
@@ -654,19 +846,66 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                   
                   <button 
                     onClick={() => {
-                      // 修改加入購物車函數，將選擇的數量添加到購物車
-                      const existingItem = cart.find(item => item.id === selectedProduct.id);
-                      
-                      if (existingItem) {
-                        // 如果產品已在購物車，增加選擇的數量
-                        setCart(cart.map(item => 
-                          item.id === selectedProduct.id 
-                            ? { ...item, quantity: (item.quantity || 1) + modalQuantity } 
-                            : item
-                        ));
+                      // 檢查是否有口味選項
+                      if (selectedProduct.flavors && selectedProduct.flavors.length > 0) {
+                        // 計算已選擇的口味總數
+                        const totalSelectedFlavors = Object.values(selectedFlavors).reduce((sum: number, count: number) => sum + count, 0);
+                        
+                        // 將product_flavors轉換為數字（如果是字串）
+                        const requiredFlavors = typeof selectedProduct.product_flavors === 'string' ? 
+                          parseInt(selectedProduct.product_flavors, 10) : selectedProduct.product_flavors;
+                        
+                        // 檢查是否必選且未選擇
+                        if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+                          if (totalSelectedFlavors !== requiredFlavors) {
+                            setFlavorSelectionError(`請選擇總共 ${requiredFlavors} 個口味，您目前選擇了 ${totalSelectedFlavors} 個`);
+                            return;
+                          }
+                        } else if (selectedProduct.product_flavors !== undefined && Object.keys(selectedFlavors).length === 0) {
+                          setFlavorSelectionError('請至少選擇一種口味');
+                          return;
+                        }
+                        
+                        // 清除錯誤信息
+                        setFlavorSelectionError('');
+                        
+                        // 將選擇的口味添加到產品中
+                        const productWithFlavors = {
+                          ...selectedProduct,
+                          selectedFlavors,
+                          quantity: modalQuantity
+                        };
+                        
+                        // 加入購物車
+                        const existingItemIndex = cart.findIndex(item => 
+                          item.id === selectedProduct.id && 
+                          JSON.stringify(item.selectedFlavors) === JSON.stringify(selectedFlavors)
+                        );
+                        
+                        if (existingItemIndex >= 0) {
+                          // 如果已有相同口味組合的產品，增加數量
+                          const newCart = [...cart];
+                          newCart[existingItemIndex].quantity = (newCart[existingItemIndex].quantity || 1) + modalQuantity;
+                          setCart(newCart);
+                        } else {
+                          // 否則添加新產品
+                          setCart([...cart, productWithFlavors]);
+                        }
                       } else {
-                        // 否則添加新產品，數量為選擇的數量
-                        setCart([...cart, { ...selectedProduct, quantity: modalQuantity }]);
+                        // 無口味選項，正常加入購物車
+                        const existingItem = cart.find(item => item.id === selectedProduct.id);
+                        
+                        if (existingItem) {
+                          // 如果產品已在購物車，增加選擇的數量
+                          setCart(cart.map(item => 
+                            item.id === selectedProduct.id 
+                              ? { ...item, quantity: (item.quantity || 1) + modalQuantity } 
+                              : item
+                          ));
+                        } else {
+                          // 否則添加新產品，數量為選擇的數量
+                          setCart([...cart, { ...selectedProduct, quantity: modalQuantity }]);
+                        }
                       }
                       closeModal();
                     }}
@@ -881,6 +1120,134 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
           </div>
         )}
       </section>
+
+      {/* 口味選擇模態框 */}
+      <AnimatePresence>
+        {showFlavorModal && currentProduct && (
+          <motion.div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 overflow-y-auto"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={cancelFlavorSelection}
+          >
+            <motion.div 
+              className="relative bg-white rounded-lg max-w-md w-full overflow-hidden"
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">
+                    請選擇口味
+                  </h3>
+                  <button 
+                    onClick={cancelFlavorSelection}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    {currentProduct.name}
+                    {(() => {
+                      // 將product_flavors轉換為數字（如果是字串）
+                      const requiredFlavors = typeof currentProduct.product_flavors === 'string' ? 
+                        parseInt(currentProduct.product_flavors, 10) : currentProduct.product_flavors;
+                      
+                      if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+                        return <span className="text-red-500 ml-1">(必選{requiredFlavors}個)</span>;
+                      } else if (currentProduct.product_flavors !== undefined) {
+                        return <span className="text-red-500 ml-1">(必選)</span>;
+                      }
+                      return null;
+                    })()}
+                  </p>
+                  <div className="h-px bg-gray-200 w-full my-2"></div>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                  {currentProduct.flavors?.map((flavor) => (
+                    <div key={flavor.id} className="flex justify-between items-center">
+                      <span className="text-gray-700">{flavor.flavor}</span>
+                      <div className="flex items-center">
+                        <button 
+                          onClick={() => handleFlavorChange(flavor.flavor, -1)}
+                          className="w-8 h-8 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                        <div className="w-10 h-8 flex items-center justify-center border-t border-b border-amber-200 bg-white text-gray-800 font-medium">
+                          {selectedFlavors[flavor.flavor] || 0}
+                        </div>
+                        <button 
+                          onClick={() => handleFlavorChange(flavor.flavor, 1)}
+                          className="w-8 h-8 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {(() => {
+                    // 將product_flavors轉換為數字（如果是字串）
+                    const requiredFlavors = typeof currentProduct.product_flavors === 'string' ? 
+                      parseInt(currentProduct.product_flavors, 10) : currentProduct.product_flavors;
+                    
+                    if (typeof requiredFlavors === 'number' && !isNaN(requiredFlavors)) {
+                      const totalSelected = Object.values(selectedFlavors).reduce((sum: number, count: number) => sum + count, 0);
+                      return (
+                        <div className="mt-4 text-sm text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
+                          已選擇: {totalSelected} / {requiredFlavors} 個
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  
+                  {/* 錯誤提示 */}
+                  {flavorSelectionError && (
+                    <div className="mt-4 text-sm text-red-600 bg-red-50 p-3 rounded border border-red-200">
+                      <div className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        {flavorSelectionError}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={cancelFlavorSelection}
+                    className="flex-1 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    onClick={confirmFlavorSelection}
+                    className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors"
+                  >
+                    確認
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }; 

@@ -38,7 +38,7 @@ export default async function BakeryPage() {
     
     return (
       <div>
-        {/* LIFF初始化組件 - 只在客戶端渲染 */}
+        {/* LIFF初始化組件 - 暫時停用 */}
         <LiffInitializer />
         
         {/* 英雄區塊 - 靜態內容，可在伺服器端渲染 */}
@@ -61,8 +61,9 @@ export default async function BakeryPage() {
     console.error('資料獲取失敗:', error);
     // 錯誤處理...
     return (
+     
       <div>
-        {/* LIFF初始化組件 - 只在客戶端渲染 */}
+        {/* LIFF初始化組件 - 暫時停用 */}
         <LiffInitializer />
         
         {/* 英雄區塊 - 靜態內容，可在伺服器端渲染 */}

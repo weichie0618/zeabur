@@ -3,8 +3,21 @@
 import React from 'react';
 import { useLiff } from '@/lib/LiffProvider';
 
-const CustomerInfo = () => {
-  const { customerData, isLoggedIn, isLoading, profile } = useLiff();
+interface CustomerInfoProps {
+  profile?: {
+    userId?: string;
+    displayName?: string;
+    pictureUrl?: string;
+    statusMessage?: string;
+    email?: string;
+  };
+}
+
+const CustomerInfo: React.FC<CustomerInfoProps> = ({ profile: propProfile }) => {
+  const { customerData, isLoggedIn, isLoading, profile: liffProfile } = useLiff();
+  
+  // 優先使用props中的profile，如果沒有則使用liff中的profile
+  const profile = propProfile || liffProfile;
 
   if (isLoading) {
     return (
@@ -14,7 +27,7 @@ const CustomerInfo = () => {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn && !propProfile) {
     return (
       <div className="p-4 bg-gray-100 rounded-lg mb-4">
         <p className="text-center text-gray-500">請先登入LINE</p>

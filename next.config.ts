@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   },
   // 啟用嚴格模式
   reactStrictMode: true,
+  // 配置輸出目錄格式以確保資源正確載入
+  output: 'standalone',
+  // 設定資源前綴，解決部署時的路徑問題
+  // assetPrefix: process.env.NODE_ENV === 'production' ? 'https://joinmeet.sunnyhausbakery.com.tw' : undefined,
+  assetPrefix: undefined, // 暫時移除特定域名設置，讓CSS從相對路徑載入
+  // 啟用靜態優化，但移除需要 critters 的 CSS 優化
+  experimental: {
+    optimizeServerReact: true
+  },
   // 路由重寫配置
   async rewrites() {
     return [
@@ -25,13 +34,16 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/api/:path*",
-        destination: "http://192.168.0.213:4000/api/:path*",
+        destination: "https://joinmeet.sunnyhausbakery.com.tw/api/:path*",
       },
     ];
   },
   // 圖片域名配置
   images: {
     domains: ["sunnyhausbakery.com.tw","down-tw.img.susercontent.com"],
+    minimumCacheTTL: 60,
+    // 啟用圖片格式優化
+    formats: ['image/webp']
   },
 };
 

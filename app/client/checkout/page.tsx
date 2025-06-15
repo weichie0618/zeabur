@@ -56,7 +56,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('takkyubin_payment');
-  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cod' | 'line_pay'>('bank_transfer');
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cod' | 'line_pay'>('line_pay');
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',

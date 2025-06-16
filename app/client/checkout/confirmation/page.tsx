@@ -841,7 +841,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
             }
           }
         }];
-      } else if (paymentMethod === 'line_pay') {
+      } else if (paymentMethod === 'linepay') {
         // LINE Pay 的 Flex Message
         flexMessage = [{
           type: 'text',

@@ -572,7 +572,7 @@ export default function CheckoutPage() {
       // 添加自取日期時間參數
       const pickupDateTimeParam = shippingMethod === 'pickup' ? `&pickupDateTime=${encodeURIComponent(formData.pickupDateTime)}` : '';
       
-      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}`);
+      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&paymentMethod=${paymentMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}`);
     } catch (error) {
       console.error('結帳失敗', error);
       setFormError('結帳過程中發生錯誤，請稍後再試');

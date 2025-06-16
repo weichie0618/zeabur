@@ -76,8 +76,8 @@ function LinePayCallbackContent() {
           // 延遲 3 秒後重定向到確認頁面
           setTimeout(() => {
             const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
-            router.push(`/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&shippingFee=${data.shippingFee}`);
-          }, 3000);
+            router.push(`/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}`);
+          }, 1000);
         } else {
           // 支付失敗
           setStatus('failed');

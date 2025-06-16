@@ -28,13 +28,12 @@ interface ShoppingCartProps {
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
   isMobile: boolean;
-  removeFromCart: (productId: number) => void;
+  removeFromCart: (productId: number, selectedFlavors?: {[key: string]: number}) => void;
   updateQuantity: (productId: number, newQuantity: number) => void;
   calculateTotal: () => number;
   getTotalItems: () => number;
   handleCheckout: () => void;
   isInitialized: boolean;
-  removeFlavor?: (productId: number, flavor: string) => void;
 }
 
 export const ShoppingCart: React.FC<ShoppingCartProps> = ({
@@ -47,8 +46,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
   calculateTotal,
   getTotalItems,
   handleCheckout,
-  isInitialized,
-  removeFlavor
+  isInitialized
 }) => {
   // 購物車浮動按鈕
   const CartButton = () => (
@@ -126,26 +124,11 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
               {item.name}
             </h3>
             <p className="text-amber-600">${item.price}</p>
-            {item.selectedFlavors && Object.entries(item.selectedFlavors)
-              .filter(([_, count]) => count > 0)
-              .map(([flavor, count]) => (
-                <div key={flavor} className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-amber-600 bg-amber-50 inline-block px-2 py-1 rounded-full">
-                    {flavor} x{count}
-                  </p>
-                  {removeFlavor && (
-                    <button 
-                      onClick={() => removeFlavor(item.id, flavor)}
-                      className="text-red-500 hover:text-red-700 ml-2 text-xs"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))
-            }
+            {item.selectedFlavors && (
+              <p className="text-xs text-amber-600 bg-amber-50 inline-block px-2 py-1 rounded-full mt-1">
+                {formatSelectedFlavors(item.selectedFlavors)}
+              </p>
+            )}
             <div className="flex items-center mt-1">
               <button 
                 onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
@@ -163,7 +146,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
             </div>
           </div>
           <button 
-            onClick={() => removeFromCart(item.id)}
+            onClick={() => removeFromCart(item.id, item.selectedFlavors)}
             className="text-red-500 hover:text-red-700"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

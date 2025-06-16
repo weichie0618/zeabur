@@ -266,13 +266,34 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   }, [cart, showModal, isMobile]);
 
   // 從購物車移除 - 使用 useCallback 優化
-  const removeFromCart = useCallback((productId: number) => {
-    // 按原來的方式刪除
-    const newCart = cart.filter(item => item.id !== productId);
-    setCart(newCart);
-    
-    // 僅在購物車變為空且用戶已經在頁面上操作時才考慮清空localStorage
-    // 不再在這裡直接清空localStorage，而是依靠上面的useEffect
+  const removeFromCart = useCallback((productId: number, selectedFlavors?: {[key: string]: number}) => {
+    if (selectedFlavors) {
+      // 如果提供了 selectedFlavors，則只刪除具有相同 ID 和相同 selectedFlavors 的項目
+      const newCart = cart.filter(item => {
+        // 如果 ID 不同，保留該項目
+        if (item.id !== productId) return true;
+        
+        // 如果 ID 相同但沒有 selectedFlavors，且刪除的項目有 selectedFlavors，保留該項目
+        if (!item.selectedFlavors && selectedFlavors) return true;
+        
+        // 如果 ID 相同且都有 selectedFlavors，比較 selectedFlavors 是否相同
+        if (item.selectedFlavors && selectedFlavors) {
+          // 將兩個 selectedFlavors 對象轉換為字符串進行比較
+          const itemFlavorsStr = JSON.stringify(item.selectedFlavors);
+          const targetFlavorsStr = JSON.stringify(selectedFlavors);
+          // 如果 selectedFlavors 不同，保留該項目
+          return itemFlavorsStr !== targetFlavorsStr;
+        }
+        
+        // 其他情況下刪除該項目
+        return false;
+      });
+      setCart(newCart);
+    } else {
+      // 如果沒有提供 selectedFlavors，則刪除所有具有相同 ID 的項目
+      const newCart = cart.filter(item => item.id !== productId);
+      setCart(newCart);
+    }
   }, [cart, setIsCartOpen]);
 
   // 更新購物車商品數量 - 使用 useCallback 優化

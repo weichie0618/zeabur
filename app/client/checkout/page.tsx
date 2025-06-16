@@ -533,7 +533,14 @@ export default function CheckoutPage() {
       if (paymentMethod === 'line_pay') {
         // 重定向到LINE Pay支付頁面
         if (data.linepay && data.linepay.paymentUrl) {
-          window.location.href = data.linepay.paymentUrl;
+          // 根據是否在手機 app 中選擇適當的 LINE Pay URL
+          if (liff && liff.isInClient()) {
+            // 如果是在 LINE 應用內，使用 app URL
+            window.location.href = data.linepay.paymentUrl.app;
+          } else {
+            // 如果是在瀏覽器中，使用 web URL
+            window.location.href = data.linepay.paymentUrl.web;
+          }
           return;
         } else {
           throw new Error('無法獲取LINE Pay支付連結');

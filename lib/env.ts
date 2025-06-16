@@ -1,8 +1,18 @@
 // 獲取LIFF ID
 export function getLiffId(): string {
   // 從環境變數中獲取LIFF ID
-  // 這裡可以根據需要設置不同環境的LIFF ID
-  return process.env.NEXT_PUBLIC_LIFF_ID || '';
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
+  
+  // 確保LIFF ID不包含路徑部分
+  // 如果包含斜杠，只取斜杠前的部分
+  if (liffId && liffId.includes('/')) {
+    console.log('環境變數中的LIFF ID包含路徑，進行修正');
+    const cleanLiffId = liffId.split('/')[0];
+    console.log('修正後的LIFF ID:', cleanLiffId);
+    return cleanLiffId;
+  }
+  
+  return liffId;
 }
 
 // 動態導入LIFF SDK

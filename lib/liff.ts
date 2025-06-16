@@ -30,17 +30,27 @@ export async function initializeLiff(liffId?: string): Promise<any> {
     const liffObject = await getLiffObject();
     
     // 如果沒有提供liffId，則使用默認值
-    const targetLiffId = liffId || getLiffId();
+    let targetLiffId = liffId || getLiffId();
     
     if (!targetLiffId) {
       throw new Error('LIFF ID is required');
     }
+    
+    // 修正：確保LIFF ID不包含路徑部分
+    // 如果LIFF ID包含斜杠，只取斜杠前的部分
+    if (targetLiffId.includes('/')) {
+      console.log('檢測到LIFF ID包含路徑，進行修正');
+      targetLiffId = targetLiffId.split('/')[0];
+      console.log('修正後的LIFF ID:', targetLiffId);
+    }
 
     // 初始化LIFF
+    console.log('開始初始化LIFF，使用ID:', targetLiffId);
     await liffObject.init({
       liffId: targetLiffId,
       withLoginOnExternalBrowser: true,
     });
+    console.log('LIFF初始化成功');
     
     return liffObject;
   } catch (error) {

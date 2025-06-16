@@ -388,10 +388,10 @@ export default function CheckoutPage() {
     }
 
     // 檢查是否在 LINE 應用內 - 開發環境下忽略此檢查
-    if (liff && !liff.isInClient() && process.env.NODE_ENV !== 'development') {
-      setFormError('請在 LINE 應用內完成訂單，以確保能正確關聯您的 LINE 帳號');
-      return;
-    }
+    // if (liff && !liff.isInClient() && process.env.NODE_ENV !== 'development') {
+    //   setFormError('請在 LINE 應用內完成訂單，以確保能正確關聯您的 LINE 帳號');
+    //   return;
+    // }
 
     // 從 LIFF SDK 或 localStorage 獲取 LINE ID
     let lineUserId: string | null = null;

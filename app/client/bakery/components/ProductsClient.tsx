@@ -321,7 +321,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     try {
       localStorage.setItem('bakeryCart', JSON.stringify(cart));
       // 導向結帳頁面
-      window.location.href = '/client/checkout';
+      window.location.href = '/client/bakery/checkout';
     } catch (error) {
       // 替換alert為更友好的錯誤處理
       setError('處理訂單時發生錯誤，請稍後再試');

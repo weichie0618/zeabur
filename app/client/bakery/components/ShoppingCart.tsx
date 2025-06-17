@@ -123,7 +123,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
             }`} title={item.name}>
               {item.name}
             </h3>
-            <p className="text-amber-600">${item.price}</p>
+            <p className="text-amber-600">${Number(item.price).toFixed(0)}</p>
             {item.selectedFlavors && (
               <p className="text-xs text-amber-600 bg-amber-50 inline-block px-2 py-1 rounded-full mt-1">
                 {formatSelectedFlavors(item.selectedFlavors)}

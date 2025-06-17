@@ -449,7 +449,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   color: "#ffffff"
                 }
               ],
-              backgroundColor: paymentMethod === 'linepay' ? "#06C755" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
+              backgroundColor: paymentMethod === 'linepay' ? "#673AB7" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
               paddingAll: "md"
             },
             body: {

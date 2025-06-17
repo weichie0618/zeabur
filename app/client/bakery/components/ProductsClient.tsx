@@ -723,10 +723,10 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                   </div>
                   
                   <p className="text-amber-600 text-xl font-bold mb-4">
-                    ${selectedProduct.price}
+                    ${Number(selectedProduct.price).toFixed(0)}
                     {selectedProduct.original_price && (
                       <span className="text-gray-400 text-base line-through ml-2">
-                        ${selectedProduct.original_price}
+                        ${Number(selectedProduct.original_price).toFixed(0)}
                       </span>
                     )}
                   </p>
@@ -1041,9 +1041,9 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                     )}
                   </div>
                   <p className="text-amber-600 font-bold mt-1 flex items-center">
-                    ${product.price}
+                    ${Number(product.price).toFixed(0)}
                     {product.original_price && (
-                      <span className="text-gray-400 text-sm line-through ml-2">${product.original_price}</span>
+                      <span className="text-gray-400 text-sm line-through ml-2">${Number(product.original_price).toFixed(0)}</span>
                     )}
                   </p>
                   {product.specification && (

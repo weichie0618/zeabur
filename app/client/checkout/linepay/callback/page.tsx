@@ -36,6 +36,16 @@ function LinePayCallbackContent() {
       try {
         setLoading(true);
 
+        // 檢查是否為取消付款
+        const cancelled = searchParams.get('cancelled');
+        if (cancelled === 'true') {
+          setStatus('failed');
+          setMessage('您已取消付款');
+          setLoading(false);
+        
+          return;
+        }
+
         // 從 URL 參數獲取交易資訊
         const orderId = searchParams.get('orderId');
         const orderNo = searchParams.get('orderno');

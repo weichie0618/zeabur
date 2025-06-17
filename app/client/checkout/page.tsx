@@ -676,7 +676,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-grow">
                   <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品</div>
+                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號 自取商品</div>
                 </div>
               </div>
             </div>
@@ -1051,7 +1051,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-grow">
                   <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">請至店面自取商品</div>
+                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號 自取商品</div>
                 </div>
               </div>
             </div>
@@ -1096,6 +1096,20 @@ export default function CheckoutPage() {
                 {/* 自取的付款選項 */}
                 {shippingMethod === 'pickup' && (
                   <>
+                    {/* LINE Pay */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('line_pay')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                      </div>
+                    </div>
+                    
                     {/* 取貨時付款 */}
                     <div 
                       className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
@@ -1110,19 +1124,7 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                     
-                    {/* LINE Pay */}
-                    <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                      onClick={() => setPaymentMethod('line_pay')}
-                    >
-                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                      </div>
-                      <div className="flex-grow">
-                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
-                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
-                      </div>
-                    </div>
+                  
                   </>
                 )}
               </div>

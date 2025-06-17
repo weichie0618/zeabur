@@ -700,7 +700,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">需先完成匯款</div>
+                        <div className="text-sm text-gray-500">ATM匯款</div>
                       </div>
                     </div>
                   </>
@@ -783,7 +783,7 @@ export default function CheckoutPage() {
                 <span className="font-medium">
                   
                   {shippingMethod !== 'pickup' && shippingFee > 0 && (
-                    <span className="text-xs text-gray-500 ml-2">（訂單達$3,500免運費）</span>
+                    <span className="text-xs text-gray-500 ml-2">（訂單需滿$3,500免運費）</span>
                   )}
                   {shippingMethod === 'pickup' ? '免運費' : (
                     shippingFee === 0 ? '免運費' : `$${shippingFee}`
@@ -1076,7 +1076,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">需先完成匯款</div>
+                        <div className="text-sm text-gray-500">ATM匯款</div>
                       </div>
                     </div>
                   </>

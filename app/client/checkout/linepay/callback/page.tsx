@@ -30,6 +30,7 @@ function LinePayCallbackContent() {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [shippingMethod, setShippingMethod] = useState('takkyubin_payment');
   const [shippingFee, setShippingFee] = useState(0);
+  const [pickupDateTime, setPickupDateTime] = useState('');
 
   useEffect(() => {
     const handleLinePayCallback = async () => {
@@ -79,14 +80,16 @@ function LinePayCallbackContent() {
           setItems(data.items || []);
           setShippingMethod(data.shippingMethod || 'takkyubin_payment');
           setShippingFee(data.shippingFee || 0);
+          setPickupDateTime(data.pickupDateTime || '');
 
           // 清空購物車
           localStorage.removeItem('bakeryCart');
 
-          // 延遲 3 秒後重定向到確認頁面
+          // 延遲 1 秒後重定向到確認頁面
           setTimeout(() => {
             const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
-            router.push(`/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}`);
+            const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
+            router.push(`/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`);
           }, 1000);
         } else {
           // 支付失敗

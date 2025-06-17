@@ -327,7 +327,7 @@ function OrderConfirmationContent() {
       // 根據配送方式和付款方式組合，提供對應的訊息
       if (shippingMethod === 'pickup') {
         // 自取訊息
-        if (paymentMethod === 'line_pay') {
+        if (paymentMethod === 'linepay') {
           textMessage = {
             type: 'text',
             text: `🎂 感謝您的訂購！
@@ -360,7 +360,7 @@ ${formatPickupDateTime(pickupDateTime)}
 若有任何問題，請透過LINE與我們聯繫\n謝謝！`
           };
         }
-      } else if (paymentMethod === 'line_pay') {
+      } else if (paymentMethod === 'linepay') {
         // 黑貓宅配 + LINE Pay
         textMessage = {
           type: 'text',
@@ -431,7 +431,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
           text: orderNumber // 添加普通文字訊息
         },{
           type: "flex",
-          altText: paymentMethod === 'line_pay' 
+          altText: paymentMethod === 'linepay' 
             ? `${orderNumber} 建立成功，請至店面自取商品，已用LINE Pay付款` 
             : `${orderNumber} 建立成功，請至店面自取並現場付款`,
           contents: {
@@ -449,7 +449,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   color: "#ffffff"
                 }
               ],
-              backgroundColor: paymentMethod === 'line_pay' ? "#06C755" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
+              backgroundColor: paymentMethod === 'linepay' ? "#06C755" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
               paddingAll: "md"
             },
             body: {
@@ -460,19 +460,19 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 {
                   type: "box",
                   layout: "vertical",
-                  backgroundColor: paymentMethod === 'line_pay' ? "#E6F7ED" : "#EDE7F6",
+                  backgroundColor: paymentMethod === 'linepay' ? "#E6F7ED" : "#EDE7F6",
                   paddingAll: "md",
                   cornerRadius: "md",
                   contents: [
                     {
                       type: "text",
-                      text: paymentMethod === 'line_pay' 
+                      text: paymentMethod === 'linepay' 
                         ? "LINE Pay 付款已完成" 
                         : "請於取貨時現場付款",
                       size: "md",
                       weight: "bold",
                       align: "center",
-                      color: paymentMethod === 'line_pay' ? "#06C755" : "#512DA8",
+                      color: paymentMethod === 'linepay' ? "#06C755" : "#512DA8",
                       wrap: true
                     }
                   ]
@@ -1532,16 +1532,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                     )}
                   </p>
                 </div>
-                {/* 付款方式 */}
-                <div>
-                  <h2 className="font-semibold text-gray-700">付款方式</h2>
-                  <p className="text-gray-900">
-                    {paymentMethod === 'line_pay' ? 'LINE Pay' :
-                     paymentMethod === 'bank_transfer' ? '匯款' :
-                     paymentMethod === 'cod' && shippingMethod === 'pickup' ? '取貨時付款' :
-                     paymentMethod === 'cod' ? '貨到付款' : '未知'}
-                  </p>
-                </div>
+               
                 {/* 運費 */}
                 {orderData && orderData.shipping_fee !== null && orderData.shipping_fee !== undefined && orderData.shipping_fee > 0 ? (
                   <div>

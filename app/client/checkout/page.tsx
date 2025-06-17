@@ -285,6 +285,15 @@ export default function CheckoutPage() {
     // 更新配送方式
     setShippingMethod(method);
     
+    // 根據選擇的配送方式設置預設付款方式
+    if (method === 'pickup') {
+      // 自取默認為取貨時付款 (cod)
+      setPaymentMethod('cod');
+    } else if (method === 'takkyubin_payment') {
+      // 黑貓宅配默認為 LINE Pay
+      setPaymentMethod('line_pay');
+    }
+    
     // 如果切換到自取，重置地址驗證狀態和地址欄位
     if (method === 'pickup') {
       // 如果從其他配送方式切換到自取，暫存地址資訊並清空地址欄位
@@ -462,8 +471,19 @@ export default function CheckoutPage() {
     console.log('結帳頁面: 已更新客戶資料', customerDataToSave);
 
     // 獲取運費與付款方式
-    const paymentMethodForApi = paymentMethod === 'line_pay' ? 'line_pay' : 
-      (shippingMethod === 'takkyubin_cod' ? 'cod' : 'bank_transfer');
+    // 處理不同配送方式下的付款方式
+    let paymentMethodForApi = '';
+    
+    // 根據配送方式和付款選擇設定對應的API值
+    if (paymentMethod === 'line_pay') {
+      paymentMethodForApi = 'line_pay';
+    } else if (shippingMethod === 'pickup' && paymentMethod === 'cod') {
+      paymentMethodForApi = 'pickup_pay';  // 自取現場付款
+    } else if (paymentMethod === 'bank_transfer') {
+      paymentMethodForApi = 'bank_transfer';
+    } else if (paymentMethod === 'cod') {
+      paymentMethodForApi = 'cod';  // 貨到付款
+    }
 
     // 嘗試從 localStorage 獲取客戶資料
     const localCustomerData = getCustomerDataFromLocalStorage();
@@ -498,6 +518,8 @@ export default function CheckoutPage() {
       shipping_method: shippingMethod,
       payment_method: paymentMethodForApi,
       shipping_fee: shippingFee,
+      // 自取時間資訊（如果是自取）
+      pickup_datetime: shippingMethod === 'pickup' ? formData.pickupDateTime : '',
       // 選填項目
       salesperson_code: localCustomerData?.customerId || "", 
       // 使用獲取到的 LINE 用戶 ID
@@ -606,7 +628,7 @@ export default function CheckoutPage() {
   const getShippingMethodDescription = () => {
     switch(shippingMethod) {
       case 'takkyubin_payment':
-        return '全台配送，商品以低溫冷凍宅配\n需先匯款';
+        return '全台配送，商品以低溫冷凍宅配';
       case 'takkyubin_cod':
         return '全台配送，商品以低溫冷凍宅配\n貨到付款';
       case 'pickup':
@@ -630,54 +652,20 @@ export default function CheckoutPage() {
           <div className="lg:hidden bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">配送方式</h2>
             <div className="space-y-3">
-              {/* LINE Pay */}
+              {/* 黑貓宅配 */}
               <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' && paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => {
-                  setPaymentMethod('line_pay');
-                  handleShippingMethodChange('takkyubin_payment');
-                }}
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_payment')}
               >
                 <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>} 
+                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                 </div>
                 <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) 
-                    <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay</span>
-                  </div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>LINE Pay支付</div>
+                  <div className="font-medium">黑貓宅配(冷凍)</div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
                 </div>
               </div>
               
-              {/* 匯款 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' && paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => {
-                  setPaymentMethod('bank_transfer');
-                  handleShippingMethodChange('takkyubin_payment');
-                }}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">匯款</span></div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>需先匯款</div>
-                </div>
-              </div>
-              {/* 貨到付款 */}
-              {/* <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => handleShippingMethodChange('takkyubin_cod')}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-sm font-bold">貨到付款</span></div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>收貨時付款</div>
-                </div>
-              </div> */}
               {/* 自取 */}
               <div 
                 className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
@@ -688,8 +676,80 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-grow">
                   <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品 (取貨時付款)</div>
+                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品</div>
                 </div>
+              </div>
+            </div>
+            
+            {/* 付款方式 - 根據配送方式顯示 */}
+            <div className="mt-6">
+              <h3 className="font-medium mb-3">付款方式</h3>
+              <div className="space-y-3">
+                {/* 黑貓宅配的付款選項 */}
+                {shippingMethod === 'takkyubin_payment' && (
+                  <>
+                    {/* LINE Pay */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('line_pay')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                      </div>
+                    </div>
+                    
+                    {/* 匯款 */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('bank_transfer')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">匯款</div>
+                        <div className="text-sm text-gray-500">請先匯款後出貨</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {/* 自取的付款選項 */}
+                {shippingMethod === 'pickup' && (
+                  <>
+                    {/* 取貨時付款 */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('cod')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">取貨時付款</div>
+                        <div className="text-sm text-gray-500">現場取貨時付款</div>
+                      </div>
+                    </div>
+                    
+                    {/* LINE Pay */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('line_pay')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -966,56 +1026,20 @@ export default function CheckoutPage() {
           <div className="hidden lg:block bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">配送方式</h2>
             <div className="space-y-3">
-              {/* linepay */}
+              {/* 黑貓宅配 */}
               <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' && paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => {
-                  setPaymentMethod('line_pay');
-                  handleShippingMethodChange('takkyubin_payment');
-                }}
+                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                onClick={() => handleShippingMethodChange('takkyubin_payment')}
               >
                 <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                 </div>
                 <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) 
-                    <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay</span>
-                  </div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>LINE Pay支付</div>
+                  <div className="font-medium">黑貓宅配(冷凍)</div>
+                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
                 </div>
               </div>
-              {/* 匯款 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' && paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => {
-                  setPaymentMethod('bank_transfer');
-                  handleShippingMethodChange('takkyubin_payment');
-                }}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">匯款</span></div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>需先匯款</div>
-                </div>
-              </div>
-              {/* 貨到付款 */}
-              {/* <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_cod' && paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => {
-                  setPaymentMethod('cod');
-                  handleShippingMethodChange('takkyubin_cod');
-                }}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_cod' && paymentMethod === 'cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍) <span className="ml-1 px-2 py-0.5 bg-green-100 text-green-800 rounded-full text-sm font-bold">貨到付款</span></div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配<br/>收貨時付款</div>
-                </div>
-              </div> */}
+              
               {/* 自取 */}
               <div 
                 className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
@@ -1028,6 +1052,78 @@ export default function CheckoutPage() {
                   <div className="font-medium">自取</div>
                   <div className="text-sm text-gray-500">請至店面自取商品</div>
                 </div>
+              </div>
+            </div>
+            
+            {/* 付款方式 - 根據配送方式顯示 */}
+            <div className="mt-6">
+              <h3 className="font-medium mb-3">付款方式</h3>
+              <div className="space-y-3">
+                {/* 黑貓宅配的付款選項 */}
+                {shippingMethod === 'takkyubin_payment' && (
+                  <>
+                    {/* LINE Pay */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('line_pay')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                      </div>
+                    </div>
+                    
+                    {/* 匯款 */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('bank_transfer')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">匯款</div>
+                        <div className="text-sm text-gray-500">請先匯款後出貨</div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                {/* 自取的付款選項 */}
+                {shippingMethod === 'pickup' && (
+                  <>
+                    {/* 取貨時付款 */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('cod')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'cod' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">取貨時付款</div>
+                        <div className="text-sm text-gray-500">現場取貨時付款</div>
+                      </div>
+                    </div>
+                    
+                    {/* LINE Pay */}
+                    <div 
+                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      onClick={() => setPaymentMethod('line_pay')}
+                    >
+                      <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                        {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -323,10 +323,31 @@ function OrderConfirmationContent() {
       
       // 建立簡單文字訊息（作為備用）
       let textMessage;
+      
+      // 根據配送方式和付款方式組合，提供對應的訊息
       if (shippingMethod === 'pickup') {
-        textMessage = {
-          type: 'text',
-          text: `🎂 感謝您的訂購！
+        // 自取訊息
+        if (paymentMethod === 'line_pay') {
+          textMessage = {
+            type: 'text',
+            text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+您已使用LINE Pay完成付款
+請至桃園市蘆竹區油管路一段696號自取商品
+
+📍 自取地址：
+桃園市蘆竹區油管路一段696號
+
+⏰ 預計自取時間：
+${formatPickupDateTime(pickupDateTime)}
+
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+          };
+        } else {
+          // 取貨時付款
+          textMessage = {
+            type: 'text',
+            text: `🎂 感謝您的訂購！
 訂單編號：${orderNumber}
 請至桃園市蘆竹區油管路一段696號自取商品並現場付款
 
@@ -337,8 +358,25 @@ function OrderConfirmationContent() {
 ${formatPickupDateTime(pickupDateTime)}
 
 若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+          };
+        }
+      } else if (paymentMethod === 'line_pay') {
+        // 黑貓宅配 + LINE Pay
+        textMessage = {
+          type: 'text',
+          text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+您已使用LINE Pay完成付款
+我們將盡快安排宅配
+
+📦 宅配說明：
+商品會以黑貓宅急便低溫冷凍配送
+${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
+
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
         };
-      } else if (shippingMethod === 'takkyubin_cod') {
+      } else if (paymentMethod === 'cod') {
+        // 黑貓宅配 + 貨到付款
         textMessage = {
           type: 'text',
           text: `🎂 感謝您的訂購！
@@ -351,6 +389,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 若有任何問題，請透過LINE與我們聯繫\n謝謝！`
         };
       } else {
+        // 黑貓宅配 + 匯款
         textMessage = {
           type: 'text',
           text: `🎂 感謝您的訂購！
@@ -361,7 +400,8 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 銀行：${bankInfo.bankName}（${bankInfo.bankCode}）
 戶名：${bankInfo.accountName}
 帳號：${bankInfo.accountNumber}
-${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
+金額：$${orderData?.total_amount || '0'}
+${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}（已含在金額中）` : '免運費'}
 
 完成匯款後，請將匯款收據與訂單編號透過LINE傳送給我們，謝謝！`
         };
@@ -391,7 +431,9 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
           text: orderNumber // 添加普通文字訊息
         },{
           type: "flex",
-          altText: `${orderNumber} 建立成功，請至店面自取並現場付款`,
+          altText: paymentMethod === 'line_pay' 
+            ? `${orderNumber} 建立成功，請至店面自取商品，已用LINE Pay付款` 
+            : `${orderNumber} 建立成功，請至店面自取並現場付款`,
           contents: {
             type: "bubble",
             header: {
@@ -407,7 +449,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   color: "#ffffff"
                 }
               ],
-              backgroundColor: "#673AB7",
+              backgroundColor: paymentMethod === 'line_pay' ? "#06C755" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
               paddingAll: "md"
             },
             body: {
@@ -418,17 +460,19 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 {
                   type: "box",
                   layout: "vertical",
-                  backgroundColor: "#EDE7F6",
+                  backgroundColor: paymentMethod === 'line_pay' ? "#E6F7ED" : "#EDE7F6",
                   paddingAll: "md",
                   cornerRadius: "md",
                   contents: [
                     {
                       type: "text",
-                      text: "請於取貨時現場付款",
+                      text: paymentMethod === 'line_pay' 
+                        ? "LINE Pay 付款已完成" 
+                        : "請於取貨時現場付款",
                       size: "md",
                       weight: "bold",
                       align: "center",
-                      color: "#512DA8",
+                      color: paymentMethod === 'line_pay' ? "#06C755" : "#512DA8",
                       wrap: true
                     }
                   ]
@@ -1478,12 +1522,34 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   <h2 className="font-semibold text-gray-700">訂單編號</h2>
                   <p className="text-gray-900">{orderNumber || '未提供'}</p>
                 </div>
-                {orderData && orderData.shipping_fee !== null && orderData.shipping_fee !== undefined && orderData.shipping_fee > 0 ?(
+                {/* 配送方式 */}
+                <div>
+                  <h2 className="font-semibold text-gray-700">配送方式</h2>
+                  <p className="text-gray-900">
+                    {shippingMethod === 'pickup' ? '自取' : '黑貓宅配(冷凍)'}
+                    {shippingMethod === 'pickup' && pickupDateTime && (
+                      <span className="block text-xs text-gray-500">預計自取時間: {formatPickupDateTime(pickupDateTime)}</span>
+                    )}
+                  </p>
+                </div>
+                {/* 付款方式 */}
+                <div>
+                  <h2 className="font-semibold text-gray-700">付款方式</h2>
+                  <p className="text-gray-900">
+                    {paymentMethod === 'line_pay' ? 'LINE Pay' :
+                     paymentMethod === 'bank_transfer' ? '匯款' :
+                     paymentMethod === 'cod' && shippingMethod === 'pickup' ? '取貨時付款' :
+                     paymentMethod === 'cod' ? '貨到付款' : '未知'}
+                  </p>
+                </div>
+                {/* 運費 */}
+                {orderData && orderData.shipping_fee !== null && orderData.shipping_fee !== undefined && orderData.shipping_fee > 0 ? (
                   <div>
                     <h2 className="font-semibold text-gray-700">運費</h2>
                     <p className="text-gray-900">${orderData.shipping_fee}</p>
                   </div>
                 ) : null}
+                {/* 訂單總額 */}
                 <div>
                   <h2 className="font-semibold text-gray-700">訂單總額</h2>
                   <p className="text-gray-900">${orderData?.total_amount || '0'}</p>

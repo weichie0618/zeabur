@@ -624,19 +624,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // 根據配送方式顯示對應的說明文字
-  const getShippingMethodDescription = () => {
-    switch(shippingMethod) {
-      case 'takkyubin_payment':
-        return '全台配送，商品以低溫冷凍宅配';
-      case 'takkyubin_cod':
-        return '全台配送，商品以低溫冷凍宅配\n貨到付款';
-      case 'pickup':
-        return '自取商品';
-      default:
-        return '';
-    }
-  };
+
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -676,7 +664,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-grow">
                   <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號 自取商品</div>
+                  <div className="text-sm text-gray-500">桃園市蘆竹區油管路一段696號</div>
                 </div>
               </div>
             </div>
@@ -712,7 +700,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">請先匯款後出貨</div>
+                        <div className="text-sm text-gray-500">需先完成匯款</div>
                       </div>
                     </div>
                   </>
@@ -793,11 +781,12 @@ export default function CheckoutPage() {
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 font-medium">運費</span>
                 <span className="font-medium">
-                  {shippingMethod === 'pickup' ? '免運費' : (
-                    shippingFee === 0 ? '免運費' : `$${shippingFee}`
-                  )}
+                  
                   {shippingMethod !== 'pickup' && shippingFee > 0 && (
                     <span className="text-xs text-gray-500 ml-2">（訂單達$3,500免運費）</span>
+                  )}
+                  {shippingMethod === 'pickup' ? '免運費' : (
+                    shippingFee === 0 ? '免運費' : `$${shippingFee}`
                   )}
                 </span>
               </div>
@@ -1051,7 +1040,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="flex-grow">
                   <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號 自取商品</div>
+                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品</div>
                 </div>
               </div>
             </div>
@@ -1072,7 +1061,7 @@ export default function CheckoutPage() {
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="font-medium"><span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay </span></div>
                         <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
                       </div>
                     </div>
@@ -1087,7 +1076,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">請先匯款後出貨</div>
+                        <div className="text-sm text-gray-500">需先完成匯款</div>
                       </div>
                     </div>
                   </>
@@ -1105,11 +1094,11 @@ export default function CheckoutPage() {
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium">LINE Pay <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">推薦</span></div>
+                        <div className="font-medium"> <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay</span></div>
                         <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
                       </div>
                     </div>
-                    
+
                     {/* 取貨時付款 */}
                     <div 
                       className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}

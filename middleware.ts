@@ -202,8 +202,9 @@ export async function middleware(request: NextRequest) {
     if (!user || user.role !== 'admin') {
       if (isDev) console.log('訪問管理員頁面但無有效token或非管理員角色，重定向到登入頁面');
       
-      // 直接重定向到登入頁面，不再重定向到未授權頁面
-      return NextResponse.redirect(new URL('/login'));
+      // 創建一個基於原始請求URL的新URL對象，然後設置路徑為'/login'
+      const url = new URL('/login', request.url);
+      return NextResponse.redirect(url);
     }
     
     if (isDev) console.log('管理員身份已驗證，允許訪問管理頁面');

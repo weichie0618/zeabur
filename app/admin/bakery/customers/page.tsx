@@ -425,7 +425,7 @@ export default function CustomersManagement() {
       {/* 認證警告 */}
       {showAuthWarning && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-          您的登入狀態已過期，請<a href="/auth/login" className="underline font-semibold">重新登入</a>後再訪問此頁面。
+          您的登入狀態已過期，請<a href="/login" className="underline font-semibold">重新登入</a>後再訪問此頁面。
         </div>
       )}
       

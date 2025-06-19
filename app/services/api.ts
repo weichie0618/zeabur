@@ -181,7 +181,7 @@ api.interceptors.response.use(
         
         // 檢測重定向循環
         const currentPath = window.location.pathname;
-        const loginPath = '/login?reason=expired&redirect=' + encodeURIComponent(currentPath);
+        const loginPath = '/login';
         
         if (isRedirectLoop(loginPath)) {
           console.error('偵測到重定向循環，直接重定向到登入頁面');

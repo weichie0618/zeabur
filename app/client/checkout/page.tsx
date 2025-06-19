@@ -47,6 +47,7 @@ interface CustomerData {
   taxId?: string; // 添加統編欄位
   carrier?: string; // 添加載具欄位
   pickupDateTime?: string; // 添加自取日期時間欄位
+  discountCode?: string; // 新增優惠碼欄位
 }
 
 export default function CheckoutPage() {
@@ -65,7 +66,8 @@ export default function CheckoutPage() {
     taxId: '', // 新增統編
     carrier: '', // 新增載具
     pickupDateTime: '', // 新增自取日期時間
-    invoiceType: 'taxId' as 'taxId' | 'carrier' // 新增發票類型選擇
+    invoiceType: 'taxId' as 'taxId' | 'carrier', // 新增發票類型選擇
+    discountCode: '' // 新增優惠碼欄位
   });
   const [validation, setValidation] = useState<FormValidation>({
     name: true,
@@ -75,6 +77,16 @@ export default function CheckoutPage() {
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  
+  // 新增優惠碼相關狀態
+  const [discountValidation, setDiscountValidation] = useState<{
+    isValid: boolean;
+    message: string;
+    discount?: number;
+    discount_type?: string;
+    discount_value?: number;
+  } | null>(null);
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
 
   // 從 localStorage 獲取客戶資料的輔助函數
   const getCustomerDataFromLocalStorage = (): CustomerData | null => {
@@ -130,7 +142,8 @@ export default function CheckoutPage() {
         carrier: (localCustomerData as any).carrier || prev.carrier,
         // 根據已有資料設定預設發票類型
         invoiceType: (localCustomerData as any).taxId ? 'taxId' : 
-                    (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType
+                    (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType,
+        discountCode: (localCustomerData as any).discountCode || prev.discountCode // 新增優惠碼
       }));
     }
   }, []);
@@ -164,7 +177,8 @@ export default function CheckoutPage() {
         carrier: (customerData as any).carrier || prev.carrier,
         // 根據已有資料設定預設發票類型
         invoiceType: (customerData as any).taxId ? 'taxId' : 
-                    (customerData as any).carrier ? 'carrier' : prev.invoiceType
+                    (customerData as any).carrier ? 'carrier' : prev.invoiceType,
+        discountCode: (customerData as any).discountCode || prev.discountCode // 新增優惠碼
       }));
       console.log('已從 LiffProvider 中獲取的客戶資料自動填充表單', customerData);
       return;
@@ -176,19 +190,20 @@ export default function CheckoutPage() {
       
       const localCustomerData = getCustomerDataFromLocalStorage();
       if (localCustomerData) {
-                  setFormData(prev => ({
-            ...prev,
-            customerName: localCustomerData.name || prev.customerName,
-            email: localCustomerData.email || prev.email,
-            phone: localCustomerData.phone || prev.phone,
-            address: localCustomerData.address || prev.address,
-            // 使用非類型安全的方式訪問屬性
-            taxId: (localCustomerData as any).taxId || prev.taxId,
-            carrier: (localCustomerData as any).carrier || prev.carrier,
-            // 根據已有資料設定預設發票類型
-            invoiceType: (localCustomerData as any).taxId ? 'taxId' : 
-                        (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType
-          }));
+        setFormData(prev => ({
+          ...prev,
+          customerName: localCustomerData.name || prev.customerName,
+          email: localCustomerData.email || prev.email,
+          phone: localCustomerData.phone || prev.phone,
+          address: localCustomerData.address || prev.address,
+          // 使用非類型安全的方式訪問屬性
+          taxId: (localCustomerData as any).taxId || prev.taxId,
+          carrier: (localCustomerData as any).carrier || prev.carrier,
+          // 根據已有資料設定預設發票類型
+          invoiceType: (localCustomerData as any).taxId ? 'taxId' : 
+                      (localCustomerData as any).carrier ? 'carrier' : prev.invoiceType,
+          discountCode: (localCustomerData as any).discountCode || prev.discountCode // 新增優惠碼
+        }));
         console.log('已從儲存的客戶資料中自動填充表單', localCustomerData);
       }
     }
@@ -217,10 +232,25 @@ export default function CheckoutPage() {
     return subtotal >= 3500 ? 0 : 200;
   }, [shippingMethod, subtotal]);
 
+  // 計算折扣金額
+  const discountAmount = useMemo(() => {
+    if (!discountValidation || !discountValidation.isValid || !discountValidation.discount_value) {
+      return 0;
+    }
+
+    // 根據折扣類型計算折扣金額
+    if (discountValidation.discount_type === 'PERCENTAGE') {
+      return (subtotal * discountValidation.discount_value) / 100;
+    } else {
+      // FIXED_AMOUNT 類型
+      return Math.min(subtotal, discountValidation.discount_value); // 確保折扣不超過小計
+    }
+  }, [discountValidation, subtotal]);
+
   // 計算總金額
   const total = useMemo(() => {
-    return subtotal + shippingFee;
-  }, [subtotal, shippingFee]);
+    return subtotal - discountAmount + shippingFee;
+  }, [subtotal, discountAmount, shippingFee]);
 
   // 計算預設自取日期時間（D+3，不含週六，固定15:00）
   const calculateDefaultPickupDateTime = (): string => {
@@ -387,6 +417,91 @@ export default function CheckoutPage() {
       .join('、');
   };
 
+  // 新增驗證優惠碼的函數
+  const validateDiscountCode = async () => {
+    // 清除之前的驗證結果
+    setDiscountValidation(null);
+    
+    // 檢查是否有輸入優惠碼
+    if (!formData.discountCode) {
+      return;
+    }
+    
+    try {
+      setIsValidatingDiscount(true);
+      
+      // 從 LIFF SDK 或 localStorage 獲取 LINE ID
+      let lineUserId: string | null = null;
+      
+      // 首先嘗試從 LIFF SDK 獲取
+      if (isLoggedIn && profile && profile.userId) {
+        lineUserId = profile.userId;
+      } else {
+        // 嘗試從 localStorage 獲取
+        const localCustomerData = getCustomerDataFromLocalStorage();
+        if (localCustomerData && localCustomerData.lineId) {
+          lineUserId = localCustomerData.lineId;
+        }
+      }
+      
+      // 如果在開發環境且沒有獲取到 LINE ID，使用臨時 ID
+      if (!lineUserId && process.env.NODE_ENV === 'development') {
+        lineUserId = 'dev_' + Date.now();
+      }
+      
+      if (!lineUserId) {
+        throw new Error('無法獲取您的 LINE ID，請確保已登入 LINE');
+      }
+      
+      // 呼叫後端 API 驗證優惠碼
+      const response = await fetch(`/api/discount/validate/${formData.discountCode}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          customer_id: lineUserId
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.valid) {
+        setDiscountValidation({
+          isValid: true,
+          message: '優惠碼有效',
+          discount: data.discount_code.discount_value,
+          discount_type: data.discount_code.discount_type,
+          discount_value: data.discount_code.discount_value
+        });
+      } else {
+        setDiscountValidation({
+          isValid: false,
+          message: data.message || '優惠碼無效'
+        });
+      }
+    } catch (error: any) {
+      setDiscountValidation({
+        isValid: false,
+        message: error.message || '驗證優惠碼時發生錯誤'
+      });
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+  
+  // 優惠碼輸入完畢後自動驗證
+  useEffect(() => {
+    // 使用防抖，延遲 500ms 後再觸發驗證
+    const timer = setTimeout(() => {
+      if (formData.discountCode && formData.discountCode.length >= 3) {
+        validateDiscountCode();
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [formData.discountCode]);
+
   // 處理結帳提交
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -463,7 +578,8 @@ export default function CheckoutPage() {
       taxId: formData.taxId,
       carrier: formData.carrier,
       pickupDateTime: formData.pickupDateTime,
-      invoiceType: formData.invoiceType
+      invoiceType: formData.invoiceType,
+      discountCode: formData.discountCode // 保存優惠碼
     };
     
     // 使用 LiffProvider 提供的方法更新客戶資料
@@ -476,14 +592,15 @@ export default function CheckoutPage() {
     
     // 根據配送方式和付款選擇設定對應的API值
     if (paymentMethod === 'line_pay') {
-      paymentMethodForApi = 'line_pay';
+      paymentMethodForApi = 'line_pay';// linepay
     } else if (shippingMethod === 'pickup' && paymentMethod === 'cod') {
-      paymentMethodForApi = 'pickup_pay';  // 自取現場付款
+      paymentMethodForApi = 'cash';  // 自取現場付款
     } else if (paymentMethod === 'bank_transfer') {
-      paymentMethodForApi = 'bank_transfer';
-    } else if (paymentMethod === 'cod') {
-      paymentMethodForApi = 'cod';  // 貨到付款
-    }
+      paymentMethodForApi = 'bank_transfer';// 匯款
+    } 
+    // else if (paymentMethod === 'cod') {
+    //   paymentMethodForApi = 'cod';  // 貨到付款
+    // }
 
     // 嘗試從 localStorage 獲取客戶資料
     const localCustomerData = getCustomerDataFromLocalStorage();
@@ -500,7 +617,8 @@ export default function CheckoutPage() {
         product_id: item.id,
         quantity: item.quantity,
         // 添加口味資訊到訂單項目備註中
-        order_item_notes: formatSelectedFlavors(item.selectedFlavors) || ''
+        order_item_notes: formatSelectedFlavors(item.selectedFlavors) || '',
+        unit_code: item.unit_code
       })),
       customer_info: {
         name: formData.customerName,
@@ -526,7 +644,9 @@ export default function CheckoutPage() {
       lineid: lineUserId,
       // 新增統編和載具資訊，只傳送選中的類型
       taxId: formData.invoiceType === 'taxId' ? formData.taxId : '',
-      carrier: formData.invoiceType === 'carrier' ? formData.carrier : ''
+      carrier: formData.invoiceType === 'carrier' ? formData.carrier : '',
+      // 新增優惠碼
+      discount_code: formData.discountCode || ''
     };
 
     // LINE 用戶資訊記錄（用於調試）
@@ -595,7 +715,10 @@ export default function CheckoutPage() {
       // 添加自取日期時間參數
       const pickupDateTimeParam = shippingMethod === 'pickup' ? `&pickupDateTime=${encodeURIComponent(formData.pickupDateTime)}` : '';
       
-      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&paymentMethod=${paymentMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}`);
+      // 添加折扣金額參數
+      const discountParam = discountAmount > 0 ? `&discount=${discountAmount}` : '';
+      
+      router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&paymentMethod=${paymentMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}${discountParam}`);
     } catch (error) {
       console.error('結帳失敗', error);
       setFormError('結帳過程中發生錯誤，請稍後再試');
@@ -624,8 +747,6 @@ export default function CheckoutPage() {
     );
   }
 
-
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -638,69 +759,76 @@ export default function CheckoutPage() {
         <div className="lg:col-span-2">
           {/* 手機版先顯示配送方式 */}
           <div className="lg:hidden bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">配送方式</h2>
-            <div className="space-y-3">
-              {/* 黑貓宅配 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => handleShippingMethodChange('takkyubin_payment')}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+            <h2 className="text-xl font-semibold mb-4">配送與付款</h2>
+            
+            {/* 配送方式選擇 */}
+            <div className="mb-5">
+              <h3 className="font-medium text-gray-700 mb-3">選擇配送方式</h3>
+              <div className="space-y-3">
+                {/* 黑貓宅配 */}
+                <div 
+                  className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                  onClick={() => handleShippingMethodChange('takkyubin_payment')}
+                >
+                  <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                    {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="font-medium">黑貓宅配(冷凍)</div>
+                    <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
+                  </div>
                 </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍)</div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
-                </div>
-              </div>
-              
-              {/* 自取 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => handleShippingMethodChange('pickup')}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">桃園市蘆竹區油管路一段696號</div>
+                
+                {/* 自取 */}
+                <div 
+                  className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                  onClick={() => handleShippingMethodChange('pickup')}
+                >
+                  <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                    {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="font-medium">自取</div>
+                    <div className="text-sm text-gray-500">桃園市蘆竹區油管路一段696號</div>
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* 付款方式 - 根據配送方式顯示 */}
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">付款方式</h3>
+            {/* 付款方式選擇 */}
+            <div>
+              <h3 className="font-medium text-gray-700 mb-3">選擇付款方式</h3>
               <div className="space-y-3">
                 {/* 黑貓宅配的付款選項 */}
                 {shippingMethod === 'takkyubin_payment' && (
                   <>
                     {/* LINE Pay */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('line_pay')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium"><span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay </span></div>
-                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                        <div className="font-medium flex items-center">
+                          <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-md text-sm font-bold">LINE Pay</span>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">使用LINE Pay線上支付</div>
                       </div>
                     </div>
                     
                     {/* 匯款 */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('bank_transfer')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">ATM匯款</div>
+                        <div className="font-medium">ATM 轉帳/匯款</div>
+                        <div className="text-sm text-gray-500 mt-1">完成訂單後顯示匯款資訊</div>
                       </div>
                     </div>
                   </>
@@ -709,24 +837,25 @@ export default function CheckoutPage() {
                 {/* 自取的付款選項 */}
                 {shippingMethod === 'pickup' && (
                   <>
-                   
-                    
                     {/* LINE Pay */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('line_pay')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium"> <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay </span></div>
-                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                        <div className="font-medium flex items-center"> 
+                          <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-md text-sm font-bold">LINE Pay</span>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">使用LINE Pay線上支付</div>
                       </div>
                     </div>
-                     {/* 取貨時付款 */}
-                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                    
+                    {/* 取貨時付款 */}
+                    <div 
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('cod')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
@@ -734,13 +863,31 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">取貨時付款</div>
-                        <div className="text-sm text-gray-500">現場取貨時付款</div>
+                        <div className="text-sm text-gray-500 mt-1">現場取貨時付款</div>
                       </div>
                     </div>
                   </>
                 )}
               </div>
             </div>
+            
+            {/* 總覽區域 */}
+            {paymentMethod && (
+              <div className="p-4 mt-5 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-600">配送方式:</span>
+                  <span className="font-medium">{shippingMethod === 'pickup' ? '自取' : '黑貓宅配'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">付款方式:</span>
+                  <span className="font-medium">
+                    {paymentMethod === 'line_pay' && 'LINE Pay'}
+                    {paymentMethod === 'bank_transfer' && 'ATM 轉帳/匯款'}
+                    {paymentMethod === 'cod' && '取貨時付款'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 商品列表 */}
@@ -798,7 +945,7 @@ export default function CheckoutPage() {
           </div>
 
           {/* 顧客資料表單 */}
-          <form onSubmit={handleCheckoutSubmit} className="bg-white rounded-lg shadow-md p-6">
+          <form onSubmit={handleCheckoutSubmit} className="bg-white rounded-lg shadow-md p-6" id="checkoutForm">
             <h2 className="text-xl font-semibold mb-4">顧客資料</h2>
             
             {formError && (
@@ -970,6 +1117,42 @@ export default function CheckoutPage() {
               <p>註：統一編號和載具編號只能擇一使用</p>
             </div>
             
+            {/* 優惠碼輸入框 */}
+            <div className="mb-4">
+              <label htmlFor="discountCode" className="block text-gray-700 mb-1">優惠碼</label>
+              <div className="flex">
+                <input
+                  type="text"
+                  id="discountCode"
+                  name="discountCode"
+                  value={formData.discountCode}
+                  onChange={handleInputChange}
+                  className={`flex-grow px-3 py-2 border rounded-l-md ${discountValidation && !discountValidation.isValid ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="輸入優惠碼"
+                />
+                <button
+                  type="button"
+                  onClick={validateDiscountCode}
+                  disabled={isValidatingDiscount || !formData.discountCode}
+                  className="px-4 py-2 bg-amber-500 text-white rounded-r-md hover:bg-amber-600 disabled:bg-gray-300"
+                >
+                  {isValidatingDiscount ? '驗證中...' : '驗證'}
+                </button>
+              </div>
+              
+              {discountValidation && (
+                <div className={`mt-2 text-sm ${discountValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                  {discountValidation.message}
+                  {discountValidation.isValid && discountValidation.discount_type === 'PERCENTAGE' && (
+                    <span> (折扣 {discountValidation.discount_value}%)</span>
+                  )}
+                  {discountValidation.isValid && discountValidation.discount_type === 'FIXED_AMOUNT' && (
+                    <span> (折扣 ${discountValidation.discount_value})</span>
+                  )}
+                </div>
+              )}
+            </div>
+            
             {/* 只在開發環境顯示的 Debug 信息 */}
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 bg-gray-100 p-3 rounded-md text-xs">
@@ -1014,69 +1197,76 @@ export default function CheckoutPage() {
         <div className="lg:col-span-1">
           {/* 大螢幕才顯示配送方式區塊 */}
           <div className="hidden lg:block bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">配送方式</h2>
-            <div className="space-y-3">
-              {/* 黑貓宅配 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => handleShippingMethodChange('takkyubin_payment')}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+            <h2 className="text-xl font-semibold mb-4">配送與付款</h2>
+            
+            {/* 配送方式選擇 */}
+            <div className="mb-6">
+              <h3 className="font-medium text-gray-700 mb-3">選擇配送方式</h3>
+              <div className="space-y-3">
+                {/* 黑貓宅配 */}
+                <div 
+                  className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${shippingMethod === 'takkyubin_payment' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                  onClick={() => handleShippingMethodChange('takkyubin_payment')}
+                >
+                  <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                    {shippingMethod === 'takkyubin_payment' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="font-medium">黑貓宅配(冷凍)</div>
+                    <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
+                  </div>
                 </div>
-                <div className="flex-grow">
-                  <div className="font-medium">黑貓宅配(冷凍)</div>
-                  <div className="text-sm text-gray-500">全台配送，商品以低溫冷凍宅配</div>
-                </div>
-              </div>
-              
-              {/* 自取 */}
-              <div 
-                className={`border rounded-md p-3 flex items-center cursor-pointer ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
-                onClick={() => handleShippingMethodChange('pickup')}
-              >
-                <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
-                  {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
-                </div>
-                <div className="flex-grow">
-                  <div className="font-medium">自取</div>
-                  <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品</div>
+                
+                {/* 自取 */}
+                <div 
+                  className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${shippingMethod === 'pickup' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
+                  onClick={() => handleShippingMethodChange('pickup')}
+                >
+                  <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
+                    {shippingMethod === 'pickup' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
+                  </div>
+                  <div className="flex-grow">
+                    <div className="font-medium">自取</div>
+                    <div className="text-sm text-gray-500">至桃園市蘆竹區油管路一段696號<br/>自取商品</div>
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* 付款方式 - 根據配送方式顯示 */}
-            <div className="mt-6">
-              <h3 className="font-medium mb-3">付款方式</h3>
+            {/* 付款方式選擇 */}
+            <div className="mb-5">
+              <h3 className="font-medium text-gray-700 mb-3">選擇付款方式</h3>
               <div className="space-y-3">
                 {/* 黑貓宅配的付款選項 */}
                 {shippingMethod === 'takkyubin_payment' && (
                   <>
                     {/* LINE Pay */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('line_pay')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium"><span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay </span></div>
-                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                        <div className="font-medium flex items-center">
+                          <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-md text-sm font-bold">LINE Pay</span>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">使用LINE Pay線上支付</div>
                       </div>
                     </div>
                     
                     {/* 匯款 */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('bank_transfer')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'bank_transfer' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium">匯款</div>
-                        <div className="text-sm text-gray-500">ATM匯款</div>
+                        <div className="font-medium">ATM 轉帳/匯款</div>
+                        <div className="text-sm text-gray-500 mt-1">完成訂單後顯示匯款資訊</div>
                       </div>
                     </div>
                   </>
@@ -1087,21 +1277,23 @@ export default function CheckoutPage() {
                   <>
                     {/* LINE Pay */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'line_pay' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('line_pay')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
                         {paymentMethod === 'line_pay' && <div className="w-3 h-3 bg-amber-600 rounded-full"></div>}
                       </div>
                       <div className="flex-grow">
-                        <div className="font-medium"> <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-full text-sm font-bold">LINE Pay</span></div>
-                        <div className="text-sm text-gray-500">使用LINE Pay線上支付</div>
+                        <div className="font-medium flex items-center"> 
+                          <span className="ml-1 px-2 py-0.5 bg-green-600 text-white rounded-md text-sm font-bold">LINE Pay</span>
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">使用LINE Pay線上支付</div>
                       </div>
                     </div>
-
+                    
                     {/* 取貨時付款 */}
                     <div 
-                      className={`border rounded-md p-3 flex items-center cursor-pointer ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300'}`}
+                      className={`border rounded-md p-4 flex items-center cursor-pointer transition-colors ${paymentMethod === 'cod' ? 'border-amber-500 bg-amber-50' : 'border-gray-300 hover:bg-gray-50'}`}
                       onClick={() => setPaymentMethod('cod')}
                     >
                       <div className="w-5 h-5 rounded-full border mr-3 flex items-center justify-center border-amber-600">
@@ -1109,37 +1301,90 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex-grow">
                         <div className="font-medium">取貨時付款</div>
-                        <div className="text-sm text-gray-500">現場取貨時付款</div>
+                        <div className="text-sm text-gray-500 mt-1">現場取貨時付款</div>
                       </div>
                     </div>
-                    
-                  
                   </>
                 )}
               </div>
             </div>
+            
+            {/* 總覽區域 */}
+            {paymentMethod && (
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-600">配送方式:</span>
+                  <span className="font-medium">{shippingMethod === 'pickup' ? '自取' : '黑貓宅配'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">付款方式:</span>
+                  <span className="font-medium">
+                    {paymentMethod === 'line_pay' && 'LINE Pay'}
+                    {paymentMethod === 'bank_transfer' && 'ATM 轉帳/匯款'}
+                    {paymentMethod === 'cod' && '取貨時付款'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <button 
+          {/* 訂單摘要 */}
+          <div className="bg-white rounded-lg shadow-md p-6 sticky top-6">
+            <h2 className="text-xl font-semibold mb-4">訂單摘要</h2>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">小計</span>
+                <span className="font-medium">${subtotal.toFixed(0)}</span>
+              </div>
+
+              {/* 優惠碼折扣顯示 */}
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between text-green-600">
+                  <span>優惠碼折扣</span>
+                  <span>- ${discountAmount.toFixed(0)}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">運費</span>
+                <span className="font-medium">${shippingFee.toFixed(0)}</span>
+              </div>
+              
+              <div className="border-t pt-3 flex items-center justify-between">
+                <span className="font-semibold text-lg">總計</span>
+                <span className="font-bold text-xl text-amber-600">${total.toFixed(0)}</span>
+              </div>
+            </div>
+            
+            {/* 提交訂單按鈕 */}
+            <button
               type="submit"
-              onClick={handleCheckoutSubmit}
+              form="checkoutForm" // 連結到表單ID
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 px-4 rounded-md font-medium transition-colors"
               disabled={submitting}
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-md mb-4 flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white mr-2"></div>
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                   處理中...
-                </>
+                </span>
               ) : (
-                <>確認訂單</>
+                '確認訂單'
               )}
             </button>
             
+            <p className="text-center text-sm text-gray-500 mt-4">
+              完成訂單即表示您同意我們的條款和條件
+            </p>
+
+            {/* 返回購物按鈕 */}
             <Link 
               href="/client/bakery#products" 
-              className="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 py-3 rounded-md flex items-center justify-center text-center transition-colors"
+              className="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 py-3 rounded-md flex items-center justify-center text-center mt-3 transition-colors"
               onClick={(e) => {
                 // 確保不清空購物車（除非提交訂單成功）
                 if (paymentStatus === 'success') {

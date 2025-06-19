@@ -258,7 +258,7 @@ export const handleRelogin = (): void => {
   document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
   
   // 跳轉到登錄頁面，並帶上當前頁面的URL作為重定向地址
-  window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+  window.location.href = '/login';
 };
 
 /**

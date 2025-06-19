@@ -31,10 +31,8 @@ export default function BakeryLayout({
         </main>
         
         <footer className="bg-gray-100 border-t">
-          <div className="container mx-auto px-4 py-6">
-          <div className="container mx-auto text-center">
-          <p>© {new Date().getFullYear()} 屹澧股份有限公司. 版權所有.</p>
-        </div>
+          <div className="container mx-auto px-4 py-6 text-center">
+            <p>© {new Date().getFullYear()} 屹澧股份有限公司. 版權所有.</p>
           </div>
         </footer>
       </div>

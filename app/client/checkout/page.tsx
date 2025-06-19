@@ -263,9 +263,10 @@ export default function CheckoutPage() {
     // 根據折扣類型計算折扣金額
     const discountType = (discountValidation.discount_type || '').toUpperCase();
     if (discountType === 'PERCENTAGE') {
-      const calculatedDiscount = (subtotal * discountValue) / 100;
+      // 百分比折扣計算並無條件捨去小數點
+      const calculatedDiscount = Math.floor((subtotal * discountValue) / 100);
       console.log('百分比折扣計算:', {
-        formula: `${subtotal} × ${discountValue}% ÷ 100`,
+        formula: `Math.floor(${subtotal} × ${discountValue}% ÷ 100)`,
         subtotal,
         discountPercentage: discountValue,
         result: calculatedDiscount
@@ -536,14 +537,14 @@ export default function CheckoutPage() {
   
   // 優惠碼輸入完畢後自動驗證
   useEffect(() => {
-    // 使用防抖，延遲 500ms 後再觸發驗證
-    const timer = setTimeout(() => {
-      if (formData.discountCode && formData.discountCode.length >= 3) {
-        validateDiscountCode();
-      }
-    }, 500);
+    // 註釋或移除此段自動驗證邏輯，改為使用者手動點擊驗證
+    // const timer = setTimeout(() => {
+    //   if (formData.discountCode && formData.discountCode.length >= 3) {
+    //     validateDiscountCode();
+    //   }
+    // }, 500);
     
-    return () => clearTimeout(timer);
+    // return () => clearTimeout(timer);
   }, [formData.discountCode]);
 
   // 處理結帳提交
@@ -933,20 +934,7 @@ export default function CheckoutPage() {
               </div>
             )}
             
-            {/* 手機版優惠折扣碼按鈕 */}
-            <div className="mt-5">
-              <button 
-                type="button"
-                onClick={toggleDiscountModal}
-                className="w-full flex items-center justify-center py-2 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
-                </svg>
-                輸入優惠折扣碼
-              </button>
-            </div>
+            {/* 移除手機版優惠折扣碼按鈕 */}
           </div>
 
           {/* 商品列表 */}
@@ -984,6 +972,21 @@ export default function CheckoutPage() {
                 <span className="text-gray-600 font-medium">小計</span>
                 <span className="font-medium">${subtotal}</span>
               </div>
+
+              {/* 優惠碼折扣顯示 */}
+              {discountAmount > 0 && (
+                <div className="flex justify-between items-center mt-2 text-green-600">
+                  <span className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
+                    </svg>
+                    優惠碼折扣
+                  </span>
+                  <span>- ${discountAmount.toFixed(0)}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 font-medium">運費</span>
                 <span className="font-medium">
@@ -1001,6 +1004,21 @@ export default function CheckoutPage() {
                 <span className="font-bold text-amber-600">${total}</span>
               </div>
             </div>
+          </div>
+
+          {/* 移動優惠折扣碼按鈕到商品列表下方 */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <button 
+              type="button"
+              onClick={toggleDiscountModal}
+              className="w-full flex items-center justify-center py-3 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
+              </svg>
+              輸入優惠折扣碼
+            </button>
           </div>
 
           {/* 顧客資料表單 */}
@@ -1350,20 +1368,8 @@ export default function CheckoutPage() {
               </div>
             )}
             
-            {/* 優惠折扣碼按鈕 */}
-            <div className="mt-5">
-              <button 
-                type="button"
-                onClick={toggleDiscountModal}
-                className="w-full flex items-center justify-center py-2 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
-                </svg>
-                輸入優惠折扣碼
-              </button>
-            </div>
+            {/* 移除桌面版優惠折扣碼按鈕 */}
+            
           </div>
           
           {/* 訂單摘要 */}
@@ -1466,6 +1472,7 @@ export default function CheckoutPage() {
             <button 
               onClick={toggleDiscountModal}
               className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+              disabled={isValidatingDiscount}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1483,6 +1490,7 @@ export default function CheckoutPage() {
                 onChange={(e) => setFormData({...formData, discountCode: e.target.value})}
                 className="w-full px-3 py-2 border rounded-md border-gray-300"
                 placeholder="優惠碼"
+                disabled={isValidatingDiscount}
               />
             </div>
             
@@ -1503,6 +1511,7 @@ export default function CheckoutPage() {
                 type="button"
                 onClick={toggleDiscountModal}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={isValidatingDiscount}
               >
                 取消
               </button>
@@ -1510,17 +1519,28 @@ export default function CheckoutPage() {
               <button
                 type="button"
                 onClick={() => {
-                  validateDiscountCode();
                   if (formData.discountCode) {
+                    validateDiscountCode();
+                    // 成功驗證後延遲關閉modal
                     setTimeout(() => {
-                      toggleDiscountModal();
+                      if (discountValidation && discountValidation.isValid) {
+                        toggleDiscountModal();
+                      }
                     }, 1500);
                   }
                 }}
                 disabled={isValidatingDiscount || !formData.discountCode}
-                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors"
+                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center"
               >
-                {isValidatingDiscount ? '驗證中...' : '確認'}
+                {isValidatingDiscount ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    處理中...
+                  </>
+                ) : '確認'}
               </button>
             </div>
           </div>

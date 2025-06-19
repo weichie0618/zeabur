@@ -90,14 +90,15 @@ export default function CheckoutPage() {
 
   // 新增modal狀態管理
   const [discountModal, setDiscountModal] = useState(false);
-  // 新增顯示訊息框狀態
-  const [showMessage, setShowMessage] = useState(false);
-  const [messageContent, setMessageContent] = useState('');
-  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [modalMessage, setModalMessage] = useState('');
 
   // 處理優惠碼modal開關
   const toggleDiscountModal = () => {
     setDiscountModal(!discountModal);
+    // 重置狀態
+    setModalStatus('idle');
+    setModalMessage('');
   };
 
   // 從 localStorage 獲取客戶資料的輔助函數
@@ -473,15 +474,12 @@ export default function CheckoutPage() {
     
     // 檢查是否有輸入優惠碼
     if (!formData.discountCode) {
-      setMessageType('error');
-      setMessageContent('請輸入優惠碼');
-      setShowMessage(true);
-      setTimeout(() => setShowMessage(false), 2000);
       return;
     }
     
     try {
       setIsValidatingDiscount(true);
+      setModalStatus('loading'); // 設置Modal狀態為處理中
       
       // 從 LIFF SDK 或 localStorage 獲取 LINE ID
       let lineUserId: string | null = null;
@@ -503,6 +501,8 @@ export default function CheckoutPage() {
       }
       
       if (!lineUserId) {
+        setModalStatus('error');
+        setModalMessage('無法獲取您的 LINE ID，請確保已登入 LINE');
         throw new Error('無法獲取您的 LINE ID，請確保已登入 LINE');
       }
       
@@ -527,40 +527,38 @@ export default function CheckoutPage() {
           discount_type: data.discount_code.discount_type,
           discount_value: data.discount_code.discount_value
         });
+        setModalStatus('success');
+        setModalMessage('優惠碼折扣已套用');
         
-        // 成功時顯示訊息並自動關閉modal
-        setMessageType('success');
-        setMessageContent('優惠碼已成功套用！');
-        setShowMessage(true);
-        
-        // 延遲關閉modal
+        // 成功時延遲關閉modal
         setTimeout(() => {
-          setShowMessage(false);
-          toggleDiscountModal();
+          setDiscountModal(false);
         }, 1500);
       } else {
         setDiscountValidation({
           isValid: false,
           message: data.message || '優惠碼無效'
         });
+        setModalStatus('error');
+        setModalMessage(data.message || '優惠碼無效');
         
-        // 顯示錯誤訊息
-        setMessageType('error');
-        setMessageContent(data.message || '優惠碼無效');
-        setShowMessage(true);
-        setTimeout(() => setShowMessage(false), 2000);
+        // 錯誤時延遲關閉modal
+        setTimeout(() => {
+          setDiscountModal(false);
+        }, 1500);
       }
     } catch (error: any) {
       setDiscountValidation({
         isValid: false,
         message: error.message || '驗證優惠碼時發生錯誤'
       });
+      setModalStatus('error');
+      setModalMessage(error.message || '驗證優惠碼時發生錯誤');
       
-      // 顯示錯誤訊息
-      setMessageType('error');
-      setMessageContent(error.message || '驗證優惠碼時發生錯誤');
-      setShowMessage(true);
-      setTimeout(() => setShowMessage(false), 2000);
+      // 錯誤時延遲關閉modal
+      setTimeout(() => {
+        setDiscountModal(false);
+      }, 1500);
     } finally {
       setIsValidatingDiscount(false);
     }
@@ -1500,65 +1498,86 @@ export default function CheckoutPage() {
       {discountModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
-            <button 
-              onClick={toggleDiscountModal}
-              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
-              disabled={isValidatingDiscount}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
-            <h3 className="text-xl font-semibold mb-4">輸入優惠折扣碼</h3>
-            
-            <div className="mb-4">
-              <label htmlFor="discountCodeModal" className="block text-gray-700 mb-2">請輸入您的優惠碼</label>
-              <input
-                type="text"
-                id="discountCodeModal"
-                value={formData.discountCode}
-                onChange={(e) => setFormData({...formData, discountCode: e.target.value})}
-                className="w-full px-3 py-2 border rounded-md border-gray-300"
-                placeholder="優惠碼"
-                disabled={isValidatingDiscount}
-              />
-            </div>
-            
-            {/* 顯示訊息提示框 */}
-            {showMessage && (
-              <div className={`mb-4 p-2 rounded-md ${messageType === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                {messageContent}
+            {modalStatus === 'loading' ? (
+              /* 處理中狀態顯示 */
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="w-16 h-16 mb-4">
+                  <svg className="animate-spin w-full h-full text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
+                <p className="text-lg font-medium text-gray-700">驗證優惠碼中...</p>
               </div>
+            ) : modalStatus === 'success' ? (
+              /* 成功狀態顯示 */
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="w-16 h-16 mb-4 text-green-500 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-lg font-medium text-green-600">{modalMessage}</p>
+              </div>
+            ) : modalStatus === 'error' ? (
+              /* 錯誤狀態顯示 */
+              <div className="flex flex-col items-center justify-center py-8">
+                <div className="w-16 h-16 mb-4 text-red-500 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <p className="text-lg font-medium text-red-600">{modalMessage}</p>
+              </div>
+            ) : (
+              /* 默認輸入狀態 */
+              <>
+                <button 
+                  onClick={toggleDiscountModal}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                  disabled={isValidatingDiscount}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                
+                <h3 className="text-xl font-semibold mb-4">輸入優惠折扣碼</h3>
+                
+                <div className="mb-4">
+                  <label htmlFor="discountCodeModal" className="block text-gray-700 mb-2">請輸入您的優惠碼</label>
+                  <input
+                    type="text"
+                    id="discountCodeModal"
+                    value={formData.discountCode}
+                    onChange={(e) => setFormData({...formData, discountCode: e.target.value})}
+                    className="w-full px-3 py-2 border rounded-md border-gray-300"
+                    placeholder="優惠碼"
+                    disabled={isValidatingDiscount}
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 mt-6">
+                  <button 
+                    type="button"
+                    onClick={toggleDiscountModal}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    disabled={isValidatingDiscount}
+                  >
+                    取消
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={validateDiscountCode}
+                    disabled={isValidatingDiscount || !formData.discountCode}
+                    className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center"
+                  >
+                    確認
+                  </button>
+                </div>
+              </>
             )}
-            
-            <div className="flex justify-end gap-3 mt-6">
-              <button 
-                type="button"
-                onClick={toggleDiscountModal}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                disabled={isValidatingDiscount}
-              >
-                取消
-              </button>
-              
-              <button
-                type="button"
-                onClick={validateDiscountCode}
-                disabled={isValidatingDiscount || !formData.discountCode}
-                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center"
-              >
-                {isValidatingDiscount ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    處理中...
-                  </>
-                ) : '確認'}
-              </button>
-            </div>
           </div>
         </div>
       )}

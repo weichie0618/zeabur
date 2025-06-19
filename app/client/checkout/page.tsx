@@ -88,6 +88,14 @@ export default function CheckoutPage() {
   } | null>(null);
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
 
+  // 新增modal狀態管理
+  const [discountModal, setDiscountModal] = useState(false);
+
+  // 處理優惠碼modal開關
+  const toggleDiscountModal = () => {
+    setDiscountModal(!discountModal);
+  };
+
   // 從 localStorage 獲取客戶資料的輔助函數
   const getCustomerDataFromLocalStorage = (): CustomerData | null => {
     try {
@@ -234,22 +242,52 @@ export default function CheckoutPage() {
 
   // 計算折扣金額
   const discountAmount = useMemo(() => {
+    console.log('開始計算折扣 - 輸入數據:', {
+      discountValidation,
+      subtotal,
+      isValid: discountValidation?.isValid,
+      discountType: discountValidation?.discount_type,
+      discountValue: discountValidation?.discount_value
+    });
+    
     if (!discountValidation || !discountValidation.isValid || !discountValidation.discount_value) {
+      console.log('無效折扣或折扣值為0，返回折扣金額: 0');
       return 0;
     }
 
     // 根據折扣類型計算折扣金額
     if (discountValidation.discount_type === 'PERCENTAGE') {
-      return (subtotal * discountValidation.discount_value) / 100;
+      const calculatedDiscount = (subtotal * discountValidation.discount_value) / 100;
+      console.log('百分比折扣計算:', {
+        formula: `${subtotal} × ${discountValidation.discount_value}% ÷ 100`,
+        subtotal,
+        discountPercentage: discountValidation.discount_value,
+        result: calculatedDiscount
+      });
+      return calculatedDiscount;
     } else {
       // FIXED_AMOUNT 類型
-      return Math.min(subtotal, discountValidation.discount_value); // 確保折扣不超過小計
+      const fixedDiscount = Math.min(subtotal, discountValidation.discount_value);
+      console.log('固定金額折扣計算:', {
+        discountValue: discountValidation.discount_value,
+        subtotal,
+        appliedDiscount: fixedDiscount,
+        limited: fixedDiscount < discountValidation.discount_value ? '是 (已限制不超過小計)' : '否'
+      });
+      return fixedDiscount; // 確保折扣不超過小計
     }
   }, [discountValidation, subtotal]);
 
   // 計算總金額
   const total = useMemo(() => {
-    return subtotal - discountAmount + shippingFee;
+    const calculatedTotal = subtotal - discountAmount + shippingFee;
+    console.log('訂單金額計算:', {
+      subtotal,
+      discountAmount,
+      shippingFee,
+      total: calculatedTotal
+    });
+    return calculatedTotal;
   }, [subtotal, discountAmount, shippingFee]);
 
   // 計算預設自取日期時間（D+3，不含週六，固定15:00）
@@ -1117,42 +1155,6 @@ export default function CheckoutPage() {
               <p>註：統一編號和載具編號只能擇一使用</p>
             </div>
             
-            {/* 優惠碼輸入框 */}
-            <div className="mb-4">
-              <label htmlFor="discountCode" className="block text-gray-700 mb-1">優惠碼</label>
-              <div className="flex">
-                <input
-                  type="text"
-                  id="discountCode"
-                  name="discountCode"
-                  value={formData.discountCode}
-                  onChange={handleInputChange}
-                  className={`flex-grow px-3 py-2 border rounded-l-md ${discountValidation && !discountValidation.isValid ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="輸入優惠碼"
-                />
-                <button
-                  type="button"
-                  onClick={validateDiscountCode}
-                  disabled={isValidatingDiscount || !formData.discountCode}
-                  className="px-4 py-2 bg-amber-500 text-white rounded-r-md hover:bg-amber-600 disabled:bg-gray-300"
-                >
-                  {isValidatingDiscount ? '驗證中...' : '驗證'}
-                </button>
-              </div>
-              
-              {discountValidation && (
-                <div className={`mt-2 text-sm ${discountValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                  {discountValidation.message}
-                  {discountValidation.isValid && discountValidation.discount_type === 'PERCENTAGE' && (
-                    <span> (折扣 {discountValidation.discount_value}%)</span>
-                  )}
-                  {discountValidation.isValid && discountValidation.discount_type === 'FIXED_AMOUNT' && (
-                    <span> (折扣 ${discountValidation.discount_value})</span>
-                  )}
-                </div>
-              )}
-            </div>
-            
             {/* 只在開發環境顯示的 Debug 信息 */}
             {process.env.NODE_ENV === 'development' && (
               <div className="mt-4 bg-gray-100 p-3 rounded-md text-xs">
@@ -1326,6 +1328,21 @@ export default function CheckoutPage() {
                 </div>
               </div>
             )}
+            
+            {/* 優惠折扣碼按鈕 */}
+            <div className="mt-5">
+              <button 
+                type="button"
+                onClick={toggleDiscountModal}
+                className="w-full flex items-center justify-center py-2 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
+                </svg>
+                輸入優惠折扣碼
+              </button>
+            </div>
           </div>
           
           {/* 訂單摘要 */}
@@ -1420,6 +1437,74 @@ export default function CheckoutPage() {
           <Link href="/client/terms-of-service" className="text-amber-600 hover:text-amber-800 mx-1">服務條款</Link>
         </p>
       </div>
+      
+      {/* 優惠碼輸入 Modal */}
+      {discountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 relative">
+            <button 
+              onClick={toggleDiscountModal}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h3 className="text-xl font-semibold mb-4">輸入優惠折扣碼</h3>
+            
+            <div className="mb-4">
+              <label htmlFor="discountCodeModal" className="block text-gray-700 mb-2">請輸入您的優惠碼</label>
+              <input
+                type="text"
+                id="discountCodeModal"
+                value={formData.discountCode}
+                onChange={(e) => setFormData({...formData, discountCode: e.target.value})}
+                className="w-full px-3 py-2 border rounded-md border-gray-300"
+                placeholder="優惠碼"
+              />
+            </div>
+            
+            {discountValidation && (
+              <div className={`mb-4 text-sm ${discountValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
+                {discountValidation.message}
+                {discountValidation.isValid && discountValidation.discount_type === 'PERCENTAGE' && (
+                  <span> (折扣 {discountValidation.discount_value}%)</span>
+                )}
+                {discountValidation.isValid && discountValidation.discount_type === 'FIXED_AMOUNT' && (
+                  <span> (折扣 ${discountValidation.discount_value})</span>
+                )}
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-3 mt-6">
+              <button 
+                type="button"
+                onClick={toggleDiscountModal}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                取消
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => {
+                  validateDiscountCode();
+                  if (formData.discountCode) {
+                    setTimeout(() => {
+                      toggleDiscountModal();
+                    }, 1500);
+                  }
+                }}
+                disabled={isValidatingDiscount || !formData.discountCode}
+                className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors"
+              >
+                {isValidatingDiscount ? '驗證中...' : '確認'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

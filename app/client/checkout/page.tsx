@@ -454,7 +454,7 @@ export default function CheckoutPage() {
       }
       
       // 呼叫後端 API 驗證優惠碼
-      const response = await fetch(`/api/discount/validate/${formData.discountCode}`, {
+      const response = await fetch(`/api/discounts/validate/${formData.discountCode}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

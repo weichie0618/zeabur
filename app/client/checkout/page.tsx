@@ -255,24 +255,30 @@ export default function CheckoutPage() {
       return 0;
     }
 
+    // 轉換discount_value為數字類型
+    const discountValue = typeof discountValidation.discount_value === 'string' 
+      ? parseFloat(discountValidation.discount_value) 
+      : discountValidation.discount_value;
+    
     // 根據折扣類型計算折扣金額
-    if (discountValidation.discount_type === 'PERCENTAGE') {
-      const calculatedDiscount = (subtotal * discountValidation.discount_value) / 100;
+    const discountType = (discountValidation.discount_type || '').toUpperCase();
+    if (discountType === 'PERCENTAGE') {
+      const calculatedDiscount = (subtotal * discountValue) / 100;
       console.log('百分比折扣計算:', {
-        formula: `${subtotal} × ${discountValidation.discount_value}% ÷ 100`,
+        formula: `${subtotal} × ${discountValue}% ÷ 100`,
         subtotal,
-        discountPercentage: discountValidation.discount_value,
+        discountPercentage: discountValue,
         result: calculatedDiscount
       });
       return calculatedDiscount;
     } else {
       // FIXED_AMOUNT 類型
-      const fixedDiscount = Math.min(subtotal, discountValidation.discount_value);
+      const fixedDiscount = Math.min(subtotal, discountValue);
       console.log('固定金額折扣計算:', {
-        discountValue: discountValidation.discount_value,
+        discountValue: discountValue,
         subtotal,
         appliedDiscount: fixedDiscount,
-        limited: fixedDiscount < discountValidation.discount_value ? '是 (已限制不超過小計)' : '否'
+        limited: fixedDiscount < discountValue ? '是 (已限制不超過小計)' : '否'
       });
       return fixedDiscount; // 確保折扣不超過小計
     }
@@ -926,6 +932,21 @@ export default function CheckoutPage() {
                 </div>
               </div>
             )}
+            
+            {/* 手機版優惠折扣碼按鈕 */}
+            <div className="mt-5">
+              <button 
+                type="button"
+                onClick={toggleDiscountModal}
+                className="w-full flex items-center justify-center py-2 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
+                </svg>
+                輸入優惠折扣碼
+              </button>
+            </div>
           </div>
 
           {/* 商品列表 */}

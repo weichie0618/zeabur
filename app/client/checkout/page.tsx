@@ -90,6 +90,10 @@ export default function CheckoutPage() {
 
   // 新增modal狀態管理
   const [discountModal, setDiscountModal] = useState(false);
+  // 新增顯示訊息框狀態
+  const [showMessage, setShowMessage] = useState(false);
+  const [messageContent, setMessageContent] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
   // 處理優惠碼modal開關
   const toggleDiscountModal = () => {
@@ -469,6 +473,10 @@ export default function CheckoutPage() {
     
     // 檢查是否有輸入優惠碼
     if (!formData.discountCode) {
+      setMessageType('error');
+      setMessageContent('請輸入優惠碼');
+      setShowMessage(true);
+      setTimeout(() => setShowMessage(false), 2000);
       return;
     }
     
@@ -519,17 +527,40 @@ export default function CheckoutPage() {
           discount_type: data.discount_code.discount_type,
           discount_value: data.discount_code.discount_value
         });
+        
+        // 成功時顯示訊息並自動關閉modal
+        setMessageType('success');
+        setMessageContent('優惠碼已成功套用！');
+        setShowMessage(true);
+        
+        // 延遲關閉modal
+        setTimeout(() => {
+          setShowMessage(false);
+          toggleDiscountModal();
+        }, 1500);
       } else {
         setDiscountValidation({
           isValid: false,
           message: data.message || '優惠碼無效'
         });
+        
+        // 顯示錯誤訊息
+        setMessageType('error');
+        setMessageContent(data.message || '優惠碼無效');
+        setShowMessage(true);
+        setTimeout(() => setShowMessage(false), 2000);
       }
     } catch (error: any) {
       setDiscountValidation({
         isValid: false,
         message: error.message || '驗證優惠碼時發生錯誤'
       });
+      
+      // 顯示錯誤訊息
+      setMessageType('error');
+      setMessageContent(error.message || '驗證優惠碼時發生錯誤');
+      setShowMessage(true);
+      setTimeout(() => setShowMessage(false), 2000);
     } finally {
       setIsValidatingDiscount(false);
     }
@@ -1494,15 +1525,10 @@ export default function CheckoutPage() {
               />
             </div>
             
-            {discountValidation && (
-              <div className={`mb-4 text-sm ${discountValidation.isValid ? 'text-green-600' : 'text-red-600'}`}>
-                {discountValidation.message}
-                {discountValidation.isValid && discountValidation.discount_type === 'PERCENTAGE' && (
-                  <span> (折扣 {discountValidation.discount_value}%)</span>
-                )}
-                {discountValidation.isValid && discountValidation.discount_type === 'FIXED_AMOUNT' && (
-                  <span> (折扣 ${discountValidation.discount_value})</span>
-                )}
+            {/* 顯示訊息提示框 */}
+            {showMessage && (
+              <div className={`mb-4 p-2 rounded-md ${messageType === 'success' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                {messageContent}
               </div>
             )}
             
@@ -1518,17 +1544,7 @@ export default function CheckoutPage() {
               
               <button
                 type="button"
-                onClick={() => {
-                  if (formData.discountCode) {
-                    validateDiscountCode();
-                    // 成功驗證後延遲關閉modal
-                    setTimeout(() => {
-                      if (discountValidation && discountValidation.isValid) {
-                        toggleDiscountModal();
-                      }
-                    }, 1500);
-                  }
-                }}
+                onClick={validateDiscountCode}
                 disabled={isValidatingDiscount || !formData.discountCode}
                 className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center"
               >

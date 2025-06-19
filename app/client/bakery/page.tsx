@@ -37,7 +37,7 @@ export default async function BakeryPage() {
     console.log('第一個產品詳情:', products[0]); // 輸出第一個產品的完整信息
     
     return (
-      <div>
+      <>
         {/* LIFF初始化組件 - 暫時停用 */}
         <LiffInitializer />
         
@@ -55,14 +55,13 @@ export default async function BakeryPage() {
             />
           </Suspense>
         </div>
-      </div>
+      </>
     );
   } catch (error) {
     console.error('資料獲取失敗:', error);
     // 錯誤處理...
     return (
-     
-      <div>
+      <>
         {/* LIFF初始化組件 - 暫時停用 */}
         <LiffInitializer />
         
@@ -80,7 +79,7 @@ export default async function BakeryPage() {
             />
           </Suspense>
         </div>
-      </div>
+      </>
     );
   }
 }

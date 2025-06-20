@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLiff } from '@/lib/LiffProvider';
+import Script from 'next/script';
+
+// 定義LIFF ID常量
+const LIFF_ID = '2006231077-GmRwevra';
 
 interface OrderItem {
   id: string;
@@ -31,6 +35,33 @@ function LinePayCallbackContent() {
   const [shippingMethod, setShippingMethod] = useState('takkyubin_payment');
   const [shippingFee, setShippingFee] = useState(0);
   const [pickupDateTime, setPickupDateTime] = useState('');
+  const [isLiffInitialized, setIsLiffInitialized] = useState(false);
+
+  // 初始化LIFF
+  useEffect(() => {
+    // 檢查是否已有liff對象
+    if (typeof window !== 'undefined' && window.liff) {
+      try {
+        if (!window.liff.isReady) {
+          console.log('初始化LIFF:', LIFF_ID);
+          window.liff.init({
+            liffId: LIFF_ID,
+            withLoginOnExternalBrowser: true,
+          }).then(() => {
+            console.log('LIFF初始化成功');
+            setIsLiffInitialized(true);
+          }).catch((err: Error) => {
+            console.error('LIFF初始化失敗:', err);
+          });
+        } else {
+          console.log('LIFF已經初始化');
+          setIsLiffInitialized(true);
+        }
+      } catch (error) {
+        console.error('LIFF初始化過程中出錯:', error);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const handleLinePayCallback = async () => {
@@ -131,15 +162,13 @@ function LinePayCallbackContent() {
           // 清空購物車
           localStorage.removeItem('bakeryCart');
 
-          // 延遲 1 秒後重定向到確認頁面
-          setTimeout(() => {
-            const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
-            const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
-            const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
-            
-            console.log('即將導向到確認頁面:', confirmationUrl);
-            router.push(confirmationUrl);
-          }, 1000);
+          // 直接導向到確認頁面
+          const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
+          const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
+          const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
+          
+          console.log('即將導向到確認頁面:', confirmationUrl);
+          router.push(confirmationUrl);
         } else {
           // 支付失敗
           setStatus('failed');
@@ -229,8 +258,24 @@ function LoadingFallback() {
 
 export default function LinePayCallback() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
-      <LinePayCallbackContent />
-    </Suspense>
+    <>
+      <Script 
+        src="https://static.line-scdn.net/liff/edge/2/sdk.js" 
+        strategy="beforeInteractive"
+        onLoad={() => {
+          console.log('LIFF SDK 已載入');
+        }}
+      />
+      <Suspense fallback={<LoadingFallback />}>
+        <LinePayCallbackContent />
+      </Suspense>
+    </>
   );
+}
+
+// 擴展Window介面以支持LIFF
+declare global {
+  interface Window {
+    liff: any;
+  }
 } 

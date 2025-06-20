@@ -131,8 +131,25 @@ function OrderConfirmationContent() {
         // liff.state 通常格式為 '?param1=value1&param2=value2'
         const stateParams = new URLSearchParams(decoded.startsWith('?') ? decoded.substring(1) : decoded);
         
+        // 添加原始參數調試信息
+        debug += `原始liff.state參數: ${liffState}\n`;
+        debug += `是否包含orderNumber參數: ${stateParams.has('orderNumber')}\n`;
+        debug += `是否包含orderno參數: ${stateParams.has('orderno')}\n`;
+        debug += `是否包含orderNo參數: ${stateParams.has('orderNo')}\n`;
+        
+        // 直接從URL中提取orderNumber
+        if (decoded.includes('orderNumber=')) {
+          const orderNumberMatch = decoded.match(/orderNumber=([^&]+)/);
+          if (orderNumberMatch && orderNumberMatch[1]) {
+            actualOrderNumber = decodeURIComponent(orderNumberMatch[1]);
+            debug += `直接從URL提取訂單號: ${actualOrderNumber}\n`;
+          }
+        }
+        
         actualOrderId = stateParams.get('orderId');
-        actualOrderNumber = stateParams.get('orderno') || stateParams.get('orderNo') || stateParams.get('orderNumber');
+        if (!actualOrderNumber) {
+          actualOrderNumber = stateParams.get('orderno') || stateParams.get('orderNo') || stateParams.get('orderNumber');
+        }
         actualTotalAmount = stateParams.get('totalAmount');
         actualEncodedItems = stateParams.get('items');
         actualShippingFee = stateParams.get('shippingFee');

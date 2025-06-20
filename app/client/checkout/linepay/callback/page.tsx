@@ -162,14 +162,18 @@ function LinePayCallbackContent() {
           // 清空購物車
           localStorage.removeItem('bakeryCart');
 
-          // 延遲 1 秒後重定向到確認頁面
+          // 延遲 1 秒後重定向到 LIFF 確認頁面
           setTimeout(() => {
             const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
             const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
-            const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
             
-            console.log('即將導向到確認頁面:', confirmationUrl);
-            router.push(confirmationUrl);
+            // 構建 LIFF URL 和查詢參數
+            const queryParams = `?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
+            const liffUrl = `https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`;
+            
+            console.log('即將導向到 LIFF 確認頁面:', liffUrl);
+            // 使用 window.location.href 來進行外部重定向
+            window.location.href = liffUrl;
           }, 1000);
         } else {
           // 支付失敗
@@ -232,11 +236,7 @@ function LinePayCallbackContent() {
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-800">付款失敗</h1>
             <p className="text-gray-600 mt-2">{message}</p>
-            <div className="mt-6">
-              <Link href="/client/checkout" className="mt-4 px-6 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 inline-block">
-                返回結帳
-              </Link>
-            </div>
+            
           </div>
         )}
       </div>

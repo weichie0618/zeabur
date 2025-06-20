@@ -48,16 +48,41 @@ function LinePayCallbackContent() {
         }
 
         // 從 URL 參數獲取交易資訊
-        const orderId = searchParams.get('orderId');
-        const orderNo = searchParams.get('orderno');
-        const transactionId = searchParams.get('transactionId');
-        const totalAmount = searchParams.get('totalAmount');
+        // 檢查是否包含 liff.state 參數
+        let orderId = null;
+        let orderNo = null;
+        let transactionId = null;
+        let totalAmount = null;
+        
+        const liffState = searchParams.get('liff.state');
+        
+        if (liffState) {
+          // 解碼 liff.state 參數
+          const decoded = decodeURIComponent(liffState);
+          console.log('解碼後的 liff.state:', decoded);
+          
+          // 從解碼的字符串中提取參數
+          // liff.state 通常格式為 '?param1=value1&param2=value2'
+          const stateParams = new URLSearchParams(decoded.startsWith('?') ? decoded.substring(1) : decoded);
+          
+          orderId = stateParams.get('orderId');
+          orderNo = stateParams.get('orderno') || stateParams.get('orderNo');
+          transactionId = stateParams.get('transactionId');
+          totalAmount = stateParams.get('totalAmount');
+        } else {
+          // 如果沒有 liff.state，則直接從 URL 獲取
+          orderId = searchParams.get('orderId');
+          orderNo = searchParams.get('orderno');
+          transactionId = searchParams.get('transactionId');
+          totalAmount = searchParams.get('totalAmount');
+        }
 
         console.log('LINE Pay回調參數:', {
           orderId,
           orderNo,
           transactionId,
           totalAmount,
+          liffState,
           allParams: Object.fromEntries(searchParams.entries())
         });
 

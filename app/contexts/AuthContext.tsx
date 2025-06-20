@@ -23,6 +23,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<{success: boolean; message?: string; userData?: User}>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  clearAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -203,6 +204,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // 清除身份驗證狀態函數
+  const clearAuth = () => {
+    // 清除本地存儲數據
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    
+    // 清除cookie中的令牌
+    document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    
+    // 清除用戶狀態
+    setUser(null);
+    
+    if (isDev) {
+      console.log('已清除所有身份驗證狀態 (clearAuth)');
+    }
+  };
+
   // 提供給上下文的值
   const contextValue: AuthContextType = {
     user,
@@ -210,7 +229,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: !!user,
     login,
     logout,
-    refreshUser
+    refreshUser,
+    clearAuth
   };
 
   return (

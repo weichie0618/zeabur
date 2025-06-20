@@ -38,7 +38,7 @@ function SearchParamsHandler({ onParamsProcessed }: {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, clearAuth } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -47,21 +47,29 @@ export default function LoginPage() {
   const [loginAttempted, setLoginAttempted] = useState(false);
   const [redirectPath, setRedirectPath] = useState(''); // 存儲重定向路徑
   const isDev = process.env.NODE_ENV === 'development';
+  const [isExpired, setIsExpired] = useState(false);
 
   // 處理搜尋參數回調
   const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null, reason: string | null) => {
     if (expired) {
+      setIsExpired(true);
       setError('您的登入已過期，請重新登入');
       addDebugInfo('檢測到登入過期參數，顯示過期提示');
+      // 清除舊的身份驗證狀態
+      clearAuth();
     }
     
     if (reason) {
       switch(reason) {
         case 'expired':
           setError('您的登入已過期');
+          clearAuth();
+          setIsExpired(true);
           break;
         case 'invalid':
           setError('身份驗證無效');
+          clearAuth();
+          setIsExpired(true);
           break;
         case 'not-allowed':
           setError('您沒有足夠的權限訪問該頁面');
@@ -71,6 +79,8 @@ export default function LoginPage() {
           break;
         case 'auth-error':
           setError('身份驗證發生錯誤');
+          clearAuth();
+          setIsExpired(true);
           break;
         default:
           setError('請先登入');
@@ -82,10 +92,27 @@ export default function LoginPage() {
       setRedirectPath(redirect);
       addDebugInfo(`儲存重定向路徑: ${redirect}`);
     }
-  }, []);
+  }, [clearAuth]);
+
+  // 當頁面初次加載時，如果檢測到有 token 但沒有明確的參數，也標記為已過期
+  useEffect(() => {
+    // 只在頁面首次加載時檢查一次
+    const hasToken = localStorage.getItem('accessToken') !== null;
+    if (hasToken && !isExpired) {
+      addDebugInfo('頁面初始化時檢測到有 token，標記為已過期以避免循環');
+      setIsExpired(true);
+      clearAuth();
+    }
+  }, [clearAuth, isExpired]);
 
   // 監聽認證狀態變更，根據角色進行導航
   useEffect(() => {
+    // 如果檢測到令牌過期，不要觸發導航邏輯
+    if (isExpired) {
+      addDebugInfo('令牌已過期，跳過導航邏輯');
+      return;
+    }
+    
     // 僅在開發環境執行 cookie 檢查
     if (isDev) {
       const cookies = document.cookie.split(';').reduce((acc, cookie) => {
@@ -105,11 +132,11 @@ export default function LoginPage() {
       }
     }
     
-    // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況
-    if (isAuthenticated && user && !loginAttempted) {
+    // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況，且不是令牌過期的情況
+    if (isAuthenticated && user && !loginAttempted && !isExpired) {
       navigateBasedOnRole(user);
     }
-  }, [isAuthenticated, user, router, isDev, loginAttempted]);
+  }, [isAuthenticated, user, router, isDev, loginAttempted, isExpired, clearAuth]);
 
   // 統一處理基於角色的導航邏輯
   const navigateBasedOnRole = useCallback((userData: any) => {

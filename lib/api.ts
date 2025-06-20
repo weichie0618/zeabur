@@ -9,7 +9,7 @@ export async function getProducts() {
     
     // 添加時間戳和force_reload參數防止任何層級的緩存
     const timestamp = Date.now();
-    const res = await fetch(`${baseUrl}/api/products?limit=20&status=active&_t=${timestamp}&force_reload=true`, { 
+    const res = await fetch(`${baseUrl}/api/products?limit=10000&status=active&_t=${timestamp}&force_reload=true`, { 
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',

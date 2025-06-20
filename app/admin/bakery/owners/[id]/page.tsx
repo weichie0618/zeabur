@@ -19,7 +19,8 @@ interface Owner {
 }
 
 export default function OwnerDetails() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   
   const [owner, setOwner] = useState<Owner | null>(null);

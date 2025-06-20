@@ -31,8 +31,8 @@ interface Order {
 function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderNumber = searchParams.get('orderNumber');
-  const orderId = searchParams.get('orderId');
+  const orderNumber = searchParams?.get('orderNumber');
+  const orderId = searchParams?.get('orderId');
   const { liff, isLoggedIn, isLoading: liffLoading, profile } = useLiff();
   const [messageSent, setMessageSent] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -48,11 +48,11 @@ function OrderConfirmationContent() {
   const [error, setError] = useState<string | null>(null);
   const isDevEnvironment = process.env.NODE_ENV === 'development';
   // 從URL獲取配送方式
-  const shippingMethod = searchParams.get('shippingMethod') || 'takkyubin_payment';
+  const shippingMethod = searchParams?.get('shippingMethod') || 'takkyubin_payment';
   // 獲取支付方式
-  const paymentMethod = searchParams.get('paymentMethod') || 'bank_transfer';
+  const paymentMethod = searchParams?.get('paymentMethod') || 'bank_transfer';
   // 獲取自取日期時間
-  const pickupDateTime = searchParams.get('pickupDateTime') || '';
+  const pickupDateTime = searchParams?.get('pickupDateTime') || '';
   
   // 格式化日期時間顯示
   const formatPickupDateTime = (dateTimeStr: string) => {
@@ -86,9 +86,9 @@ function OrderConfirmationContent() {
       setLoading(true);
       let debug = debugInfo + '從URL參數獲取訂單詳細信息...\n';
       
-      const totalAmount = searchParams.get('totalAmount');
-      const encodedItems = searchParams.get('items');
-      const shippingFee = searchParams.get('shippingFee');
+      const totalAmount = searchParams?.get('totalAmount');
+      const encodedItems = searchParams?.get('items');
+      const shippingFee = searchParams?.get('shippingFee');
       
       if (!orderId || !orderNumber || !totalAmount || !encodedItems) {
         debug += '訂單參數不完整，無法獲取訂單詳細信息\n';

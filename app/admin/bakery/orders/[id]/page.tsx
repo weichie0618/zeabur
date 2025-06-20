@@ -39,7 +39,7 @@ import OrderItemsTable from '../components/OrderItemsTable';
 export default function OrderDetail() {
   const params = useParams();
   const router = useRouter();
-  const orderNumber = params.id as string;
+  const orderNumber = params?.id as string;
   
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);

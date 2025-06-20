@@ -58,7 +58,7 @@ export default function LiffClient({ staticData }: LiffClientProps) {
         const displayName = profile.displayName;
 
         // 獲取 URL 參數中的服務代碼
-        const services = searchParams.get('services') || '';
+        const services = searchParams?.get('services') || '';
         
         console.log('用戶 LINE ID:', lineId);
         console.log('服務代碼:', services);

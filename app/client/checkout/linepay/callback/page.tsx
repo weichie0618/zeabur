@@ -38,7 +38,7 @@ function LinePayCallbackContent() {
         setLoading(true);
 
         // 檢查是否為取消付款
-        const cancelled = searchParams.get('cancelled');
+        const cancelled = searchParams?.get('cancelled');
         if (cancelled === 'true') {
           setStatus('failed');
           setMessage('您已取消付款');
@@ -54,7 +54,7 @@ function LinePayCallbackContent() {
         let transactionId = null;
         let totalAmount = null;
         
-        const liffState = searchParams.get('liff.state');
+        const liffState = searchParams?.get('liff.state');
         
         if (liffState) {
           // 解碼 liff.state 參數
@@ -71,10 +71,10 @@ function LinePayCallbackContent() {
           totalAmount = stateParams.get('totalAmount');
         } else {
           // 如果沒有 liff.state，則直接從 URL 獲取
-          orderId = searchParams.get('orderId');
-          orderNo = searchParams.get('orderno');
-          transactionId = searchParams.get('transactionId');
-          totalAmount = searchParams.get('totalAmount');
+          orderId = searchParams?.get('orderId');
+          orderNo = searchParams?.get('orderno');
+          transactionId = searchParams?.get('transactionId');
+          totalAmount = searchParams?.get('totalAmount');
         }
 
         console.log('LINE Pay回調參數:', {
@@ -83,7 +83,7 @@ function LinePayCallbackContent() {
           transactionId,
           totalAmount,
           liffState,
-          allParams: Object.fromEntries(searchParams.entries())
+          allParams: Object.fromEntries(searchParams?.entries() || [])
         });
 
         if (!orderId || !transactionId) {

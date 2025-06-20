@@ -161,7 +161,7 @@ function LinePayCallbackContent() {
 
           // 清空購物車
           localStorage.removeItem('bakeryCart');
-
+          
           // 延遲 1 秒後重定向到 LIFF 確認頁面
           setTimeout(() => {
             const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
@@ -170,7 +170,7 @@ function LinePayCallbackContent() {
             // 構建 LIFF URL 和查詢參數
             const queryParams = `?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
             const liffUrl = `https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`;
-            
+            alert(`https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`)
             console.log('即將導向到 LIFF 確認頁面:', liffUrl);
             // 使用 window.location.href 來進行外部重定向
             window.location.href = liffUrl;

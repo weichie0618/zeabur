@@ -86,11 +86,44 @@ function OrderConfirmationContent() {
       setLoading(true);
       let debug = debugInfo + '從URL參數獲取訂單詳細信息...\n';
       
-      const totalAmount = searchParams?.get('totalAmount');
-      const encodedItems = searchParams?.get('items');
-      const shippingFee = searchParams?.get('shippingFee');
+      // 檢查是否包含 liff.state 參數
+      let actualOrderId = null;
+      let actualOrderNumber = null;
+      let actualTotalAmount = null;
+      let actualEncodedItems = null;
+      let actualShippingFee = null;
       
-      if (!orderId || !orderNumber || !totalAmount || !encodedItems) {
+      const liffState = searchParams?.get('liff.state');
+      
+      if (liffState) {
+        // 解碼 liff.state 參數
+        const decoded = decodeURIComponent(liffState);
+        debug += `解碼後的 liff.state: ${decoded}\n`;
+        
+        // 從解碼的字符串中提取參數
+        // liff.state 通常格式為 '?param1=value1&param2=value2'
+        const stateParams = new URLSearchParams(decoded.startsWith('?') ? decoded.substring(1) : decoded);
+        
+        actualOrderId = stateParams.get('orderId');
+        actualOrderNumber = stateParams.get('orderno') || stateParams.get('orderNo') || stateParams.get('orderNumber');
+        actualTotalAmount = stateParams.get('totalAmount');
+        actualEncodedItems = stateParams.get('items');
+        actualShippingFee = stateParams.get('shippingFee');
+      } else {
+        // 如果沒有 liff.state，則直接從 URL 獲取
+        actualOrderId = orderId;
+        actualOrderNumber = orderNumber;
+        actualTotalAmount = searchParams?.get('totalAmount');
+        actualEncodedItems = searchParams?.get('items');
+        actualShippingFee = searchParams?.get('shippingFee');
+      }
+      
+      debug += `訂單ID: ${actualOrderId || '未提供'}\n`;
+      debug += `訂單編號: ${actualOrderNumber || '未提供'}\n`;
+      debug += `總金額: ${actualTotalAmount || '未提供'}\n`;
+      debug += `商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
+      
+      if (!actualOrderId || !actualOrderNumber || !actualTotalAmount || !actualEncodedItems) {
         debug += '訂單參數不完整，無法獲取訂單詳細信息\n';
         setDebugInfo(debug);
         setError('訂單參數不完整，請返回重試');
@@ -105,18 +138,18 @@ function OrderConfirmationContent() {
       
       try {
         // 解析訂單項目JSON
-        const decodedItems = JSON.parse(decodeURIComponent(encodedItems));
+        const decodedItems = JSON.parse(decodeURIComponent(actualEncodedItems));
         
         // 創建訂單對象
         const orderData: Order = {
-          id: orderId,
-          order_number: orderNumber,
-          total_amount: parseFloat(totalAmount),
+          id: actualOrderId,
+          order_number: actualOrderNumber,
+          total_amount: parseFloat(actualTotalAmount),
           items: decodedItems
         };
         
-        if (shippingFee) {
-          orderData.shipping_fee = parseFloat(shippingFee);
+        if (actualShippingFee) {
+          orderData.shipping_fee = parseFloat(actualShippingFee);
           debug += `運費: ${orderData.shipping_fee}\n`;
         }
         

@@ -13,26 +13,8 @@ function PaymentRedirectContent() {
     const paymentUrl = searchParams?.get('url') || '';
     
     if (paymentUrl) {
-      // 嘗試在新窗口中打開付款URL
-      const paymentWindow = window.open(paymentUrl, '_blank');
-      
-      // 如果成功打開新窗口，嘗試關閉當前窗口
-      setTimeout(() => {
-        try {
-          // 嘗試關閉當前窗口
-          if(paymentWindow){
-            window.close();
-          }
-          
-          // 如果窗口未關閉（通常是主窗口），顯示提示消息
-          setTimeout(() => {
-            document.getElementById('closeMessage')?.classList.remove('hidden');
-          }, 300);
-        } catch (error) {
-          console.error('關閉窗口失敗', error);
-          document.getElementById('closeMessage')?.classList.remove('hidden');
-        }
-      }, 3000);
+      // 直接在當前視窗導向付款URL
+      window.location.href = paymentUrl;
     } else {
       // 如果沒有找到付款URL，導回結帳頁面
       router.push('/client/checkout');

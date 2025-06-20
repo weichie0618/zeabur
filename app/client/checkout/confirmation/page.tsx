@@ -47,6 +47,8 @@ function OrderConfirmationContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isDevEnvironment = process.env.NODE_ENV === 'development';
+  // 添加actualOrderNumber的state
+  const [actualOrderNumber, setActualOrderNumber] = useState<string | null>(null);
   // 從URL或sessionStorage獲取配送方式、支付方式和自取日期時間
   const [shippingMethod, setShippingMethod] = useState(searchParams?.get('shippingMethod') || 'takkyubin_payment');
   const [paymentMethod, setPaymentMethod] = useState(searchParams?.get('paymentMethod') || 'bank_transfer');
@@ -143,12 +145,37 @@ function OrderConfirmationContent() {
           if (orderNumberMatch && orderNumberMatch[1]) {
             actualOrderNumber = decodeURIComponent(orderNumberMatch[1]);
             debug += `直接從URL提取訂單號: ${actualOrderNumber}\n`;
+            setActualOrderNumber(actualOrderNumber);
+          }
+        }
+        
+        // 如果URL是雙重編碼，嘗試額外解碼
+        if (!actualOrderNumber && liffState.includes('%253D')) { // %253D 是 = 的雙重編碼
+          debug += `檢測到可能的雙重編碼，嘗試額外解碼...\n`;
+          try {
+            const doubleDecoded = decodeURIComponent(decoded);
+            debug += `雙重解碼結果: ${doubleDecoded}\n`;
+            
+            if (doubleDecoded.includes('orderNumber=')) {
+              const orderNumberMatch = doubleDecoded.match(/orderNumber=([^&]+)/);
+              if (orderNumberMatch && orderNumberMatch[1]) {
+                actualOrderNumber = decodeURIComponent(orderNumberMatch[1]);
+                debug += `從雙重解碼中提取訂單號: ${actualOrderNumber}\n`;
+                setActualOrderNumber(actualOrderNumber);
+              }
+            }
+          } catch (err: any) {
+            debug += `額外解碼失敗: ${err.message}\n`;
           }
         }
         
         actualOrderId = stateParams.get('orderId');
         if (!actualOrderNumber) {
           actualOrderNumber = stateParams.get('orderno') || stateParams.get('orderNo') || stateParams.get('orderNumber');
+          if (actualOrderNumber) {
+            debug += `從參數中獲取訂單號: ${actualOrderNumber}\n`;
+            setActualOrderNumber(actualOrderNumber);
+          }
         }
         actualTotalAmount = stateParams.get('totalAmount');
         actualEncodedItems = stateParams.get('items');
@@ -256,7 +283,7 @@ function OrderConfirmationContent() {
         // 創建訂單對象
         const orderData: Order = {
           id: actualOrderId,
-          order_number: actualOrderNumber,
+          order_number: actualOrderNumber || orderNumber || 'UNKNOWN',
           total_amount: parseFloat(actualTotalAmount),
           items: decodedItems
         };
@@ -1741,9 +1768,17 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 
             <div className="border-t border-b py-4 my-6">
               <div className="flex flex-col md:flex-row justify-between gap-4">
+                {/* 訂單編號 */}
                 <div>
                   <h2 className="font-semibold text-gray-700">訂單編號</h2>
-                  <p className="text-gray-900">{orderNumber || '未提供'}</p>
+                  <p className="text-gray-900">{actualOrderNumber || orderNumber || '未提供'}</p>
+                  {isDevEnvironment && (
+                    <p className="text-xs text-red-500">
+                      actualOrderNumber: {actualOrderNumber}<br/>
+                      orderNumber: {orderNumber}<br/>
+                      orderData?.order_number: {orderData?.order_number}
+                    </p>
+                  )}
                 </div>
                 {/* 配送方式 */}
                 <div>

@@ -2,28 +2,30 @@
 
 import { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 
 export default function LinePayRedirect() {
   const searchParams = useSearchParams()
   
   useEffect(() => {
-    // 收集所有URL參數
-    const params = new URLSearchParams()
-    searchParams?.forEach((value, key) => {
-      params.append(key, value)
-    })
-    
-    // 構建LIFF URL，保持所有參數
-    const liffUrl = `https://liff.line.me/2006231077-GmRwevra?${params.toString()}`
-    
-    console.log('重定向到LIFF URL:', liffUrl)
-    
-    // 使用延遲確保頁面已完全加載
-    setTimeout(() => {
-      // 執行重定向
-      window.location.href = liffUrl
-    }, 500)
+    // 確保只在瀏覽器環境中執行
+    if (typeof window !== 'undefined') {
+      // 收集所有URL參數
+      const params = new URLSearchParams()
+      searchParams?.forEach((value, key) => {
+        params.append(key, value)
+      })
+      
+      // 構建LIFF URL，保持所有參數
+      const liffUrl = `https://liff.line.me/2006231077-GmRwevra?${params.toString()}`
+      
+      console.log('重定向到LIFF URL:', liffUrl)
+      
+      // 使用延遲確保頁面已完全加載
+      setTimeout(() => {
+        // 執行重定向
+        window.location.href = liffUrl
+      }, 500)
+    }
   }, [searchParams])
   
   return (

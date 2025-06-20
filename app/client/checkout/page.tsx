@@ -754,7 +754,7 @@ export default function CheckoutPage() {
           if (liff && liff.isInClient()) {
             // 如果是在 LINE 應用內，使用 app URL
             // window.location.href = data.linepay.paymentUrl.app;
-            window.location.href = data.linepay.paymentUrl.web
+            window.location.href = data.linepay.paymentUrl.app
           } else {
             // 如果是在瀏覽器中，使用 web URL
             window.location.href = data.linepay.paymentUrl.web;

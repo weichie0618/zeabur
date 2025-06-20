@@ -753,10 +753,11 @@ export default function CheckoutPage() {
           console.log('data.linepay.paymentUrl', data.linepay.paymentUrl);
           localStorage.removeItem('bakeryCart');
           if (liff && liff.isInClient()) {
-            // 如果是在 LINE 應用內，使用 app URL
-            // window.location.href = data.linepay.paymentUrl.app;
-
-            window.location.href = data.linepay.paymentUrl.app
+            // 如果是在 LINE 應用內，使用 liff.openWindow() 方法
+            liff.openWindow({
+              url: data.linepay.paymentUrl.app,
+              external: true
+            });
           } else {
             // 如果是在瀏覽器中，使用 web URL
             window.location.href = data.linepay.paymentUrl.web;

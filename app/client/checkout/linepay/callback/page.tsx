@@ -53,6 +53,14 @@ function LinePayCallbackContent() {
         const transactionId = searchParams.get('transactionId');
         const totalAmount = searchParams.get('totalAmount');
 
+        console.log('LINE Pay回調參數:', {
+          orderId,
+          orderNo,
+          transactionId,
+          totalAmount,
+          allParams: Object.fromEntries(searchParams.entries())
+        });
+
         if (!orderId || !transactionId) {
           setStatus('failed');
           setMessage('缺少必要的參數，無法完成支付確認');
@@ -60,18 +68,31 @@ function LinePayCallbackContent() {
           return;
         }
 
+        // 構造API URL
+        const apiUrl = `/api/line-pay/confirm?orderId=${orderId}&transactionId=${transactionId}`;
+        console.log('嘗試調用API:', apiUrl);
+
         // 呼叫後端 API 確認交易
-        const response = await fetch(`/api/line-pay/confirm?orderId=${orderId}&transactionId=${transactionId}`, {
+        const response = await fetch(apiUrl, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           }
+        }).catch(error => {
+          console.error('API請求失敗:', error);
+          throw new Error(`API請求失敗: ${error.message}`);
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(error => {
+          console.error('解析API回應JSON失敗:', error);
+          throw new Error('解析API回應失敗');
+        });
+
+        console.log('API回應:', data);
 
         if (response.ok && data.status === 'success') {
           // 支付成功
+          console.log('LINE Pay支付確認成功');
           setStatus('success');
           setMessage(data.message || '支付成功');
           setOrderId(data.orderId);
@@ -89,7 +110,10 @@ function LinePayCallbackContent() {
           setTimeout(() => {
             const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
             const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
-            router.push(`/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`);
+            const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
+            
+            console.log('即將導向到確認頁面:', confirmationUrl);
+            router.push(confirmationUrl);
           }, 1000);
         } else {
           // 支付失敗
@@ -99,7 +123,19 @@ function LinePayCallbackContent() {
       } catch (error) {
         console.error('處理 LINE Pay 回調時出錯：', error);
         setStatus('failed');
-        setMessage('處理支付過程中發生錯誤，請聯繫客服');
+        
+        // 提供更詳細的錯誤訊息
+        const errorMessage = error instanceof Error ? error.message : '未知錯誤';
+        setMessage(`處理支付過程中發生錯誤：${errorMessage}，請聯繫客服`);
+        
+        // 檢查API端點是否存在
+        fetch('/api/line-pay/confirm', { method: 'HEAD' })
+          .then(response => {
+            console.log('API端點檢查結果:', response.status, response.statusText);
+          })
+          .catch(err => {
+            console.error('API端點檢查失敗:', err);
+          });
       } finally {
         setLoading(false);
       }

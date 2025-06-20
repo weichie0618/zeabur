@@ -758,7 +758,7 @@ export default function CheckoutPage() {
             // 使用liff.openWindow()但不設定external: true，避免顯示安全性警告
             liff.openWindow({
               url: window.location.origin + '/client/payment-redirect',
-              external: false
+              external: true
             });
           } else {
             // 如果是在瀏覽器中，使用 web URL

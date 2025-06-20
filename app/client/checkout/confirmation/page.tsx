@@ -155,9 +155,19 @@ function OrderConfirmationContent() {
         }
         
         debug += `使用 LIFF ID: ${liffId}\n`;
+
+        // 檢查是否來自 LINE Pay 回調
+        const isFromLinePay = paymentMethod === 'linepay';
         
+        if (isFromLinePay) {
+          debug += `檢測到來自 LINE Pay 回調，使用特殊初始化選項\n`;
+        }
+        
+        // 初始化 LIFF
         window.liff.init({
           liffId: liffId,
+          // 如果需要額外參數可以在這裡添加
+          withLoginOnExternalBrowser: true, // 允許在外部瀏覽器中登入
         })
         .then(() => {
           debug += '手動 LIFF 初始化成功!\n';
@@ -183,7 +193,7 @@ function OrderConfirmationContent() {
       
       setDebugInfo(debug);
     }
-  }, [isLiffScriptLoaded, liff]);
+  }, [isLiffScriptLoaded, liff, searchParams]);
 
   // 檢查是否在 LINE 應用程式內以及 LIFF 狀態
   useEffect(() => {
@@ -244,10 +254,19 @@ function OrderConfirmationContent() {
     const activeLiff = liff || manualLiff;
     const isActiveLoggedIn = isLoggedIn || (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn());
     
+    // 判斷是否是來自 LINE Pay 的回調
+    const isFromLinePay = paymentMethod === 'linepay';
+    let debug = debugInfo;
+
+    if (isFromLinePay) {
+      debug += '檢測到來自 LINE Pay 支付完成的回調\n';
+      setDebugInfo(debug);
+    }
+    
     // 如果在 LINE 瀏覽器中並且已登入，自動發送訊息
     if (activeLiff && isActiveLoggedIn && orderNumber && !messageSent && 
         activeLiff.isInClient && activeLiff.isInClient() && orderData) {
-      let debug = debugInfo + '準備自動發送訊息...\n';
+      debug = debug + '準備自動發送訊息...\n';
       setDebugInfo(debug);
       
       // 使用一次性計時器避免重複發送
@@ -258,7 +277,7 @@ function OrderConfirmationContent() {
       // 清理計時器
       return () => clearTimeout(timer);
     }
-  }, [liff, isLoggedIn, manualLiff, orderData]);
+  }, [liff, isLoggedIn, manualLiff, orderData, paymentMethod]);
 
   // 處理自動關閉倒數計時
   useEffect(() => {

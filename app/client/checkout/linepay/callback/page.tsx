@@ -188,7 +188,7 @@ function LinePayCallbackContent() {
                 console.error('關閉窗口失敗', error);
                 document.getElementById('closeMessage')?.classList.remove('hidden');
               }
-            }, 1000);
+            }, 3000);
           }, 1000);
         } else {
           // 支付失敗

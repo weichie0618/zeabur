@@ -47,12 +47,39 @@ function OrderConfirmationContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isDevEnvironment = process.env.NODE_ENV === 'development';
-  // 從URL獲取配送方式
-  const shippingMethod = searchParams?.get('shippingMethod') || 'takkyubin_payment';
-  // 獲取支付方式
-  const paymentMethod = searchParams?.get('paymentMethod') || 'bank_transfer';
-  // 獲取自取日期時間
-  const pickupDateTime = searchParams?.get('pickupDateTime') || '';
+  // 從URL或sessionStorage獲取配送方式、支付方式和自取日期時間
+  const [shippingMethod, setShippingMethod] = useState(searchParams?.get('shippingMethod') || 'takkyubin_payment');
+  const [paymentMethod, setPaymentMethod] = useState(searchParams?.get('paymentMethod') || 'bank_transfer');
+  const [pickupDateTime, setPickupDateTime] = useState(searchParams?.get('pickupDateTime') || '');
+  
+  // 檢查並從sessionStorage獲取支付方式、自取日期時間和配送方式
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedPaymentMethod = sessionStorage.getItem('bakery_paymentMethod');
+      const storedPickupDateTime = sessionStorage.getItem('bakery_pickupDateTime');
+      const storedShippingMethod = sessionStorage.getItem('bakery_shippingMethod');
+      
+      if (storedPaymentMethod) {
+        setPaymentMethod(storedPaymentMethod);
+        setDebugInfo(prev => prev + `從 sessionStorage 獲取支付方式: ${storedPaymentMethod}\n`);
+      }
+      
+      if (storedPickupDateTime) {
+        setPickupDateTime(storedPickupDateTime);
+        setDebugInfo(prev => prev + `從 sessionStorage 獲取自取日期時間: ${storedPickupDateTime}\n`);
+      }
+      
+      if (storedShippingMethod) {
+        setShippingMethod(storedShippingMethod);
+        setDebugInfo(prev => prev + `從 sessionStorage 獲取配送方式: ${storedShippingMethod}\n`);
+      }
+      
+      // 獲取後清除，避免影響後續使用
+      sessionStorage.removeItem('bakery_paymentMethod');
+      sessionStorage.removeItem('bakery_pickupDateTime');
+      sessionStorage.removeItem('bakery_shippingMethod');
+    }
+  }, []);
   
   // 格式化日期時間顯示
   const formatPickupDateTime = (dateTimeStr: string) => {
@@ -109,6 +136,38 @@ function OrderConfirmationContent() {
         actualTotalAmount = stateParams.get('totalAmount');
         actualEncodedItems = stateParams.get('items');
         actualShippingFee = stateParams.get('shippingFee');
+        
+        // 從 liff.state 中獲取支付方式、自取日期時間和配送方式
+        const actualPaymentMethod = stateParams.get('paymentMethod');
+        const actualPickupDateTime = stateParams.get('pickupDateTime');
+        const actualShippingMethod = stateParams.get('shippingMethod');
+        
+        debug += `從 liff.state 中獲取支付方式: ${actualPaymentMethod || '未提供'}\n`;
+        debug += `從 liff.state 中獲取自取日期時間: ${actualPickupDateTime || '未提供'}\n`;
+        debug += `從 liff.state 中獲取配送方式: ${actualShippingMethod || '未提供'}\n`;
+        
+        // 直接在組件中更新這些值
+        if (actualPaymentMethod) {
+          setPaymentMethod(actualPaymentMethod);
+          // 同時也保存到 sessionStorage 作為備份
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('bakery_paymentMethod', actualPaymentMethod);
+          }
+        }
+        
+        if (actualPickupDateTime) {
+          setPickupDateTime(actualPickupDateTime);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('bakery_pickupDateTime', actualPickupDateTime);
+          }
+        }
+        
+        if (actualShippingMethod) {
+          setShippingMethod(actualShippingMethod);
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('bakery_shippingMethod', actualShippingMethod);
+          }
+        }
       } else {
         // 如果沒有 liff.state，則直接從 URL 獲取
         actualOrderId = orderId;

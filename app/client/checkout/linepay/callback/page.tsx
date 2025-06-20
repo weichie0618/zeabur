@@ -170,10 +170,25 @@ function LinePayCallbackContent() {
             // 構建 LIFF URL 和查詢參數
             const queryParams = `?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
             const liffUrl = `https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`;
-            alert(`https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`)
             console.log('即將導向到 LIFF 確認頁面:', liffUrl);
-            // 使用 window.location.href 來進行外部重定向
+            
+            // 在新窗口打開LIFF URL
+           
             window.location.href = liffUrl;
+            // 嘗試關閉當前窗口
+            setTimeout(() => {
+              try {
+                window.close();
+                
+                // 如果窗口未關閉（通常是主窗口），顯示提示消息
+                setTimeout(() => {
+                  document.getElementById('closeMessage')?.classList.remove('hidden');
+                }, 300);
+              } catch (error) {
+                console.error('關閉窗口失敗', error);
+                document.getElementById('closeMessage')?.classList.remove('hidden');
+              }
+            }, 1000);
           }, 1000);
         } else {
           // 支付失敗

@@ -172,23 +172,24 @@ function LinePayCallbackContent() {
             const liffUrl = `https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`;
             console.log('即將導向到 LIFF 確認頁面:', liffUrl);
             
-            // 在新窗口打開LIFF URL
-           
-            window.location.href = liffUrl;
-            // 嘗試關閉當前窗口
-            setTimeout(() => {
-              try {
+            // 先在新視窗中打開LIFF確認頁面
+            const newWindow = window.open(liffUrl, '_blank');
+
+            // 確認新視窗已打開後再關閉當前視窗
+            if (newWindow) {
+              // 給一點時間讓新視窗加載
+              setTimeout(() => {
                 window.close();
                 
-                // 如果窗口未關閉（通常是主窗口），顯示提示消息
+                // 如果當前視窗未能關閉（例如是主視窗），顯示提示訊息
                 setTimeout(() => {
                   document.getElementById('closeMessage')?.classList.remove('hidden');
                 }, 300);
-              } catch (error) {
-                console.error('關閉窗口失敗', error);
-                document.getElementById('closeMessage')?.classList.remove('hidden');
-              }
-            }, 3000);
+              }, 1000);
+            } else {
+              // 如果無法打開新視窗（可能被阻擋），則直接跳轉
+              window.location.href = liffUrl;
+            }
           }, 1000);
         } else {
           // 支付失敗

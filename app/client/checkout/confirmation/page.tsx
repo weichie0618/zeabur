@@ -137,6 +137,29 @@ function OrderConfirmationContent() {
         actualEncodedItems = stateParams.get('items');
         actualShippingFee = stateParams.get('shippingFee');
         
+        // 檢查獲取到的參數
+        debug += `從 liff.state 中獲取訂單ID: ${actualOrderId || '未提供'}\n`;
+        debug += `從 liff.state 中獲取訂單號: ${actualOrderNumber || '未提供'}\n`;
+        debug += `從 liff.state 中獲取總金額: ${actualTotalAmount || '未提供'}\n`;
+        debug += `從 liff.state 中獲取商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
+        
+        // 部分 URL 可能被截斷，如果 liff.state 參數被截斷，嘗試從 URL 原始查詢中獲取缺失的部分
+        if (!actualOrderId || !actualOrderNumber || !actualTotalAmount || !actualEncodedItems) {
+          debug += '檢測到 liff.state 參數不完整，嘗試從原始查詢中獲取...\n';
+          
+          // 從 URL 直接獲取
+          actualOrderId = actualOrderId || orderId || searchParams?.get('orderId');
+          actualOrderNumber = actualOrderNumber || orderNumber || searchParams?.get('orderNumber');
+          actualTotalAmount = actualTotalAmount || searchParams?.get('totalAmount');
+          actualEncodedItems = actualEncodedItems || searchParams?.get('items');
+          actualShippingFee = actualShippingFee || searchParams?.get('shippingFee');
+          
+          debug += `從完整URL中獲取訂單ID: ${actualOrderId || '未提供'}\n`;
+          debug += `從完整URL中獲取訂單號: ${actualOrderNumber || '未提供'}\n`;
+          debug += `從完整URL中獲取總金額: ${actualTotalAmount || '未提供'}\n`;
+          debug += `從完整URL中獲取商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
+        }
+        
         // 從 liff.state 中獲取支付方式、自取日期時間和配送方式
         const actualPaymentMethod = stateParams.get('paymentMethod');
         const actualPickupDateTime = stateParams.get('pickupDateTime');
@@ -185,7 +208,7 @@ function OrderConfirmationContent() {
       if (!actualOrderId || !actualOrderNumber || !actualTotalAmount || !actualEncodedItems) {
         debug += '訂單參數不完整，無法獲取訂單詳細信息\n';
         setDebugInfo(debug);
-        setError('訂單參數不完整，請返回重試');
+        setError(`訂單參數不完整，請返回重試。缺少: ${!actualOrderId ? 'orderId, ' : ''}${!actualOrderNumber ? 'orderNumber, ' : ''}${!actualTotalAmount ? 'totalAmount, ' : ''}${!actualEncodedItems ? 'items' : ''}`);
         setLoading(false);
         return;
       }
@@ -197,7 +220,21 @@ function OrderConfirmationContent() {
       
       try {
         // 解析訂單項目JSON
-        const decodedItems = JSON.parse(decodeURIComponent(actualEncodedItems));
+        let decodedItems;
+        try {
+          decodedItems = JSON.parse(decodeURIComponent(actualEncodedItems));
+          debug += `成功解析商品項目: ${JSON.stringify(decodedItems).substring(0, 100)}...\n`;
+        } catch (jsonError: any) {
+          // 嘗試額外的URL解碼，防止雙重編碼問題
+          try {
+            debug += `初次解析失敗，嘗試額外解碼...\n`;
+            decodedItems = JSON.parse(decodeURIComponent(decodeURIComponent(actualEncodedItems)));
+            debug += `額外解碼成功，解析商品項目: ${JSON.stringify(decodedItems).substring(0, 100)}...\n`;
+          } catch (secondError: any) {
+            debug += `二次解析失敗: ${secondError.message}\n`;
+            throw new Error(`商品項目解析失敗: ${jsonError.message}`);
+          }
+        }
         
         // 創建訂單對象
         const orderData: Order = {
@@ -220,12 +257,13 @@ function OrderConfirmationContent() {
         setDebugInfo(debug);
       } catch (parseError: any) {
         debug += `解析訂單數據失敗: ${parseError.message}\n`;
+        debug += `原始項目字符串: ${actualEncodedItems}\n`;
         setDebugInfo(debug);
-        setError('訂單數據格式錯誤，請返回重試');
+        setError(`訂單數據格式錯誤: ${parseError.message}，請返回重試`);
       }
     } catch (error: any) {
       console.error('獲取訂單詳細信息失敗', error);
-      setError(error.message || '獲取訂單資料時發生錯誤');
+      setError(`獲取訂單資料時發生錯誤: ${error.message}`);
       setDebugInfo(prev => prev + `獲取訂單詳細信息失敗: ${error.message}\n`);
     } finally {
       setLoading(false);
@@ -255,7 +293,7 @@ function OrderConfirmationContent() {
           debug += `檢測到來自 LINE Pay 回調，使用特殊初始化選項\n`;
         }
         
-        // 初始化 LIFF
+        // 初始化 LIFF - 添加error處理
         window.liff.init({
           liffId: liffId,
           // 如果需要額外參數可以在這裡添加
@@ -278,6 +316,8 @@ function OrderConfirmationContent() {
         })
         .catch((error: any) => {
           debug += `手動 LIFF 初始化失敗: ${error}\n`;
+          debug += '嘗試非同步加載 LIFF 並創建訂單確認...\n';
+          // 即使LIFF初始化失敗，也嘗試繼續顯示訂單確認
         });
       } catch (error: any) {
         debug += `手動初始化出錯: ${error.message}\n`;
@@ -328,8 +368,19 @@ function OrderConfirmationContent() {
             debug += `登入錯誤: ${loginError}\n`;
           }
         }
+      } else if (typeof window !== 'undefined' && window.liff && !liffLoading) {
+        // 如果 LiffProvider 和手動初始化都失敗，但window.liff存在，則嘗試直接使用
+        debug += '嘗試使用全局 window.liff 物件...\n';
+        
+        try {
+          window.liff.getOS();  // 測試 LIFF 是否可用
+          setManualLiff(window.liff);
+          debug += '成功使用全局 LIFF 物件\n';
+        } catch (error) {
+          debug += `使用全局 LIFF 物件失敗: ${error}\n`;
+        }
       } else {
-        debug += '無可用的 LIFF 對象，等待載入...\n';
+        debug += '無可用的 LIFF 對象，等待載入或嘗試以一般網頁模式運行...\n';
       }
     } catch (error) {
       debug += `初始化檢查錯誤: ${error}\n`;
@@ -393,13 +444,39 @@ function OrderConfirmationContent() {
     const activeLiff = liff || manualLiff;
     
     if (!activeLiff) {
-      debug += 'LIFF 物件不存在\n';
+      debug += 'LIFF 物件不存在，嘗試直接使用全局 window.liff\n';
+      
+      // 如果 LIFF 不存在但全局 window.liff 存在，則嘗試使用它
+      if (typeof window !== 'undefined' && window.liff) {
+        try {
+          debug += '全局 window.liff 存在，嘗試使用它發送消息\n';
+          setManualLiff(window.liff);
+          // 繼續使用全局 window.liff
+        } catch (error) {
+          debug += `使用全局 window.liff 失敗: ${error}\n`;
+          setLiffError('LINE SDK 未正確載入，請重新整理頁面');
+          setDebugInfo(debug);
+          return;
+        }
+      } else {
+        debug += '無可用的 LIFF 物件\n';
+        setDebugInfo(debug);
+        setLiffError('LINE SDK 未正確載入，請重新整理頁面');
+        return;
+      }
+    }
+    
+    // 使用之前定義的 activeLiff 或更新後的 manualLiff
+    const currentLiff = activeLiff || (typeof window !== 'undefined' ? window.liff : null);
+    
+    if (!currentLiff) {
+      debug += '仍然無法獲取 LIFF 物件\n';
       setDebugInfo(debug);
-      setLiffError('LINE SDK 未正確載入，請重新整理頁面');
+      setLiffError('無法與LINE通訊，請重新整理頁面');
       return;
     }
     
-    const isActiveLoggedIn = isLoggedIn || (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn());
+    const isActiveLoggedIn = isLoggedIn || (currentLiff.isLoggedIn && currentLiff.isLoggedIn());
     if (!isActiveLoggedIn) {
       debug += '用戶未登入\n';
       setDebugInfo(debug);
@@ -414,7 +491,7 @@ function OrderConfirmationContent() {
       return;
     }
     
-    if (!activeLiff.sendMessages) {
+    if (!currentLiff.sendMessages) {
       debug += 'sendMessages 方法不存在\n';
       setDebugInfo(debug);
       setLiffError('LINE SDK 缺少發送訊息功能，請確保使用最新版本的 LIFF SDK');
@@ -1497,8 +1574,24 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
             debug += '訂單項目未找到或為空\n';
           }
           
-          await activeLiff.sendMessages(flexMessage);
-          debug += 'Flex Message 發送成功\n';
+          // 使用更安全的方式發送消息
+          try {
+            await activeLiff.sendMessages(flexMessage);
+            debug += 'Flex Message 發送成功\n';
+          } catch (messageError: any) {
+            debug += `發送Flex訊息失敗: ${messageError.message || messageError}\n`;
+            
+            // 嘗試發送簡單文字訊息作為備用
+            debug += '嘗試發送簡單文字訊息作為備用...\n';
+            
+            try {
+              await activeLiff.sendMessages([textMessage]);
+              debug += '簡單文字訊息發送成功\n';
+            } catch (backupError: any) {
+              debug += `備用訊息發送失敗: ${backupError.message || backupError}\n`;
+              throw new Error(`訊息發送失敗: ${messageError.message}, 備用訊息也失敗: ${backupError.message}`);
+            }
+          }
           
           setMessageSent(true);
           debug += '設置訊息發送成功狀態\n';
@@ -1513,7 +1606,9 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
         }
       } else {
         debug += '不在 LINE 應用中，無法發送訊息\n';
-        setLiffError('您目前不在 LINE 應用程式中，無法自動發送訊息');
+        // 即使不在LINE應用中，也顯示訂單成功
+        setMessageSent(true);
+        setLiffError('您目前不在 LINE 應用程式中，無法自動發送訊息，但訂單已成功建立');
       }
     } catch (error: any) {
       console.error('發送LINE訊息失敗', error);
@@ -2000,9 +2095,67 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 export default function OrderConfirmationPage() {
   return (
     <Suspense fallback={<div>載入中...</div>}>
-      <OrderConfirmationContent />
+      <ErrorBoundary>
+        <OrderConfirmationContent />
+      </ErrorBoundary>
     </Suspense>
   );
+}
+
+// 新增ErrorBoundary組件提供更好的錯誤恢復
+function ErrorBoundary({ children }: { children: React.ReactNode }) {
+  const [hasError, setHasError] = useState(false);
+  const [errorInfo, setErrorInfo] = useState<string>("");
+  
+  useEffect(() => {
+    // 全局錯誤處理
+    const handleError = (event: ErrorEvent) => {
+      console.error('捕獲到全局錯誤:', event.error);
+      setHasError(true);
+      setErrorInfo(event.error?.toString() || "未知錯誤");
+      event.preventDefault();
+    };
+    
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+  
+  if (hasError) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
+          <div className="text-center py-10">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">載入出錯</h1>
+            <p className="text-gray-600 mt-2">訂單確認頁面載入時發生錯誤</p>
+            <div className="mt-4">
+              <button
+                onClick={() => {
+                  setHasError(false);
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
+              >
+                重新整理
+              </button>
+              <Link href="/client/bakery" className="ml-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
+                返回商店
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  return <>{children}</>;
 }
 
 // 為 TypeScript 添加全局 window.liff 定義

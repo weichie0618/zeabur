@@ -8,7 +8,7 @@ import { useLiff } from '@/lib/LiffProvider';
 import Script from 'next/script';
 
 // 定義LIFF ID常量
-const LIFF_ID = '2006231077-jr3nxEPV';
+const LIFF_ID = '2006231077-GmRwevra';
 
 interface OrderItem {
   id: string;

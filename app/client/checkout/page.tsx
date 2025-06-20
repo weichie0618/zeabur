@@ -755,10 +755,16 @@ export default function CheckoutPage() {
           if (liff && liff.isInClient()) {
             
             // 使用liff.openWindow()但不設定external: true，避免顯示安全性警告
-            window.location.href='https://tttr.zeabur.app/client/payment-redirect?url=' + data.linepay.paymentUrl.app;
+            liff.openWindow({
+              url:'https://tttr.zeabur.app/client/payment-redirect?url=' + data.linepay.paymentUrl.app,
+              external: true
+            });
           } else {
             // 如果是在瀏覽器中，使用 web URL
-            window.location.href = 'https://tttr.zeabur.app/client/payment-redirect?url=' +data.linepay.paymentUrl.web;
+            liff.openWindow({
+              url:'https://tttr.zeabur.app/client/payment-redirect?url=' + data.linepay.paymentUrl.web,
+              external: true
+            });
           }
           return;
         } else {

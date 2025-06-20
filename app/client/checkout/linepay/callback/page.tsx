@@ -162,13 +162,15 @@ function LinePayCallbackContent() {
           // 清空購物車
           localStorage.removeItem('bakeryCart');
 
-          // 直接導向到確認頁面
-          const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
-          const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
-          const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
-          
-          console.log('即將導向到確認頁面:', confirmationUrl);
-          router.push(confirmationUrl);
+          // 延遲 1 秒後重定向到確認頁面
+          setTimeout(() => {
+            const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
+            const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
+            const confirmationUrl = `/client/checkout/confirmation?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
+            
+            console.log('即將導向到確認頁面:', confirmationUrl);
+            router.push(confirmationUrl);
+          }, 1000);
         } else {
           // 支付失敗
           setStatus('failed');

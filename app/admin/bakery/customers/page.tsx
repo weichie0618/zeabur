@@ -114,7 +114,7 @@ export default function CustomersManagement() {
   }, []);
   
   // 獲取客戶列表
-  const fetchCustomers = async (page = 1) => {
+  const fetchCustomers = async (page = 1, useCurrentFilters = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -129,6 +129,22 @@ export default function CustomersManagement() {
       const queryParams = new URLSearchParams();
       queryParams.append('page', page.toString());
       queryParams.append('limit', meta.limit.toString());
+      
+      // 添加篩選參數（如果需要）
+      if (useCurrentFilters) {
+        if (searchQuery.trim()) {
+          queryParams.append('search', searchQuery.trim());
+        }
+        if (selectedCompany) {
+          queryParams.append('company', selectedCompany);
+        }
+        if (sortBy) {
+          queryParams.append('sortBy', sortBy);
+        }
+        if (sortOrder) {
+          queryParams.append('sortOrder', sortOrder);
+        }
+      }
       
       // 添加時間戳參數，防止快取
       const timestamp = Date.now();
@@ -195,101 +211,20 @@ export default function CustomersManagement() {
 
   // 頁面變化處理
   const handlePageChange = (page: number) => {
-    if (page > 0 && page <= meta.totalPages) {
-      // 計算當前頁的索引範圍
-      const startIndex = (page - 1) * meta.limit;
-      const endIndex = Math.min(startIndex + meta.limit, customers.length);
-      
-      // 更新顯示的客戶列表
-      setMeta({
-        ...meta,
-        page: page
-      });
+    if (page > 0 && page <= meta.totalPages && accessToken) {
+      // 發送API請求獲取指定頁面的數據，如果有篩選條件則使用篩選
+      const hasFilters = Boolean(searchQuery.trim() || selectedCompany);
+      fetchCustomers(page, hasFilters);
     }
   };
 
+
+
   // 應用篩選
   const handleApplyFilters = () => {
-    // 在前端進行篩選
-    setLoading(true);
-    
-    try {
-      // 從所有客戶數據中進行篩選
-      let filteredCustomers = [...allCustomers];
-      
-      // 根據搜索關鍵字篩選
-      if (searchQuery.trim()) {
-        const query = searchQuery.trim().toLowerCase();
-        filteredCustomers = filteredCustomers.filter(customer => {
-          // 根據不同欄位進行搜索
-          return (
-            (customer.lineId && customer.lineId.toLowerCase().includes(query)) ||
-            (customer.displayName && customer.displayName.toLowerCase().includes(query)) ||
-            (customer.name && customer.name.toLowerCase().includes(query)) ||
-            (customer.email && customer.email.toLowerCase().includes(query)) ||
-            (customer.phone && customer.phone.includes(query)) ||
-            (customer.customerId && customer.customerId.includes(query))
-          );
-        });
-      }
-      
-      // 根據公司名稱篩選
-      if (selectedCompany) {
-        filteredCustomers = filteredCustomers.filter(customer => 
-          customer.customer?.companyName === selectedCompany
-        );
-      }
-      
-      // 排序
-      filteredCustomers.sort((a, b) => {
-        const fieldA = a[sortBy as keyof Customer];
-        const fieldB = b[sortBy as keyof Customer];
-        
-        // 處理複雜的嵌套欄位
-        if (sortBy === 'companyName') {
-          const companyA = a.customer?.companyName || '';
-          const companyB = b.customer?.companyName || '';
-          return sortOrder === 'ASC' 
-            ? companyA.localeCompare(companyB)
-            : companyB.localeCompare(companyA);
-        }
-        
-        // 處理一般欄位
-        if (fieldA === undefined || fieldB === undefined) return 0;
-        
-        if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-          return sortOrder === 'ASC' 
-            ? fieldA.localeCompare(fieldB)
-            : fieldB.localeCompare(fieldA);
-        }
-        
-        // 數字或日期比較
-        return sortOrder === 'ASC'
-          ? (fieldA as any) - (fieldB as any)
-          : (fieldB as any) - (fieldA as any);
-      });
-      
-      // 更新客戶列表和分頁信息
-      setCustomers(filteredCustomers);
-      
-      // 更新分頁信息
-      const totalFiltered = filteredCustomers.length;
-      const totalPages = Math.ceil(totalFiltered / meta.limit);
-      
-      setMeta({
-        ...meta,
-        total: totalFiltered,
-        totalPages: totalPages > 0 ? totalPages : 1,
-        page: 1 // 重置到第一頁
-      });
-      
-      console.log('前端篩選後的結果數量:', filteredCustomers.length);
-      
-    } catch (err) {
-      console.error('前端篩選錯誤:', err);
-      setError(err instanceof Error ? err.message : '篩選時發生錯誤');
-    } finally {
-      setLoading(false);
+    if (accessToken) {
+      // 使用後端篩選，重置到第一頁
+      fetchCustomers(1, true);
     }
   };
 
@@ -299,13 +234,11 @@ export default function CustomersManagement() {
     setSelectedCompany('');
     setSortBy('id');
     setSortOrder('ASC');
-    setCustomers(allCustomers); // 直接使用所有客戶數據
-    setMeta({
-      ...meta,
-      total: allCustomers.length,
-      totalPages: Math.ceil(allCustomers.length / meta.limit),
-      page: 1
-    });
+    
+    if (accessToken) {
+      // 重置篩選後重新獲取第一頁數據
+      fetchCustomers(1, false);
+    }
   };
 
   // 排序切換

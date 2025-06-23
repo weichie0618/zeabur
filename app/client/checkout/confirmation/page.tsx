@@ -31,8 +31,8 @@ interface Order {
 function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderNumber = searchParams?.get('orderNumber');
-  const orderId = searchParams?.get('orderId');
+  const orderNumber = searchParams.get('orderNumber');
+  const orderId = searchParams.get('orderId');
   const { liff, isLoggedIn, isLoading: liffLoading, profile } = useLiff();
   const [messageSent, setMessageSent] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
@@ -47,41 +47,12 @@ function OrderConfirmationContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isDevEnvironment = process.env.NODE_ENV === 'development';
-  // 添加actualOrderNumber的state
-  const [actualOrderNumber, setActualOrderNumber] = useState<string | null>(null);
-  // 從URL或sessionStorage獲取配送方式、支付方式和自取日期時間
-  const [shippingMethod, setShippingMethod] = useState(searchParams?.get('shippingMethod') || 'takkyubin_payment');
-  const [paymentMethod, setPaymentMethod] = useState(searchParams?.get('paymentMethod') || 'bank_transfer');
-  const [pickupDateTime, setPickupDateTime] = useState(searchParams?.get('pickupDateTime') || '');
-  
-  // 檢查並從sessionStorage獲取支付方式、自取日期時間和配送方式
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedPaymentMethod = sessionStorage.getItem('bakery_paymentMethod');
-      const storedPickupDateTime = sessionStorage.getItem('bakery_pickupDateTime');
-      const storedShippingMethod = sessionStorage.getItem('bakery_shippingMethod');
-      
-      if (storedPaymentMethod) {
-        setPaymentMethod(storedPaymentMethod);
-        setDebugInfo(prev => prev + `從 sessionStorage 獲取支付方式: ${storedPaymentMethod}\n`);
-      }
-      
-      if (storedPickupDateTime) {
-        setPickupDateTime(storedPickupDateTime);
-        setDebugInfo(prev => prev + `從 sessionStorage 獲取自取日期時間: ${storedPickupDateTime}\n`);
-      }
-      
-      if (storedShippingMethod) {
-        setShippingMethod(storedShippingMethod);
-        setDebugInfo(prev => prev + `從 sessionStorage 獲取配送方式: ${storedShippingMethod}\n`);
-      }
-      
-      // 獲取後清除，避免影響後續使用
-      sessionStorage.removeItem('bakery_paymentMethod');
-      sessionStorage.removeItem('bakery_pickupDateTime');
-      sessionStorage.removeItem('bakery_shippingMethod');
-    }
-  }, []);
+  // 從URL獲取配送方式
+  const shippingMethod = searchParams.get('shippingMethod') || 'takkyubin_payment';
+  // 獲取支付方式
+  const paymentMethod = searchParams.get('paymentMethod') || 'bank_transfer';
+  // 獲取自取日期時間
+  const pickupDateTime = searchParams.get('pickupDateTime') || '';
   
   // 格式化日期時間顯示
   const formatPickupDateTime = (dateTimeStr: string) => {
@@ -115,144 +86,14 @@ function OrderConfirmationContent() {
       setLoading(true);
       let debug = debugInfo + '從URL參數獲取訂單詳細信息...\n';
       
-      // 檢查是否包含 liff.state 參數
-      let actualOrderId = null;
-      let actualOrderNumber = null;
-      let actualTotalAmount = null;
-      let actualEncodedItems = null;
-      let actualShippingFee = null;
+      const totalAmount = searchParams.get('totalAmount');
+      const encodedItems = searchParams.get('items');
+      const shippingFee = searchParams.get('shippingFee');
       
-      const liffState = searchParams?.get('liff.state');
-      
-      if (liffState) {
-        // 解碼 liff.state 參數
-        const decoded = decodeURIComponent(liffState);
-        debug += `解碼後的 liff.state: ${decoded}\n`;
-        
-        // 從解碼的字符串中提取參數
-        // liff.state 通常格式為 '?param1=value1&param2=value2'
-        const stateParams = new URLSearchParams(decoded.startsWith('?') ? decoded.substring(1) : decoded);
-        
-        // 添加原始參數調試信息
-        debug += `原始liff.state參數: ${liffState}\n`;
-        debug += `是否包含orderNumber參數: ${stateParams.has('orderNumber')}\n`;
-        debug += `是否包含orderno參數: ${stateParams.has('orderno')}\n`;
-        debug += `是否包含orderNo參數: ${stateParams.has('orderNo')}\n`;
-        
-        // 直接從URL中提取orderNumber
-        if (decoded.includes('orderNumber=')) {
-          const orderNumberMatch = decoded.match(/orderNumber=([^&]+)/);
-          if (orderNumberMatch && orderNumberMatch[1]) {
-            actualOrderNumber = decodeURIComponent(orderNumberMatch[1]);
-            debug += `直接從URL提取訂單號: ${actualOrderNumber}\n`;
-            setActualOrderNumber(actualOrderNumber);
-          }
-        }
-        
-        // 如果URL是雙重編碼，嘗試額外解碼
-        if (!actualOrderNumber && liffState.includes('%253D')) { // %253D 是 = 的雙重編碼
-          debug += `檢測到可能的雙重編碼，嘗試額外解碼...\n`;
-          try {
-            const doubleDecoded = decodeURIComponent(decoded);
-            debug += `雙重解碼結果: ${doubleDecoded}\n`;
-            
-            if (doubleDecoded.includes('orderNumber=')) {
-              const orderNumberMatch = doubleDecoded.match(/orderNumber=([^&]+)/);
-              if (orderNumberMatch && orderNumberMatch[1]) {
-                actualOrderNumber = decodeURIComponent(orderNumberMatch[1]);
-                debug += `從雙重解碼中提取訂單號: ${actualOrderNumber}\n`;
-                setActualOrderNumber(actualOrderNumber);
-              }
-            }
-          } catch (err: any) {
-            debug += `額外解碼失敗: ${err.message}\n`;
-          }
-        }
-        
-        actualOrderId = stateParams.get('orderId');
-        if (!actualOrderNumber) {
-          actualOrderNumber = stateParams.get('orderno') || stateParams.get('orderNo') || stateParams.get('orderNumber');
-          if (actualOrderNumber) {
-            debug += `從參數中獲取訂單號: ${actualOrderNumber}\n`;
-            setActualOrderNumber(actualOrderNumber);
-          }
-        }
-        actualTotalAmount = stateParams.get('totalAmount');
-        actualEncodedItems = stateParams.get('items');
-        actualShippingFee = stateParams.get('shippingFee');
-        
-        // 檢查獲取到的參數
-        debug += `從 liff.state 中獲取訂單ID: ${actualOrderId || '未提供'}\n`;
-        debug += `從 liff.state 中獲取訂單號: ${actualOrderNumber || '未提供'}\n`;
-        debug += `從 liff.state 中獲取總金額: ${actualTotalAmount || '未提供'}\n`;
-        debug += `從 liff.state 中獲取商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
-        
-        // 部分 URL 可能被截斷，如果 liff.state 參數被截斷，嘗試從 URL 原始查詢中獲取缺失的部分
-        if (!actualOrderId || !actualOrderNumber || !actualTotalAmount || !actualEncodedItems) {
-          debug += '檢測到 liff.state 參數不完整，嘗試從原始查詢中獲取...\n';
-          
-          // 從 URL 直接獲取
-          actualOrderId = actualOrderId || orderId || searchParams?.get('orderId');
-          actualOrderNumber = actualOrderNumber || orderNumber || searchParams?.get('orderNumber');
-          actualTotalAmount = actualTotalAmount || searchParams?.get('totalAmount');
-          actualEncodedItems = actualEncodedItems || searchParams?.get('items');
-          actualShippingFee = actualShippingFee || searchParams?.get('shippingFee');
-          
-          debug += `從完整URL中獲取訂單ID: ${actualOrderId || '未提供'}\n`;
-          debug += `從完整URL中獲取訂單號: ${actualOrderNumber || '未提供'}\n`;
-          debug += `從完整URL中獲取總金額: ${actualTotalAmount || '未提供'}\n`;
-          debug += `從完整URL中獲取商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
-        }
-        
-        // 從 liff.state 中獲取支付方式、自取日期時間和配送方式
-        const actualPaymentMethod = stateParams.get('paymentMethod');
-        const actualPickupDateTime = stateParams.get('pickupDateTime');
-        const actualShippingMethod = stateParams.get('shippingMethod');
-        
-        debug += `從 liff.state 中獲取支付方式: ${actualPaymentMethod || '未提供'}\n`;
-        debug += `從 liff.state 中獲取自取日期時間: ${actualPickupDateTime || '未提供'}\n`;
-        debug += `從 liff.state 中獲取配送方式: ${actualShippingMethod || '未提供'}\n`;
-        
-        // 直接在組件中更新這些值
-        if (actualPaymentMethod) {
-          setPaymentMethod(actualPaymentMethod);
-          // 同時也保存到 sessionStorage 作為備份
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('bakery_paymentMethod', actualPaymentMethod);
-          }
-        }
-        
-        if (actualPickupDateTime) {
-          setPickupDateTime(actualPickupDateTime);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('bakery_pickupDateTime', actualPickupDateTime);
-          }
-        }
-        
-        if (actualShippingMethod) {
-          setShippingMethod(actualShippingMethod);
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('bakery_shippingMethod', actualShippingMethod);
-          }
-        }
-      } else {
-        // 如果沒有 liff.state，則直接從 URL 獲取
-        actualOrderId = orderId;
-        actualOrderNumber = orderNumber;
-        actualTotalAmount = searchParams?.get('totalAmount');
-        actualEncodedItems = searchParams?.get('items');
-        actualShippingFee = searchParams?.get('shippingFee');
-      }
-      
-      debug += `訂單ID: ${actualOrderId || '未提供'}\n`;
-      debug += `訂單編號: ${actualOrderNumber || '未提供'}\n`;
-      debug += `總金額: ${actualTotalAmount || '未提供'}\n`;
-      debug += `商品項目: ${actualEncodedItems ? '已提供' : '未提供'}\n`;
-      
-      if (!actualOrderId || !actualOrderNumber || !actualTotalAmount || !actualEncodedItems) {
+      if (!orderId || !orderNumber || !totalAmount || !encodedItems) {
         debug += '訂單參數不完整，無法獲取訂單詳細信息\n';
         setDebugInfo(debug);
-        setError(`訂單參數不完整，請返回重試。缺少: ${!actualOrderId ? 'orderId, ' : ''}${!actualOrderNumber ? 'orderNumber, ' : ''}${!actualTotalAmount ? 'totalAmount, ' : ''}${!actualEncodedItems ? 'items' : ''}`);
+        setError('訂單參數不完整，請返回重試');
         setLoading(false);
         return;
       }
@@ -264,32 +105,18 @@ function OrderConfirmationContent() {
       
       try {
         // 解析訂單項目JSON
-        let decodedItems;
-        try {
-          decodedItems = JSON.parse(decodeURIComponent(actualEncodedItems));
-          debug += `成功解析商品項目: ${JSON.stringify(decodedItems).substring(0, 100)}...\n`;
-        } catch (jsonError: any) {
-          // 嘗試額外的URL解碼，防止雙重編碼問題
-          try {
-            debug += `初次解析失敗，嘗試額外解碼...\n`;
-            decodedItems = JSON.parse(decodeURIComponent(decodeURIComponent(actualEncodedItems)));
-            debug += `額外解碼成功，解析商品項目: ${JSON.stringify(decodedItems).substring(0, 100)}...\n`;
-          } catch (secondError: any) {
-            debug += `二次解析失敗: ${secondError.message}\n`;
-            throw new Error(`商品項目解析失敗: ${jsonError.message}`);
-          }
-        }
+        const decodedItems = JSON.parse(decodeURIComponent(encodedItems));
         
         // 創建訂單對象
         const orderData: Order = {
-          id: actualOrderId,
-          order_number: actualOrderNumber || orderNumber || 'UNKNOWN',
-          total_amount: parseFloat(actualTotalAmount),
+          id: orderId,
+          order_number: orderNumber,
+          total_amount: parseFloat(totalAmount),
           items: decodedItems
         };
         
-        if (actualShippingFee) {
-          orderData.shipping_fee = parseFloat(actualShippingFee);
+        if (shippingFee) {
+          orderData.shipping_fee = parseFloat(shippingFee);
           debug += `運費: ${orderData.shipping_fee}\n`;
         }
         
@@ -301,13 +128,12 @@ function OrderConfirmationContent() {
         setDebugInfo(debug);
       } catch (parseError: any) {
         debug += `解析訂單數據失敗: ${parseError.message}\n`;
-        debug += `原始項目字符串: ${actualEncodedItems}\n`;
         setDebugInfo(debug);
-        setError(`訂單數據格式錯誤: ${parseError.message}，請返回重試`);
+        setError('訂單數據格式錯誤，請返回重試');
       }
     } catch (error: any) {
       console.error('獲取訂單詳細信息失敗', error);
-      setError(`獲取訂單資料時發生錯誤: ${error.message}`);
+      setError(error.message || '獲取訂單資料時發生錯誤');
       setDebugInfo(prev => prev + `獲取訂單詳細信息失敗: ${error.message}\n`);
     } finally {
       setLoading(false);
@@ -317,31 +143,34 @@ function OrderConfirmationContent() {
   // 手動初始化 LIFF SDK（如果 LiffProvider 失敗）
   useEffect(() => {
     // 只有當 LiffProvider 中的 LIFF 對象不存在，且腳本已載入時才進行手動初始化
-    if (!liff && isLiffScriptLoaded && window.liff) {
+    if (!liff && isLiffScriptLoaded && typeof window !== 'undefined' && window.liff) {
       let debug = debugInfo + '嘗試手動初始化 LIFF...\n';
       
       try {
         const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
         if (!liffId) {
           debug += '錯誤: LIFF ID 未設定\n';
+          debug += `檢查環境變數: NEXT_PUBLIC_LIFF_ID=${process.env.NEXT_PUBLIC_LIFF_ID}\n`;
+          debug += `檢查環境變數: NEXT_PUBLIC_LINE_LIFF_ID=${process.env.NEXT_PUBLIC_LINE_LIFF_ID}\n`;
           setDebugInfo(debug);
+          setLiffError('LIFF ID 未設定，請檢查環境變數');
           return;
         }
         
         debug += `使用 LIFF ID: ${liffId}\n`;
-
-        // 檢查是否來自 LINE Pay 回調
-        const isFromLinePay = paymentMethod === 'linepay';
         
-        if (isFromLinePay) {
-          debug += `檢測到來自 LINE Pay 回調，使用特殊初始化選項\n`;
+        // 檢查 LIFF 是否已經初始化
+        if (window.liff.isReady && window.liff.isReady()) {
+          debug += 'LIFF 已經初始化完成\n';
+          setManualLiff(window.liff);
+          setIsLineApp(window.liff.isInClient());
+          setDebugInfo(debug);
+          return;
         }
         
-        // 初始化 LIFF - 添加error處理
         window.liff.init({
           liffId: liffId,
-          // 如果需要額外參數可以在這裡添加
-          withLoginOnExternalBrowser: true, // 允許在外部瀏覽器中登入
+          withLoginOnExternalBrowser: true
         })
         .then(() => {
           debug += '手動 LIFF 初始化成功!\n';
@@ -357,19 +186,21 @@ function OrderConfirmationContent() {
             debug += '嘗試自動登入...\n';
             window.liff.login();
           }
+          
+          setDebugInfo(debug);
         })
         .catch((error: any) => {
           debug += `手動 LIFF 初始化失敗: ${error}\n`;
-          debug += '嘗試非同步加載 LIFF 並創建訂單確認...\n';
-          // 即使LIFF初始化失敗，也嘗試繼續顯示訂單確認
+          setDebugInfo(debug);
+          setLiffError(`LIFF 初始化失敗: ${error.message}`);
         });
       } catch (error: any) {
         debug += `手動初始化出錯: ${error.message}\n`;
+        setDebugInfo(debug);
+        setLiffError(`手動初始化出錯: ${error.message}`);
       }
-      
-      setDebugInfo(debug);
     }
-  }, [isLiffScriptLoaded, liff, searchParams]);
+  }, [isLiffScriptLoaded, liff, debugInfo]);
 
   // 檢查是否在 LINE 應用程式內以及 LIFF 狀態
   useEffect(() => {
@@ -383,13 +214,17 @@ function OrderConfirmationContent() {
       debug += `LIFF 腳本: ${isLiffScriptLoaded ? '已載入' : '未載入'}\n`;
       debug += `window.liff: ${typeof window !== 'undefined' && window.liff ? '存在' : '不存在'}\n`;
       
-      // 優先使用 LiffProvider 的 liff，如果不存在則使用手動初始化的 liff
-      const activeLiff = liff || manualLiff;
+      // 優先使用 LiffProvider 的 liff，如果不存在則使用手動初始化的 liff 或 window.liff
+      const activeLiff = liff || manualLiff || (typeof window !== 'undefined' ? window.liff : null);
       
       if (activeLiff) {
         debug += `LIFF 版本: ${activeLiff.getVersion ? activeLiff.getVersion() : '無法獲取'}\n`;
         debug += `是否在 LINE 應用中: ${activeLiff.isInClient ? (activeLiff.isInClient() ? '是' : '否') : '方法不存在'}\n`;
-        debug += `登入狀態: ${(isLoggedIn || (manualLiff && manualLiff.isLoggedIn())) ? '已登入' : '未登入'}\n`;
+        
+        const currentLoggedIn = isLoggedIn || 
+                              (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn()) ||
+                              (activeLiff.isLoggedIn && activeLiff.isLoggedIn());
+        debug += `登入狀態: ${currentLoggedIn ? '已登入' : '未登入'}\n`;
         
         // 檢查 LIFF 是否具有必要的方法
         debug += `sendMessages 方法: ${activeLiff.sendMessages ? '存在' : '不存在'}\n`;
@@ -403,7 +238,7 @@ function OrderConfirmationContent() {
         }
         
         // 檢查是否需要登入
-        if ((!isLoggedIn && !manualLiff?.isLoggedIn?.()) && activeLiff.isInClient && activeLiff.isInClient()) {
+        if (!currentLoggedIn && activeLiff.isInClient && activeLiff.isInClient()) {
           debug += '嘗試登入 LIFF...\n';
           try {
             activeLiff.login();
@@ -412,59 +247,136 @@ function OrderConfirmationContent() {
             debug += `登入錯誤: ${loginError}\n`;
           }
         }
-      } else if (typeof window !== 'undefined' && window.liff && !liffLoading) {
-        // 如果 LiffProvider 和手動初始化都失敗，但window.liff存在，則嘗試直接使用
-        debug += '嘗試使用全局 window.liff 物件...\n';
         
-        try {
-          window.liff.getOS();  // 測試 LIFF 是否可用
-          setManualLiff(window.liff);
-          debug += '成功使用全局 LIFF 物件\n';
-        } catch (error) {
-          debug += `使用全局 LIFF 物件失敗: ${error}\n`;
+        // 檢查是否可以嘗試自動發送（增加觸發自動發送的機會）
+        if (currentLoggedIn && orderData && orderNumber && !messageSent && !sendingMessage && 
+            activeLiff.isInClient && activeLiff.isInClient() && activeLiff.sendMessages) {
+          debug += '條件滿足，將觸發自動發送檢查...\n';
+          // 使用 setTimeout 確保狀態更新後觸發
+          setTimeout(() => {
+            const event = new CustomEvent('liffReady');
+            window.dispatchEvent(event);
+          }, 500);
         }
       } else {
-        debug += '無可用的 LIFF 對象，等待載入或嘗試以一般網頁模式運行...\n';
+        debug += '無可用的 LIFF 對象，等待載入...\n';
       }
     } catch (error) {
       debug += `初始化檢查錯誤: ${error}\n`;
     }
     
     setDebugInfo(debug);
-  }, [liff, liffLoading, isLoggedIn, manualLiff, isLiffScriptLoaded]);
+  }, [liff, liffLoading, isLoggedIn, manualLiff, isLiffScriptLoaded, orderData, orderNumber, messageSent, sendingMessage]);
 
   // 當頁面載入時嘗試發送 LINE 訊息
   useEffect(() => {
     // 防止重複發送
     if (messageSent || sendingMessage) return;
     
-    const activeLiff = liff || manualLiff;
-    const isActiveLoggedIn = isLoggedIn || (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn());
+    const activeLiff = liff || manualLiff || (typeof window !== 'undefined' ? window.liff : null);
+    const isActiveLoggedIn = isLoggedIn || 
+                            (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn()) ||
+                            (activeLiff && activeLiff.isLoggedIn && activeLiff.isLoggedIn());
     
-    // 判斷是否是來自 LINE Pay 的回調
-    const isFromLinePay = paymentMethod === 'linepay';
-    let debug = debugInfo;
-
-    if (isFromLinePay) {
-      debug += '檢測到來自 LINE Pay 支付完成的回調\n';
-      setDebugInfo(debug);
-    }
+    // 檢查所有必要條件
+    const shouldAutoSend = activeLiff && 
+                          isActiveLoggedIn && 
+                          orderNumber && 
+                          orderData && 
+                          !messageSent && 
+                          !sendingMessage &&
+                          activeLiff.isInClient && 
+                          activeLiff.isInClient() &&
+                          activeLiff.sendMessages; // 確保 sendMessages 方法存在
     
-    // 如果在 LINE 瀏覽器中並且已登入，自動發送訊息
-    if (activeLiff && isActiveLoggedIn && orderNumber && !messageSent && 
-        activeLiff.isInClient && activeLiff.isInClient() && orderData) {
-      debug = debug + '準備自動發送訊息...\n';
+    let debug = debugInfo + '檢查自動發送條件...\n';
+    debug += `LIFF 物件存在: ${!!activeLiff}\n`;
+    debug += `用戶登入狀態: ${isActiveLoggedIn}\n`;
+    debug += `訂單編號: ${orderNumber}\n`;
+    debug += `訂單數據: ${!!orderData}\n`;
+    debug += `未發送訊息: ${!messageSent}\n`;
+    debug += `非發送中: ${!sendingMessage}\n`;
+    debug += `在 LINE 中: ${activeLiff && activeLiff.isInClient ? activeLiff.isInClient() : false}\n`;
+    debug += `sendMessages 方法: ${activeLiff && activeLiff.sendMessages ? '存在' : '不存在'}\n`;
+    debug += `應該自動發送: ${shouldAutoSend}\n`;
+    
+    setDebugInfo(debug);
+    
+    if (shouldAutoSend) {
+      debug += '準備自動發送訊息...\n';
       setDebugInfo(debug);
       
       // 使用一次性計時器避免重複發送
       const timer = setTimeout(() => {
         sendLineMessage();
-      }, 1000); // 稍微延遲以確保 LIFF 完全初始化
+      }, 2000); // 增加延遲時間確保 LIFF 完全初始化
       
       // 清理計時器
       return () => clearTimeout(timer);
     }
-  }, [liff, isLoggedIn, manualLiff, orderData, paymentMethod]);
+  }, [liff, isLoggedIn, manualLiff, orderData, messageSent, sendingMessage, orderNumber]);
+
+  // 監聽 LIFF 準備就緒事件
+  useEffect(() => {
+    const handleLiffReady = () => {
+      if (!messageSent && !sendingMessage) {
+        console.log('收到 LIFF 準備就緒事件，嘗試自動發送訊息');
+        setTimeout(() => {
+          sendLineMessage();
+        }, 1000);
+      }
+    };
+
+    window.addEventListener('liffReady', handleLiffReady);
+    
+    return () => {
+      window.removeEventListener('liffReady', handleLiffReady);
+    };
+  }, [messageSent, sendingMessage]);
+
+  // 定期檢查是否可以自動發送（作為備案機制）
+  useEffect(() => {
+    if (messageSent || sendingMessage) return;
+
+    const checkAndSend = () => {
+      const activeLiff = liff || manualLiff || (typeof window !== 'undefined' ? window.liff : null);
+      const isActiveLoggedIn = isLoggedIn || 
+                              (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn()) ||
+                              (activeLiff && activeLiff.isLoggedIn && activeLiff.isLoggedIn());
+
+      if (activeLiff && 
+          isActiveLoggedIn && 
+          orderNumber && 
+          orderData && 
+          !messageSent && 
+          !sendingMessage &&
+          activeLiff.isInClient && 
+          activeLiff.isInClient() &&
+          activeLiff.sendMessages) {
+        
+        console.log('輪詢檢查: 條件滿足，自動發送訊息');
+        sendLineMessage();
+        return true; // 條件滿足，停止檢查
+      }
+      return false; // 條件不滿足，繼續檢查
+    };
+
+    // 立即檢查一次
+    if (checkAndSend()) return;
+
+    // 設置定期檢查（每2秒檢查一次，最多檢查10次）
+    let checkCount = 0;
+    const maxChecks = 10;
+    
+    const intervalId = setInterval(() => {
+      checkCount++;
+      if (checkAndSend() || checkCount >= maxChecks) {
+        clearInterval(intervalId);
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [liff, isLoggedIn, manualLiff, orderData, orderNumber, messageSent, sendingMessage]);
 
   // 處理自動關閉倒數計時
   useEffect(() => {
@@ -485,42 +397,26 @@ function OrderConfirmationContent() {
   // 發送 LINE 訊息函數
   const sendLineMessage = async () => {
     let debug = debugInfo;
-    const activeLiff = liff || manualLiff;
+    const activeLiff = liff || manualLiff || (typeof window !== 'undefined' ? window.liff : null);
     
     if (!activeLiff) {
-      debug += 'LIFF 物件不存在，嘗試直接使用全局 window.liff\n';
-      
-      // 如果 LIFF 不存在但全局 window.liff 存在，則嘗試使用它
-      if (typeof window !== 'undefined' && window.liff) {
-        try {
-          debug += '全局 window.liff 存在，嘗試使用它發送消息\n';
-          setManualLiff(window.liff);
-          // 繼續使用全局 window.liff
-        } catch (error) {
-          debug += `使用全局 window.liff 失敗: ${error}\n`;
-          setLiffError('LINE SDK 未正確載入，請重新整理頁面');
-          setDebugInfo(debug);
-          return;
-        }
-      } else {
-        debug += '無可用的 LIFF 物件\n';
-        setDebugInfo(debug);
-        setLiffError('LINE SDK 未正確載入，請重新整理頁面');
-        return;
-      }
-    }
-    
-    // 使用之前定義的 activeLiff 或更新後的 manualLiff
-    const currentLiff = activeLiff || (typeof window !== 'undefined' ? window.liff : null);
-    
-    if (!currentLiff) {
-      debug += '仍然無法獲取 LIFF 物件\n';
+      debug += 'LIFF 物件不存在\n';
       setDebugInfo(debug);
-      setLiffError('無法與LINE通訊，請重新整理頁面');
+      setLiffError('LINE SDK 未正確載入，請重新整理頁面');
       return;
     }
     
-    const isActiveLoggedIn = isLoggedIn || (currentLiff.isLoggedIn && currentLiff.isLoggedIn());
+    // 檢查 LIFF 是否已經初始化
+    if (activeLiff.isReady && !activeLiff.isReady()) {
+      debug += 'LIFF 尚未完成初始化\n';
+      setDebugInfo(debug);
+      setLiffError('LINE SDK 尚未完成初始化，請稍候重試');
+      return;
+    }
+    
+    const isActiveLoggedIn = isLoggedIn || 
+                            (manualLiff && manualLiff.isLoggedIn && manualLiff.isLoggedIn()) ||
+                            (activeLiff.isLoggedIn && activeLiff.isLoggedIn());
     if (!isActiveLoggedIn) {
       debug += '用戶未登入\n';
       setDebugInfo(debug);
@@ -535,7 +431,7 @@ function OrderConfirmationContent() {
       return;
     }
     
-    if (!currentLiff.sendMessages) {
+    if (!activeLiff.sendMessages) {
       debug += 'sendMessages 方法不存在\n';
       setDebugInfo(debug);
       setLiffError('LINE SDK 缺少發送訊息功能，請確保使用最新版本的 LIFF SDK');
@@ -1618,24 +1514,8 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
             debug += '訂單項目未找到或為空\n';
           }
           
-          // 使用更安全的方式發送消息
-          try {
-            await activeLiff.sendMessages(flexMessage);
-            debug += 'Flex Message 發送成功\n';
-          } catch (messageError: any) {
-            debug += `發送Flex訊息失敗: ${messageError.message || messageError}\n`;
-            
-            // 嘗試發送簡單文字訊息作為備用
-            debug += '嘗試發送簡單文字訊息作為備用...\n';
-            
-            try {
-              await activeLiff.sendMessages([textMessage]);
-              debug += '簡單文字訊息發送成功\n';
-            } catch (backupError: any) {
-              debug += `備用訊息發送失敗: ${backupError.message || backupError}\n`;
-              throw new Error(`訊息發送失敗: ${messageError.message}, 備用訊息也失敗: ${backupError.message}`);
-            }
-          }
+          await activeLiff.sendMessages(flexMessage);
+          debug += 'Flex Message 發送成功\n';
           
           setMessageSent(true);
           debug += '設置訊息發送成功狀態\n';
@@ -1650,9 +1530,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
         }
       } else {
         debug += '不在 LINE 應用中，無法發送訊息\n';
-        // 即使不在LINE應用中，也顯示訂單成功
-        setMessageSent(true);
-        setLiffError('您目前不在 LINE 應用程式中，無法自動發送訊息，但訂單已成功建立');
+        setLiffError('您目前不在 LINE 應用程式中，無法自動發送訊息');
       }
     } catch (error: any) {
       console.error('發送LINE訊息失敗', error);
@@ -1668,7 +1546,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
   // 處理關閉 LIFF 視窗（僅在 LINE App 內有效）
   const handleCloseLiff = () => {
     let debug = debugInfo + '執行關閉視窗...\n';
-    const activeLiff = liff || manualLiff;
+    const activeLiff = liff || manualLiff || (typeof window !== 'undefined' ? window.liff : null);
     
     try {
       if (activeLiff && activeLiff.isInClient && activeLiff.isInClient()) {
@@ -1702,7 +1580,17 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
   // 處理 LIFF 腳本載入完成事件
   const handleLiffScriptLoad = () => {
     setIsLiffScriptLoaded(true);
-    setDebugInfo(prev => prev + 'LIFF 腳本載入完成\n');
+    let debug = debugInfo + 'LIFF 腳本載入完成\n';
+    
+    // 檢查 window.liff 是否可用
+    if (typeof window !== 'undefined' && window.liff) {
+      debug += 'window.liff 對象可用\n';
+      debug += `LIFF 版本: ${window.liff.getVersion ? window.liff.getVersion() : '無法獲取'}\n`;
+    } else {
+      debug += 'window.liff 對象不可用\n';
+    }
+    
+    setDebugInfo(debug);
   };
 
   // 判斷是否顯示手動 LIFF 發送按鈕
@@ -1726,7 +1614,12 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
       {/* 加載 LIFF SDK */}
       <Script 
         src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+        strategy="beforeInteractive"
         onLoad={handleLiffScriptLoad}
+        onError={(e) => {
+          console.error('LIFF SDK 載入失敗', e);
+          setLiffError('LIFF SDK 載入失敗，請檢查網路連線');
+        }}
       />
       
       <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
@@ -1768,17 +1661,9 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 
             <div className="border-t border-b py-4 my-6">
               <div className="flex flex-col md:flex-row justify-between gap-4">
-                {/* 訂單編號 */}
                 <div>
                   <h2 className="font-semibold text-gray-700">訂單編號</h2>
-                  <p className="text-gray-900">{actualOrderNumber || orderNumber || '未提供'}</p>
-                  {isDevEnvironment && (
-                    <p className="text-xs text-red-500">
-                      actualOrderNumber: {actualOrderNumber}<br/>
-                      orderNumber: {orderNumber}<br/>
-                      orderData?.order_number: {orderData?.order_number}
-                    </p>
-                  )}
+                  <p className="text-gray-900">{orderNumber || '未提供'}</p>
                 </div>
                 {/* 配送方式 */}
                 <div>
@@ -2147,67 +2032,9 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
 export default function OrderConfirmationPage() {
   return (
     <Suspense fallback={<div>載入中...</div>}>
-      <ErrorBoundary>
-        <OrderConfirmationContent />
-      </ErrorBoundary>
+      <OrderConfirmationContent />
     </Suspense>
   );
-}
-
-// 新增ErrorBoundary組件提供更好的錯誤恢復
-function ErrorBoundary({ children }: { children: React.ReactNode }) {
-  const [hasError, setHasError] = useState(false);
-  const [errorInfo, setErrorInfo] = useState<string>("");
-  
-  useEffect(() => {
-    // 全局錯誤處理
-    const handleError = (event: ErrorEvent) => {
-      console.error('捕獲到全局錯誤:', event.error);
-      setHasError(true);
-      setErrorInfo(event.error?.toString() || "未知錯誤");
-      event.preventDefault();
-    };
-    
-    window.addEventListener('error', handleError);
-    
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-  
-  if (hasError) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-lg shadow-md p-6 md:p-8">
-          <div className="text-center py-10">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">載入出錯</h1>
-            <p className="text-gray-600 mt-2">訂單確認頁面載入時發生錯誤</p>
-            <div className="mt-4">
-              <button
-                onClick={() => {
-                  setHasError(false);
-                  window.location.reload();
-                }}
-                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
-              >
-                重新整理
-              </button>
-              <Link href="/client/bakery" className="ml-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors">
-                返回商店
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  return <>{children}</>;
 }
 
 // 為 TypeScript 添加全局 window.liff 定義

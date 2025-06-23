@@ -1,53 +1,11 @@
 /**
  * 訂單狀態處理相關函數
  */
-import { statusMap } from '../constants';
+import { statusMap, getStatusDisplay as authServiceGetStatusDisplay, getStatusClass as authServiceGetStatusClass } from '../../utils/authService';
 
-/**
- * 獲取訂單狀態的中文顯示
- * @param status 訂單狀態代碼
- * @returns 狀態的中文顯示文字
- */
-export const getStatusDisplay = (status: string): string => {
-  if (!status) return '未知';
-  
-  // 嘗試直接從映射中獲取
-  const display = statusMap[status];
-  if (display) return display;
-  
-  // 如果找不到，嘗試轉換為大寫再查找
-  const uppercaseDisplay = statusMap[status.toUpperCase()];
-  if (uppercaseDisplay) return uppercaseDisplay;
-  
-  // 如果仍找不到，返回原始狀態
-  return status;
-};
-
-/**
- * 獲取訂單狀態的樣式類
- * @param status 訂單狀態代碼
- * @returns 對應的 CSS 類名
- */
-export const getStatusClass = (status: string): string => {
-  const upperStatus = status?.toUpperCase() || '';
-  
-  let styleClass = 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full ';
-  
-  switch (upperStatus) {
-    case 'DELIVERED':
-      return styleClass + 'bg-green-100 text-green-800';
-    case 'PENDING':
-      return styleClass + 'bg-yellow-100 text-yellow-800';
-    case 'PROCESSING':
-      return styleClass + 'bg-blue-100 text-blue-800';
-    case 'SHIPPED':
-      return styleClass + 'bg-indigo-100 text-indigo-800';
-    case 'CANCELLED':
-      return styleClass + 'bg-red-100 text-red-800';
-    default:
-      return styleClass + 'bg-gray-100 text-gray-800';
-  }
-};
+// 重新導出 authService 的狀態處理函數以保持一致性
+export const getStatusDisplay = authServiceGetStatusDisplay;
+export const getStatusClass = authServiceGetStatusClass;
 
 /**
  * 判斷訂單是否可以取消
@@ -81,11 +39,11 @@ export const getAvailableStatusTransitions = (currentStatus: string): string[] =
   
   switch (upperStatus) {
     case 'PENDING':
-      return ['PENDING', 'PROCESSING', 'CANCELLED'];
+      return ['PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
     case 'PROCESSING':
-      return ['PROCESSING', 'SHIPPED', 'CANCELLED'];
-    case 'SHIPPED':
       return ['SHIPPED', 'DELIVERED', 'CANCELLED'];
+    case 'SHIPPED':
+      return ['DELIVERED', 'CANCELLED'];
     case 'DELIVERED':
       return ['DELIVERED'];
     case 'CANCELLED':

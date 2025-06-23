@@ -1,14 +1,10 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useLiff } from '@/lib/LiffProvider';
-import Script from 'next/script';
+import { useSearchParams } from 'next/navigation';
 
-// 定義LIFF ID常量
-const LIFF_ID = '2006231077-GmRwevra';
+
+
 
 interface OrderItem {
   id: string;
@@ -22,9 +18,7 @@ interface OrderItem {
 
 // 建立處理 LinePay 回調的客戶端組件
 function LinePayCallbackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { liff } = useLiff();
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<'success' | 'failed' | null>(null);
   const [message, setMessage] = useState('');
@@ -35,33 +29,7 @@ function LinePayCallbackContent() {
   const [shippingMethod, setShippingMethod] = useState('takkyubin_payment');
   const [shippingFee, setShippingFee] = useState(0);
   const [pickupDateTime, setPickupDateTime] = useState('');
-  const [isLiffInitialized, setIsLiffInitialized] = useState(false);
-
-  // 初始化LIFF
-  useEffect(() => {
-    // 檢查是否已有liff對象
-    if (typeof window !== 'undefined' && window.liff) {
-      try {
-        if (!window.liff.isReady) {
-          console.log('初始化LIFF:', LIFF_ID);
-          window.liff.init({
-            liffId: LIFF_ID,
-            withLoginOnExternalBrowser: true,
-          }).then(() => {
-            console.log('LIFF初始化成功');
-            setIsLiffInitialized(true);
-          }).catch((err: Error) => {
-            console.error('LIFF初始化失敗:', err);
-          });
-        } else {
-          console.log('LIFF已經初始化');
-          setIsLiffInitialized(true);
-        }
-      } catch (error) {
-        console.error('LIFF初始化過程中出錯:', error);
-      }
-    }
-  }, []);
+  const [liffUrl, setLiffUrl] = useState('');
 
   useEffect(() => {
     const handleLinePayCallback = async () => {
@@ -74,46 +42,16 @@ function LinePayCallbackContent() {
           setStatus('failed');
           setMessage('您已取消付款');
           setLoading(false);
-        
           return;
         }
 
         // 從 URL 參數獲取交易資訊
-        // 檢查是否包含 liff.state 參數
-        let orderId = null;
-        let orderNo = null;
-        let transactionId = null;
-        let totalAmount = null;
-        
-        const liffState = searchParams?.get('liff.state');
-        
-        if (liffState) {
-          // 解碼 liff.state 參數
-          const decoded = decodeURIComponent(liffState);
-          console.log('解碼後的 liff.state:', decoded);
-          
-          // 從解碼的字符串中提取參數
-          // liff.state 通常格式為 '?param1=value1&param2=value2'
-          const stateParams = new URLSearchParams(decoded.startsWith('?') ? decoded.substring(1) : decoded);
-          
-          orderId = stateParams.get('orderId');
-          orderNo = stateParams.get('orderno') || stateParams.get('orderNo');
-          transactionId = stateParams.get('transactionId');
-          totalAmount = stateParams.get('totalAmount');
-        } else {
-          // 如果沒有 liff.state，則直接從 URL 獲取
-          orderId = searchParams?.get('orderId');
-          orderNo = searchParams?.get('orderno');
-          transactionId = searchParams?.get('transactionId');
-          totalAmount = searchParams?.get('totalAmount');
-        }
+        let orderId = searchParams?.get('orderId');
+        let transactionId = searchParams?.get('transactionId');
 
         console.log('LINE Pay回調參數:', {
           orderId,
-          orderNo,
           transactionId,
-          totalAmount,
-          liffState,
           allParams: Object.fromEntries(searchParams?.entries() || [])
         });
 
@@ -162,35 +100,9 @@ function LinePayCallbackContent() {
           // 清空購物車
           localStorage.removeItem('bakeryCart');
           
-          // 延遲 1 秒後重定向到 LIFF 確認頁面
-          setTimeout(() => {
-            const encodedItems = encodeURIComponent(JSON.stringify(data.items || []));
-            const pickupDateTimeParam = data.pickupDateTime ? `&pickupDateTime=${data.pickupDateTime}` : '';
-            
-            // 構建 LIFF URL 和查詢參數
-            const queryParams = `?orderNumber=${data.orderNumber}&orderId=${data.orderId}&totalAmount=${data.totalAmount}&items=${encodedItems}&shippingMethod=${data.shippingMethod}&paymentMethod=linepay&shippingFee=${data.shippingFee}${pickupDateTimeParam}`;
-            const liffUrl = `https://liff.line.me/${LIFF_ID}/client/checkout/confirmation${queryParams}`;
-            console.log('即將導向到 LIFF 確認頁面:', liffUrl);
-            
-            // 先在新視窗中打開LIFF確認頁面
-            const newWindow = window.open(liffUrl, '_blank');
-
-            // 確認新視窗已打開後再關閉當前視窗
-            if (newWindow) {
-              // 給一點時間讓新視窗加載
-              setTimeout(() => {
-                window.close();
-                
-                // 如果當前視窗未能關閉（例如是主視窗），顯示提示訊息
-                setTimeout(() => {
-                  document.getElementById('closeMessage')?.classList.remove('hidden');
-                }, 300);
-              }, 1000);
-            } else {
-              // 如果無法打開新視窗（可能被阻擋），則直接跳轉
-              window.location.href = liffUrl;
-            }
-          }, 1000);
+       
+         
+   
         } else {
           // 支付失敗
           setStatus('failed');
@@ -199,60 +111,91 @@ function LinePayCallbackContent() {
       } catch (error) {
         console.error('處理 LINE Pay 回調時出錯：', error);
         setStatus('failed');
-        
-        // 提供更詳細的錯誤訊息
         const errorMessage = error instanceof Error ? error.message : '未知錯誤';
         setMessage(`處理支付過程中發生錯誤：${errorMessage}，請聯繫客服`);
-        
-        // 檢查API端點是否存在
-        fetch('/api/line-pay/confirm', { method: 'HEAD' })
-          .then(response => {
-            console.log('API端點檢查結果:', response.status, response.statusText);
-          })
-          .catch(err => {
-            console.error('API端點檢查失敗:', err);
-          });
       } finally {
         setLoading(false);
       }
     };
 
     handleLinePayCallback();
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-lg shadow-md p-6 md:p-8 text-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
         {loading ? (
-          <div className="py-10">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600 mb-4"></div>
-            <p className="text-gray-600">正在處理您的支付...</p>
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-amber-600 mb-6"></div>
+            <p className="text-gray-600 text-lg">正在處理您的支付...</p>
+            <p className="text-gray-500 text-sm mt-2">請稍候，不要關閉視窗</p>
           </div>
         ) : status === 'success' ? (
-          <div>
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-green-100 mb-6">
+              <svg className="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">付款成功！</h1>
-            <p className="text-gray-600 mt-2">{message}</p>
-            <div className="mt-6 bg-amber-50 p-4 rounded-lg">
-              <p className="text-gray-800">訂單編號: <span className="font-semibold">{orderNumber}</span></p>
-              <p className="text-gray-800">總金額: <span className="font-semibold">${totalAmount}</span></p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-3">付款成功！</h1>
+            <p className="text-gray-600 mb-6">{message}</p>
+            
+            <div className="bg-gray-50 rounded-lg p-6 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-gray-600">訂單編號</span>
+                <span className="text-gray-900 font-semibold">{orderNumber}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-gray-600">商品金額</span>
+                <span className="text-gray-900 font-semibold">${totalAmount - shippingFee}</span>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-gray-600">運費</span>
+                <span className="text-gray-900 font-semibold">${shippingFee}</span>
+              </div>
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-800 font-medium">總金額</span>
+                  <span className="text-xl text-gray-900 font-bold">${totalAmount}</span>
+                </div>
+              </div>
             </div>
-            <p className="text-gray-500 text-sm mt-6">正在跳轉到訂單確認頁面...</p>
+
+            
+
+            <button
+              onClick={() => {
+                // 跳轉到 LINE@
+                window.location.href = 'https://line.me/R/ti/p/%40989xhjix';
+                // 延遲關閉當前頁面，讓跳轉有時間執行
+                setTimeout(() => {
+                  window.close();
+                }, 1000);
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 ease-in-out transform hover:scale-105 flex items-center justify-center focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation"
+            >
+              
+              完成
+            </button>
           </div>
         ) : (
-          <div>
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-100 mb-6">
+              <svg className="h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">付款失敗</h1>
-            <p className="text-gray-600 mt-2">{message}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-3">付款失敗</h1>
+            <p className="text-gray-600 mb-6">{message}</p>
             
+            <div className="bg-red-50 rounded-lg p-4">
+              <div className="flex items-center">
+                <svg className="h-5 w-5 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <p className="text-red-800 text-sm">如需協助，請聯繫客服</p>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -276,24 +219,8 @@ function LoadingFallback() {
 
 export default function LinePayCallback() {
   return (
-    <>
-      <Script 
-        src="https://static.line-scdn.net/liff/edge/2/sdk.js" 
-        strategy="beforeInteractive"
-        onLoad={() => {
-          console.log('LIFF SDK 已載入');
-        }}
-      />
-      <Suspense fallback={<LoadingFallback />}>
-        <LinePayCallbackContent />
-      </Suspense>
-    </>
+    <Suspense fallback={<LoadingFallback />}>
+      <LinePayCallbackContent />
+    </Suspense>
   );
-}
-
-// 擴展Window介面以支持LIFF
-declare global {
-  interface Window {
-    liff: any;
-  }
 } 

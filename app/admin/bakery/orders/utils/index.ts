@@ -3,16 +3,35 @@
  */
 import { EditOrderForm } from '../types';
 
+// 重新導出 authService 的函數以保持向後兼容性
+export { 
+  getAuthHeaders, 
+  initializeAuth, 
+  handleAuthError, 
+  setupAuthWarningAutoHide,
+  handleRelogin
+} from '../../utils/authService';
+
 /**
- * 獲取認證標頭
- * @param accessToken 訪問令牌
- * @returns 包含授權標頭的對象
+ * 格式化訂單數據
+ * 處理API返回數據中items和orderItems不一致的情況
+ * @param order 從API獲取的訂單數據
+ * @returns 統一格式化後的訂單數據
  */
-export const getAuthHeaders = (accessToken: string) => {
-  return {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-  };
+export const formatOrderData = (order: any) => {
+  if (!order) return null;
+  
+  // 複製訂單對象，避免修改原始數據
+  const formattedOrder = { ...order };
+  
+  // 處理 items 和 orderItems 不一致的情況
+  if (Array.isArray(formattedOrder.items) && (!formattedOrder.orderItems || formattedOrder.orderItems.length === 0)) {
+    formattedOrder.orderItems = formattedOrder.items;
+  } else if (Array.isArray(formattedOrder.orderItems) && (!formattedOrder.items || formattedOrder.items.length === 0)) {
+    formattedOrder.items = formattedOrder.orderItems;
+  }
+  
+  return formattedOrder;
 };
 
 /**
@@ -114,171 +133,4 @@ export const validateOrderForm = (form: EditOrderForm): {
     isValid: Object.keys(errors).length === 0,
     errors
   };
-};
-
-/**
- * 自動隱藏認證警告
- * @param error 錯誤信息
- * @param setShowAuthWarning 設置顯示認證警告的函數
- * @returns 清理函數
- */
-export const setupAuthWarningAutoHide = (
-  error: string | null,
-  setShowAuthWarning: React.Dispatch<React.SetStateAction<boolean>>
-): (() => void) => {
-  let timeoutId: NodeJS.Timeout | null = null;
-  
-  if (error && error.includes('認證')) {
-    setShowAuthWarning(true);
-    
-    // 10秒後自動隱藏警告
-    timeoutId = setTimeout(() => {
-      setShowAuthWarning(false);
-    }, 10000);
-  }
-  
-  // 返回清理函數
-  return () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  };
-};
-
-/**
- * 初始化認證
- * @param setAccessToken 設置訪問令牌的函數
- * @param setError 設置錯誤信息的函數
- * @param setLoading 設置加載狀態的函數
- * @param setShowAuthWarning 設置顯示認證警告的函數
- */
-export const initializeAuth = (
-  setAccessToken: React.Dispatch<React.SetStateAction<string>>,
-  setError: React.Dispatch<React.SetStateAction<string | null>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setShowAuthWarning: React.Dispatch<React.SetStateAction<boolean>>
-): void => {
-  // 從cookies中讀取accessToken
-  const getCookieValue = (name: string) => {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    if (match) {
-      console.log(`找到 ${name} cookie`);
-      return decodeURIComponent(match[2]);
-    } else {
-      console.warn(`未找到 ${name} cookie`);
-      return '';
-    }
-  };
-  
-  // 獲取令牌的函數
-  const getToken = () => {
-    // 先檢查 localStorage 是否有令牌
-    let token = localStorage.getItem('accessToken');
-    if (token) {
-      console.log('從 localStorage 獲取令牌成功');
-      return token;
-    }
-    
-    // 如果 localStorage 沒有，再嘗試從 cookie 獲取
-    token = getCookieValue('accessToken');
-    if (token) {
-      console.log('從 cookie 獲取令牌成功');
-      // 將token也保存到localStorage，確保一致性
-      localStorage.setItem('accessToken', token);
-      return token;
-    }
-    
-    console.error('無法獲取認證令牌');
-    return '';
-  };
-  
-  // 嘗試獲取令牌
-  const token = getToken();
-  
-  if (token) {
-    console.log('成功獲取令牌，長度:', token.length);
-    setAccessToken(token);
-  } else {
-    setError('未獲取到認證令牌，請確認您已登入系統');
-    setShowAuthWarning(true);
-    setLoading(false);
-  }
-  
-  // 添加重試機制
-  let retryCount = 0;
-  const maxRetries = 3;
-  
-  const retryFetchToken = () => {
-    if (retryCount >= maxRetries) return;
-    
-    console.log(`嘗試重新獲取令牌 (第 ${retryCount + 1} 次)`);
-    const newToken = getToken();
-    
-    if (newToken) {
-      console.log('重試獲取令牌成功');
-      setAccessToken(newToken);
-    } else {
-      retryCount++;
-      // 延遲重試
-      setTimeout(retryFetchToken, 1000);
-    }
-  };
-  
-  // 如果沒有token，嘗試重新獲取
-  if (!token) {
-    setTimeout(retryFetchToken, 1000);
-  }
-};
-
-/**
- * 處理認證錯誤
- * @param errorMessage 錯誤信息
- * @param setError 設置錯誤信息的函數
- * @param setLoading 設置加載狀態的函數
- * @param setShowAuthWarning 設置顯示認證警告的函數
- */
-export const handleAuthError = (
-  errorMessage: string,
-  setError: React.Dispatch<React.SetStateAction<string | null>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setShowAuthWarning: React.Dispatch<React.SetStateAction<boolean>>
-): void => {
-  console.error('認證錯誤:', errorMessage);
-  setError(`認證失敗: ${errorMessage}。請重新登入系統。`);
-  setShowAuthWarning(true);
-  setLoading(false);
-};
-
-/**
- * 重新登入
- */
-export const handleRelogin = (): void => {
-  // 清除舊的令牌
-  localStorage.removeItem('accessToken');
-  document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-  
-  // 跳轉到登錄頁面，並帶上當前頁面的URL作為重定向地址
-  window.location.href = '/login';
-};
-
-/**
- * 格式化訂單數據
- * 處理API返回數據中items和orderItems不一致的情況
- * @param order 從API獲取的訂單數據
- * @returns 統一格式化後的訂單數據
- */
-export const formatOrderData = (order: any) => {
-  if (!order) return null;
-  
-  // 複製訂單對象，避免修改原始數據
-  const formattedOrder = { ...order };
-  
-  // 處理 items 和 orderItems 不一致的情況
-  if (Array.isArray(formattedOrder.items) && (!formattedOrder.orderItems || formattedOrder.orderItems.length === 0)) {
-    formattedOrder.orderItems = formattedOrder.items;
-  } else if (Array.isArray(formattedOrder.orderItems) && (!formattedOrder.items || formattedOrder.items.length === 0)) {
-    formattedOrder.items = formattedOrder.orderItems;
-  }
-  
-  return formattedOrder;
 }; 

@@ -2,6 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { 
+  initializeAuth, 
+  getAuthHeaders,
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../utils/authService';
 
 // 定義客戶類型
 interface Customer {
@@ -51,56 +58,86 @@ export default function CustomerDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+  
   // 刪除相關狀態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // 獲取客戶詳情
+  // 初始化認證
   useEffect(() => {
-    const fetchCustomerDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // 獲取認證頭部
-        const getAuthHeaders = () => {
-          const accessToken = localStorage.getItem('accessToken');
-          return {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          };
-        };
-        
-        // 直接使用lineId獲取完整LINE用戶數據
-        const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-          headers: getAuthHeaders(),
-        });
-        
-        if (!response.ok) {
-          throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
-        }
-        
-        const responseData: ApiResponse = await response.json();
-        
-        if (responseData.status !== 'success') {
-          throw new Error(responseData.message || '獲取LINE用戶資料失敗');
-        }
-        
-        setCustomer(responseData.data.lineUser);
-        setRelatedCustomer(responseData.data.customer || null);
-      } catch (err) {
-        console.error('獲取LINE用戶詳情錯誤:', err);
-        setError(err instanceof Error ? err.message : '發生錯誤');
-      } finally {
-        setLoading(false);
-      }
-    };
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 處理認證錯誤
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleReloginLocal = () => {
+    handleRelogin();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+
+  // 獲取客戶詳情
+  const fetchCustomerDetails = async () => {
+    if (!accessToken) return;
     
-    if (lineId) {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 直接使用lineId獲取完整LINE用戶數據
+      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
+      });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthErrorLocal('獲取客戶詳情時認證失敗');
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
+      }
+        
+      const responseData: ApiResponse = await response.json();
+      
+      if (responseData.status !== 'success') {
+        throw new Error(responseData.message || '獲取LINE用戶資料失敗');
+      }
+      
+      setCustomer(responseData.data.lineUser);
+      setRelatedCustomer(responseData.data.customer || null);
+    } catch (err) {
+      console.error('獲取LINE用戶詳情錯誤:', err);
+      setError(err instanceof Error ? err.message : '發生錯誤');
+    } finally {
+      setLoading(false);
+    }
+  };
+    
+  useEffect(() => {
+    if (lineId && accessToken) {
       fetchCustomerDetails();
     }
-  }, [lineId]);
+  }, [lineId, accessToken]);
 
   // 獲取狀態樣式
   const getStatusStyle = (status: string) => {
@@ -199,20 +236,18 @@ export default function CustomerDetails() {
         throw new Error('找不到LINE ID，無法刪除用戶');
       }
       
-      // 獲取認證頭部
-      const getAuthHeaders = () => {
-        const accessToken = localStorage.getItem('accessToken');
-        return {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        };
-      };
-      
       // 使用lineId刪除LINE用戶
       const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include'
       });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthErrorLocal('刪除客戶時認證失敗');
+        return;
+      }
       
       if (!response.ok) {
         const errorData = await response.json();

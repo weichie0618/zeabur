@@ -2,28 +2,8 @@
  * 訂單系統相關常量定義
  */
 
-// 訂單狀態映射（從英文到中文）
-export const statusMap: Record<string, string> = {
-  'PENDING': '待處理',
-  'PROCESSING': '處理中',
-  'SHIPPED': '已出貨',
-  'DELIVERED': '已送達',
-  'CANCELLED': '已取消',
-  'pending': '待處理',
-  'processing': '處理中',
-  'shipped': '已出貨',
-  'delivered': '已送達',
-  'cancelled': '已取消'
-};
-
-// 訂單狀態反向映射（從中文到英文）
-export const reverseStatusMap: Record<string, string> = {
-  '待處理': 'PENDING',
-  '處理中': 'PROCESSING',
-  '已出貨': 'SHIPPED',
-  '已送達': 'DELIVERED',
-  '已取消': 'CANCELLED'
-};
+// 重新導出 authService 的狀態映射以保持一致性
+export { statusMap, reverseStatusMap } from '../../utils/authService';
 
 // 付款方式選項
 export const paymentMethodOptions = [

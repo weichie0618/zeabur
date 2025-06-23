@@ -59,7 +59,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
         }`}>
           <button 
             onClick={() => setIsCartOpen(!isCartOpen)}
-            className={`${isMobile ? 'w-full' : 'w-auto min-w-[180px]'} bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center justify-between transition-all duration-300`}
+            className={`${isMobile ? 'w-full' : 'w-auto min-w-[180px]'} bg-amber-600 hover:bg-amber-700 text-white px-4 py-3 rounded-full shadow-lg flex items-center justify-between transition-all duration-300 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation`}
           >
             <div className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -93,7 +93,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
       {isMobile && (
         <button 
           onClick={() => setIsCartOpen(false)}
-          className="mt-8 w-64 border border-amber-600 text-amber-600 hover:bg-amber-50 py-3 rounded-lg flex items-center justify-center transition-colors"
+          className="mt-8 w-64 border border-amber-600 text-amber-600 hover:bg-amber-50 py-3 rounded-lg flex items-center justify-center transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -132,14 +132,14 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
             <div className="flex items-center mt-1">
               <button 
                 onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
-                className="bg-gray-200 text-gray-700 rounded-l px-2"
+                className="bg-gray-200 text-gray-700 rounded-l px-2 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation"
               >
                 -
               </button>
               <span className="bg-gray-100 px-3">{item.quantity || 1}</span>
               <button 
                 onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
-                className="bg-gray-200 text-gray-700 rounded-r px-2"
+                className="bg-gray-200 text-gray-700 rounded-r px-2 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation"
               >
                 +
               </button>
@@ -147,7 +147,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
           </div>
           <button 
             onClick={() => removeFromCart(item.id, item.selectedFlavors)}
-            className="text-red-500 hover:text-red-700"
+            className="text-red-500 hover:text-red-700 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-red-500 touch-manipulation"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -167,7 +167,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
       </div>
       <button 
         onClick={handleCheckout}
-        className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-lg flex items-center justify-center"
+        className="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-lg flex items-center justify-center focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -177,7 +177,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
       {isMobile && (
         <button 
           onClick={() => setIsCartOpen(false)}
-          className="w-full mt-3 border border-amber-600 text-amber-600 hover:bg-amber-50 py-3 rounded-lg flex items-center justify-center transition-colors"
+          className="w-full mt-3 border border-amber-600 text-amber-600 hover:bg-amber-50 py-3 rounded-lg flex items-center justify-center transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -220,7 +220,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
           <div className="p-4 h-full flex flex-col">
             <div className="flex justify-between items-center border-b pb-4">
               <h2 className="text-xl font-bold">購物車</h2>
-              <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700 p-2">
+              <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700 p-2 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -252,7 +252,7 @@ export const ShoppingCart: React.FC<ShoppingCartProps> = ({
             <div className="w-16 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
             <div className="flex justify-between items-center border-b pb-4">
               <h2 className="text-xl font-bold">購物車</h2>
-              <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700 p-2">
+              <button onClick={() => setIsCartOpen(false)} className="text-gray-500 hover:text-gray-700 p-2 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>

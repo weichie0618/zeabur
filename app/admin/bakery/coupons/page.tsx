@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { initializeAuth, getToken, getAuthHeaders, handleRelogin } from '../utils/authService';
+import { initializeAuth, getToken, getAuthHeaders, handleRelogin, handleAuthError, setupAuthWarningAutoHide } from '../utils/authService';
 import axios from 'axios';
 import { format } from 'date-fns';
 
@@ -80,6 +80,22 @@ export default function CouponsManagement() {
     );
   }, []);
 
+  // 處理認證錯誤
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleReloginLocal = () => {
+    handleRelogin();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
+
   // 獲取優惠碼列表
   const fetchDiscountCodes = async () => {
     if (!accessToken) return;
@@ -108,7 +124,7 @@ export default function CouponsManagement() {
     } catch (err: any) {
       console.error('獲取優惠碼失敗:', err);
       if (err.response && err.response.status === 401) {
-        handleRelogin();
+        handleAuthErrorLocal('獲取優惠碼時認證失敗');
       } else {
         setError(err.message || '獲取優惠碼資料失敗');
       }
@@ -226,7 +242,7 @@ export default function CouponsManagement() {
     } catch (err: any) {
       console.error('保存優惠碼失敗:', err);
       if (err.response && err.response.status === 401) {
-        handleRelogin();
+        handleAuthErrorLocal('保存優惠碼時認證失敗');
       } else {
         setError(err.message || '保存優惠碼失敗');
       }
@@ -323,7 +339,7 @@ export default function CouponsManagement() {
           <span className="font-bold">認證錯誤:</span>
           <span> {error || '請重新登入以繼續操作'}</span>
           <button 
-            onClick={() => handleRelogin()}
+            onClick={() => handleReloginLocal()}
             className="ml-2 bg-red-700 text-white px-2 py-1 rounded text-xs"
           >
             重新登入

@@ -3,6 +3,13 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { toast, Toaster } from 'react-hot-toast'; // 引入 toast 通知和 Toaster 元件
+import { 
+  initializeAuth, 
+  getAuthHeaders,
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../../utils/authService';
 
 // 定義客戶表單類型
 interface CustomerForm {
@@ -96,14 +103,35 @@ export default function EditCustomer() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // 獲取認證頭部的通用函數
-  const getAuthHeaders = () => {
-    const accessToken = localStorage.getItem('accessToken');
-    return {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    };
+  // 認證相關狀態
+  const [accessToken, setAccessToken] = useState<string>('');
+  const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
+
+  // 初始化認證
+  useEffect(() => {
+    initializeAuth(
+      setAccessToken,
+      setLoadError,
+      setLoading,
+      setShowAuthWarning
+    );
+  }, []);
+  
+  // 處理認證錯誤
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setLoadError, setLoading, setShowAuthWarning);
   };
+  
+  // 重新登入功能
+  const handleReloginLocal = () => {
+    handleRelogin();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(loadError, setShowAuthWarning);
+    return cleanup;
+  }, [loadError]);
 
   // 獲取客戶資料
   useEffect(() => {
@@ -114,8 +142,15 @@ export default function EditCustomer() {
         
         // 直接使用lineId獲取完整LINE用戶數據
         const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-          headers: getAuthHeaders(),
+          headers: getAuthHeaders(accessToken),
+          credentials: 'include'
         });
+        
+        // 處理認證錯誤
+        if (response.status === 401) {
+          handleAuthErrorLocal('獲取客戶資料時認證失敗');
+          return;
+        }
         
         if (!response.ok) {
           throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
@@ -156,10 +191,10 @@ export default function EditCustomer() {
       }
     };
     
-    if (lineId) {
+    if (lineId && accessToken) {
       fetchCustomer();
     }
-  }, [lineId]);
+  }, [lineId, accessToken]);
   
   // 處理輸入變化
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -255,9 +290,16 @@ export default function EditCustomer() {
       // 使用lineId更新LINE用戶
       const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
+        credentials: 'include',
         body: JSON.stringify(submitData),
       });
+      
+      // 處理認證錯誤
+      if (response.status === 401) {
+        handleAuthErrorLocal('更新客戶資料時認證失敗');
+        return;
+      }
       
       const data = await response.json();
       

@@ -3,7 +3,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
-import { getToken, getStatusDisplay, getStatusClass } from '../utils/authService';
+import { 
+  initializeAuth,
+  getAuthHeaders,
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide,
+  getStatusDisplay,
+  getStatusClass
+} from '../utils/authService';
 
 // 定義資料介面
 interface Order {
@@ -94,20 +102,31 @@ export default function PerformanceReport() {
   const [selectedAll, setSelectedAll] = useState<boolean>(false);
   const [selectedStats, setSelectedStats] = useState<Record<string, boolean>>({});
 
-  // 初始化accessToken
+  // 初始化認證
   useEffect(() => {
-    try {
-      const token = getToken();
-      if (token) {
-        setAccessToken(token);
-      } else {
-        setShowAuthWarning(true);
-      }
-    } catch (error) {
-      console.error('獲取 token 錯誤:', error);
-      setShowAuthWarning(true);
-    }
+    initializeAuth(
+      setAccessToken,
+      setError,
+      setLoading,
+      setShowAuthWarning
+    );
   }, []);
+  
+  // 處理認證錯誤
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setError, setLoading, setShowAuthWarning);
+  };
+  
+  // 重新登入功能
+  const handleReloginLocal = () => {
+    handleRelogin();
+  };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
+    return cleanup;
+  }, [error]);
 
   // 監聽日期篩選變更，控制自定義日期範圍的顯示
   useEffect(() => {
@@ -203,14 +222,12 @@ export default function PerformanceReport() {
 
     try {
       const response = await fetch('/api/customers?limit=100&sortBy=companyName&order=ASC', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: getAuthHeaders(accessToken),
         credentials: 'include',
       });
       
       if (response.status === 401) {
-        setError('客戶數據獲取失敗：認證失敗');
+        handleAuthErrorLocal('獲取客戶數據時認證失敗');
         return;
       }
 
@@ -330,15 +347,13 @@ export default function PerformanceReport() {
       
       // 發送請求獲取訂單數據
       const response = await fetch(`/api/orders?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
+        headers: getAuthHeaders(accessToken),
         credentials: 'include',
       });
       
       // 處理認證錯誤
       if (response.status === 401) {
-        setError('認證失敗，請重新登入系統');
+        handleAuthErrorLocal('獲取訂單數據時認證失敗');
         setLoading(false);
         return;
       }
@@ -575,9 +590,29 @@ export default function PerformanceReport() {
         </div>
       )}
 
-      {showAuthWarning && (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4">
-          請先登入系統以查看業務統計報表
+      {/* 頂部認證警告條 */}
+      {showAuthWarning && error && error.includes('認證') && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-red-100 border-b border-red-200 text-red-700 px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>未獲取到認證令牌，請重新登入</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={() => setShowAuthWarning(false)} 
+              className="text-red-700 hover:text-red-900"
+            >
+              關閉
+            </button>
+            <button 
+              onClick={handleReloginLocal}
+              className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+            >
+              重新登入
+            </button>
+          </div>
         </div>
       )}
 

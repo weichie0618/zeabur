@@ -27,4 +27,32 @@
     color: var(--foreground);
     font-family: Arial, Helvetica, sans-serif;
   }
+
+  /* 移動端 Focus 狀態處理 - 只針對 button 元素 */
+  @media (pointer: coarse) {
+    button:focus,
+    button:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+  }
+
+  /* 桌面端保持 Focus 可見性 - 只針對 button 元素 */
+  @media (pointer: fine) {
+    button:focus-visible {
+      outline: 2px solid #f59e0b;
+      outline-offset: 2px;
+    }
+    
+    button:focus:not(:focus-visible) {
+      outline: none;
+      box-shadow: none;
+    }
+  }
+
+  /* 通用觸控優化 - 只針對 button 元素 */
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }

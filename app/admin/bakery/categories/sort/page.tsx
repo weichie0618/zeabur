@@ -7,9 +7,9 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders as getAuthHeadersFromService,
-  handleAuthError as handleAuthErrorFromService,
-  handleRelogin as handleReloginFromService,
+  getAuthHeaders,
+  handleAuthError,
+  handleRelogin,
   setupAuthWarningAutoHide
 } from '../../utils/authService';
 
@@ -122,13 +122,13 @@ export default function CategoriesSortPage() {
   }, []);
   
   // 處理認證錯誤
-  const handleAuthError = (errorMessage: string) => {
-    handleAuthErrorFromService(errorMessage, setError, setLoading, setShowAuthWarning);
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setError, setLoading, setShowAuthWarning);
   };
   
   // 重新登入功能
-  const handleRelogin = () => {
-    handleReloginFromService();
+  const handleReloginLocal = () => {
+    handleRelogin();
   };
   
   // 自動隱藏認證警告
@@ -138,8 +138,8 @@ export default function CategoriesSortPage() {
   }, [error]);
   
   // 獲取認證標頭
-  const getAuthHeaders = () => {
-    return getAuthHeadersFromService(accessToken);
+  const getAuthHeadersLocal = () => {
+    return getAuthHeaders(accessToken);
   };
   
   // 獲取分類資料
@@ -152,13 +152,13 @@ export default function CategoriesSortPage() {
       
       const timestamp = Date.now();
       const response = await fetch(`/api/categories?t=${timestamp}&sortBy=id&order=ASC`, {
-        headers: getAuthHeaders(),
+        headers: getAuthHeadersLocal(),
         credentials: 'include'
       });
       
       // 處理認證錯誤
       if (response.status === 401) {
-        handleAuthError('獲取分類時認證失敗');
+        handleAuthErrorLocal('獲取分類時認證失敗');
         return;
       }
       
@@ -320,14 +320,14 @@ export default function CategoriesSortPage() {
       
       const response = await fetch('/api/categories/sort', {
         method: 'PUT',
-        headers: getAuthHeaders(),
+        headers: getAuthHeadersLocal(),
         body: JSON.stringify({ sortData }),
         credentials: 'include',
       });
       
       // 處理認證錯誤
       if (response.status === 401) {
-        handleAuthError('保存排序時認證失敗');
+        handleAuthErrorLocal('保存排序時認證失敗');
         return;
       }
       
@@ -400,7 +400,7 @@ export default function CategoriesSortPage() {
               關閉
             </button>
             <button 
-              onClick={handleRelogin}
+              onClick={handleReloginLocal}
               className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
             >
               重新登入

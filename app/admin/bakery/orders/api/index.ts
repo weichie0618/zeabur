@@ -3,14 +3,7 @@
  */
 import { Order, OrdersResponse, EditOrderForm, OrderItem, Product } from '../types';
 import { reverseStatusMap } from '../constants';
-
-// 獲取認證標頭
-export const getHeaders = (accessToken: string) => {
-  return {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json',
-  };
-};
+import { getAuthHeaders } from '../../utils/authService';
 
 // 獲取訂單列表
 export const fetchOrders = async (
@@ -80,7 +73,7 @@ export const fetchOrders = async (
 
     console.log(`發送請求: /api/orders?${params.toString()}`);
     const response = await fetch(`/api/orders?${params.toString()}`, {
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       credentials: 'include',
     });
     
@@ -109,7 +102,7 @@ export const fetchOrderDetail = async (
   try {
     const response = await fetch(`/api/orders/check`, {
       method: 'POST',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       body: JSON.stringify({ 
         order_number: orderNumber 
       }),
@@ -148,7 +141,7 @@ export const updateOrder = async (
   try {
     const response = await fetch(`/api/orders/${orderId}`, {
       method: 'PUT',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       body: JSON.stringify(orderData),
       credentials: 'include',
     });
@@ -180,7 +173,7 @@ export const updateOrderStatus = async (
   try {
     const response = await fetch(`/api/orders/${orderId}/status`, {
       method: 'PUT',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       body: JSON.stringify({
         status,
         note,
@@ -213,7 +206,7 @@ export const cancelOrder = async (
   try {
     const response = await fetch(`/api/orders/cancel-by-number`, {
       method: 'PUT',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       credentials: 'include',
       body: JSON.stringify({
         order_number: orderNumber
@@ -243,7 +236,7 @@ export const fetchAvailableProducts = async (
 ): Promise<Product[]> => {
   try {
     const response = await fetch('/api/products?fetchAll=true', {
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       credentials: 'include',
     });
     
@@ -291,7 +284,7 @@ export const fetchCustomers = async (
     });
 
     const response = await fetch(`/api/customers?${params.toString()}`, {
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       credentials: 'include',
     });
     
@@ -307,37 +300,33 @@ export const fetchCustomers = async (
         customer.companyName && customer.companyName.trim() !== ''
       );
       
-      // 去除重複的公司名稱
-      const uniqueCompanies = Array.from(new Set(
-        customersWithCompany.map((customer: any) => customer.companyName)
-      )).map(companyName => {
-        const customer = customersWithCompany.find((c: any) => c.companyName === companyName);
-        return {
-          id: customer.id,
-          companyName: companyName as string
-        };
-      });
+      // 轉換為標準格式
+      const formattedCustomers = customersWithCompany.map((customer: any) => ({
+        id: customer.id.toString(),
+        companyName: customer.companyName
+      }));
       
-      return uniqueCompanies;
+      return formattedCustomers;
     } else {
-      throw new Error(data.message || '獲取客戶列表失敗');
+      return [];
     }
   } catch (err: any) {
     console.error('獲取客戶列表錯誤:', err);
-    throw err;
+    // 返回空陣列而不拋出錯誤，因為這不是核心功能
+    return [];
   }
 };
 
-// 格式化訂單數據的函數
+// 格式化訂單數據的輔助函數
 const formatOrderData = (orderData: any): Order => {
-  // 確保 orderItems 字段存在
-  if (orderData.items && !orderData.orderItems) {
-    orderData.orderItems = orderData.items;
-  }
-  return orderData as Order;
+  // 這個函數處理 API 回傳的數據格式與元件期望格式之間的轉換
+  return {
+    ...orderData,
+    orderItems: orderData.items || orderData.orderItems || []
+  };
 };
 
-// 更新訂單商品
+// 更新訂單項目
 export const updateOrderItem = async (
   accessToken: string,
   orderId: string,
@@ -351,32 +340,33 @@ export const updateOrderItem = async (
   try {
     const response = await fetch(`/api/orders/${orderId}/items`, {
       method: 'PUT',
-      headers: getHeaders(accessToken),
-      body: JSON.stringify({ items }),
+      headers: getAuthHeaders(accessToken),
+      body: JSON.stringify({
+        items: items
+      }),
       credentials: 'include',
     });
 
     if (response.status === 401) {
-      throw new Error('更新訂單商品時認證失敗');
+      throw new Error('更新訂單項目時認證失敗');
     }
 
     const data = await response.json();
     
     if (response.ok) {
-      // 格式化訂單數據
-      return { 
-        order: formatOrderData(data.order || data) 
+      return {
+        order: formatOrderData(data.order || data)
       };
     } else {
-      throw new Error(data.message || '更新訂單商品失敗');
+      throw new Error(data.message || '更新訂單項目失敗');
     }
   } catch (err: any) {
-    console.error('更新訂單商品錯誤:', err);
+    console.error('更新訂單項目錯誤:', err);
     throw err;
   }
 };
 
-// 刪除訂單商品
+// 刪除訂單項目
 export const deleteOrderItem = async (
   accessToken: string,
   orderId: string,
@@ -385,32 +375,31 @@ export const deleteOrderItem = async (
   try {
     const response = await fetch(`/api/orders/${orderId}/items/${itemId}`, {
       method: 'DELETE',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       credentials: 'include',
     });
 
     if (response.status === 401) {
-      throw new Error('刪除訂單商品時認證失敗');
+      throw new Error('刪除訂單項目時認證失敗');
     }
 
     const data = await response.json();
     
     if (response.ok) {
-      // 格式化訂單數據
-      return { 
+      return {
         order: formatOrderData(data.order || data),
-        message: data.message || '訂單商品刪除成功'
+        message: data.message || '項目刪除成功'
       };
     } else {
-      throw new Error(data.message || '刪除訂單商品失敗');
+      throw new Error(data.message || '刪除訂單項目失敗');
     }
   } catch (err: any) {
-    console.error('刪除訂單商品錯誤:', err);
+    console.error('刪除訂單項目錯誤:', err);
     throw err;
   }
 };
 
-// 添加商品到訂單
+// 新增訂單項目
 export const addOrderItem = async (
   accessToken: string,
   orderId: string,
@@ -421,7 +410,7 @@ export const addOrderItem = async (
   try {
     const response = await fetch(`/api/orders/${orderId}/items`, {
       method: 'POST',
-      headers: getHeaders(accessToken),
+      headers: getAuthHeaders(accessToken),
       body: JSON.stringify({
         product_id,
         quantity,
@@ -431,21 +420,20 @@ export const addOrderItem = async (
     });
 
     if (response.status === 401) {
-      throw new Error('添加商品到訂單時認證失敗');
+      throw new Error('新增訂單項目時認證失敗');
     }
 
     const data = await response.json();
     
     if (response.ok) {
-      // 格式化訂單數據
-      return { 
-        order: formatOrderData(data.order || data) 
+      return {
+        order: formatOrderData(data.order || data)
       };
     } else {
-      throw new Error(data.message || '添加商品到訂單失敗');
+      throw new Error(data.message || '新增訂單項目失敗');
     }
   } catch (err: any) {
-    console.error('添加商品到訂單錯誤:', err);
+    console.error('新增訂單項目錯誤:', err);
     throw err;
   }
 }; 

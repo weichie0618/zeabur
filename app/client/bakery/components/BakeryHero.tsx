@@ -51,7 +51,7 @@ export const BakeryHero: React.FC = () => {
                   });
                 }
               }}
-              className="inline-block bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 md:py-3 px-6 md:px-8 rounded-lg transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 transition-transform"
+              className="inline-block bg-amber-600 hover:bg-amber-700 text-white font-medium py-2 md:py-3 px-6 md:px-8 rounded-lg transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-1 active:translate-y-0 transition-transform focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation"
             >
               立即選購
             </button>

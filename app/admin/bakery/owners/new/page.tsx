@@ -2,6 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { 
+  initializeAuth, 
+  getAuthHeaders,
+  handleAuthError,
+  handleRelogin,
+  setupAuthWarningAutoHide
+} from '../../utils/authService';
 
 interface OwnerFormData {
   id?: string;
@@ -38,106 +45,33 @@ export default function NewOwner() {
   const [accessToken, setAccessToken] = useState<string>('');
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   
-  // 初始化獲取認證令牌
+  // 初始化認證
   useEffect(() => {
-    // 從cookies中讀取accessToken
-    const getCookieValue = (name: string) => {
-      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-      if (match) {
-        console.log(`找到 ${name} cookie`);
-        return decodeURIComponent(match[2]);
-      } else {
-        console.warn(`未找到 ${name} cookie`);
-        return '';
-      }
-    };
-    
-    // 獲取令牌的函數
-    const getToken = () => {
-      // 先檢查 localStorage 是否有令牌
-      let token = localStorage.getItem('accessToken');
-      if (token) {
-        console.log('從 localStorage 獲取令牌成功');
-        return token;
-      }
-      
-      // 如果 localStorage 沒有，再嘗試從 cookie 獲取
-      token = getCookieValue('accessToken');
-      if (token) {
-        console.log('從 cookie 獲取令牌成功');
-        // 將token也保存到localStorage，確保一致性
-        localStorage.setItem('accessToken', token);
-        return token;
-      }
-      
-      console.error('無法獲取認證令牌');
-      return '';
-    };
-    
-    // 嘗試獲取令牌
-    const token = getToken();
-    
-    if (token) {
-      console.log('成功獲取令牌，長度:', token.length);
-      setAccessToken(token);
-    } else {
-      setApiError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 3000);
-      setShowAuthWarning(true);
-    }
-    
-    // 添加重試機制
-    let retryCount = 0;
-    const maxRetries = 3;
-    
-    const retryFetchToken = () => {
-      if (retryCount >= maxRetries) return;
-      
-      console.log(`嘗試重新獲取令牌 (第 ${retryCount + 1} 次)`);
-      const newToken = getToken();
-      
-      if (newToken) {
-        console.log('重試獲取令牌成功');
-        setAccessToken(newToken);
-      } else {
-        retryCount++;
-        // 延遲重試
-        setTimeout(retryFetchToken, 1000);
-      }
-    };
-    
-    // 如果沒有token，嘗試重新獲取
-    if (!token) {
-      setTimeout(retryFetchToken, 1000);
-    }
+    initializeAuth(
+      setAccessToken,
+      setApiError,
+      () => {}, // 不需要設置loading
+      setShowAuthWarning
+    );
   }, []);
   
-  // 獲取認證標頭
-  const getAuthHeaders = () => {
-    // 檢查並輸出 accessToken 的值，方便調試
-    if (!accessToken) {
-      console.warn('getAuthHeaders: accessToken 為空');
-    } else {
-      console.log('getAuthHeaders: 使用令牌', accessToken.substring(0, 10) + '...');
-    }
-    
-    return {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    };
+  // 處理認證錯誤
+  const handleAuthErrorLocal = (errorMessage: string) => {
+    handleAuthError(errorMessage, setApiError, () => {}, setShowAuthWarning);
   };
   
-  // 重新登入
-  const handleRelogin = () => {
-    // 清除舊的令牌
-    localStorage.removeItem('accessToken');
-    document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
-    // 跳轉到登錄頁面
-    window.location.href = '/login';
+  // 重新登入功能
+  const handleReloginLocal = () => {
+    handleRelogin();
   };
+  
+  // 自動隱藏認證警告
+  useEffect(() => {
+    const cleanup = setupAuthWarningAutoHide(apiError, setShowAuthWarning);
+    return cleanup;
+  }, [apiError]);
+  
+
   
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -202,7 +136,7 @@ export default function NewOwner() {
       
       const response = await fetch('/api/customers', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(accessToken),
         body: JSON.stringify(formData),
         credentials: 'include',
       });
@@ -252,7 +186,7 @@ export default function NewOwner() {
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
           <div>認證失敗，請重新登入系統以獲取有效的認證憑證。</div>
           <button 
-            onClick={handleRelogin}
+            onClick={handleReloginLocal}
             className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
           >
             重新登入

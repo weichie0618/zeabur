@@ -8,10 +8,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { Order, EditOrderForm } from '../../types';
 
 // 引入API服務
-import { fetchOrderDetail, updateOrder, fetchCustomers } from '../../api';
+import { fetchOrderDetail, updateOrder, fetchCustomers, updateOrderStatus } from '../../api';
 
 // 引入狀態處理
-import { getStatusDisplay, getStatusClass, getStatusOptions } from '../../status';
+import { getStatusDisplay, getStatusClass, getAvailableStatusTransitions } from '../../status';
+
+// 引入常量
+import { statusMap } from '../../constants';
 
 // 引入工具函數
 import { 
@@ -37,6 +40,9 @@ import {
 import AuthWarning from '../../components/AuthWarning';
 import StatusUpdateModal from '../../components/StatusUpdateModal';
 
+// 引入共用 Hook
+import { useOrderStatusUpdate } from '../../hooks/useOrderStatusUpdate';
+
 export default function EditOrder() {
   const params = useParams();
   const router = useRouter();
@@ -53,6 +59,18 @@ export default function EditOrder() {
   
   // 顧客列表
   const [customers, setCustomers] = useState<Array<{id: string, companyName: string}>>([]);
+  
+  // 使用共用的狀態更新 Hook
+  const { updateStatus, loading: statusUpdateLoading } = useOrderStatusUpdate({
+    accessToken,
+    onSuccess: (message) => {
+      setSuccess(message);
+      setTimeout(() => setSuccess(null), 3000);
+    },
+    onError: (error) => {
+      setError(error);
+    }
+  });
   
   // 編輯表單
   const [formData, setFormData] = useState<EditOrderForm>({
@@ -246,13 +264,23 @@ export default function EditOrder() {
     setShowStatusModal(true);
   };
   
-  // 更新訂單狀態
-  const handleStatusUpdate = (newStatus: string) => {
-    setFormData(prev => ({
-      ...prev,
-      status: newStatus
-    }));
-    setShowStatusModal(false);
+  // 更新訂單狀態 - 使用共用 Hook
+  const handleStatusUpdate = async (status: string, note: string) => {
+    if (!order) return;
+    
+    const updatedOrder = await updateStatus(order, status, note);
+    
+    if (updatedOrder) {
+      // 更新本地狀態
+      setFormData(prev => ({
+        ...prev,
+        status: status
+      }));
+      
+      // 更新訂單物件
+      setOrder(updatedOrder);
+      setShowStatusModal(false);
+    }
   };
   
   // 載入中顯示
@@ -281,7 +309,7 @@ export default function EditOrder() {
             </Link>
             {error.includes('認證失敗') && (
               <button
-                onClick={handleRelogin}
+                onClick={() => handleRelogin()}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 重新登入
@@ -659,12 +687,12 @@ export default function EditOrder() {
       </div>
       
       {/* 狀態更新模態視窗 */}
-      <StatusUpdateModal 
+      <StatusUpdateModal
         isOpen={showStatusModal}
-        currentStatus={formData.status || ''}
         onClose={() => setShowStatusModal(false)}
+        order={order}
         onUpdateStatus={handleStatusUpdate}
-        statusOptions={getStatusOptions()}
+        loading={statusUpdateLoading}
       />
     </div>
   );

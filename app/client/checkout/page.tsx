@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
 
 // 表單驗證狀態接口
@@ -92,6 +93,13 @@ export default function CheckoutPage() {
   const [discountModal, setDiscountModal] = useState(false);
   const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [modalMessage, setModalMessage] = useState('');
+
+  // 手動 LIFF 初始化狀態
+  const [manualLiff, setManualLiff] = useState<any>(null);
+  const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
+
+  // 新增錯誤追蹤狀態
+  const [debugErrors, setDebugErrors] = useState<string[]>([]);
 
   // 處理優惠碼modal開關
   const toggleDiscountModal = () => {
@@ -301,6 +309,50 @@ export default function CheckoutPage() {
     });
     return calculatedTotal;
   }, [subtotal, discountAmount, shippingFee]);
+
+  // LIFF 腳本載入完成處理
+  const handleLiffScriptLoad = () => {
+    console.log('LIFF 腳本載入完成');
+    setIsLiffScriptLoaded(true);
+  };
+
+  // 手動初始化 LIFF
+  const initializeLiffManually = async () => {
+    if (!window.liff) {
+      console.error('LIFF SDK 未載入');
+      return;
+    }
+
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+    if (!liffId) {
+      console.error('LIFF ID 未設定');
+      return;
+    }
+
+    try {
+      console.log('開始手動初始化 LIFF...');
+      await window.liff.init({ liffId });
+      console.log('LIFF 手動初始化成功');
+      setManualLiff(window.liff);
+      
+      if (window.liff.isLoggedIn()) {
+        console.log('用戶已登入');
+      } else if (window.liff.isInClient()) {
+        console.log('在 LINE 中但未登入，自動登入...');
+        window.liff.login();
+      }
+    } catch (error) {
+      console.error('LIFF 手動初始化失敗:', error);
+    }
+  };
+
+  // 當 LIFF 腳本載入完成且沒有從 LiffProvider 獲取到 LIFF 時，嘗試手動初始化
+  useEffect(() => {
+    if (isLiffScriptLoaded && !liff && !manualLiff) {
+      console.log('嘗試手動初始化 LIFF...');
+      initializeLiffManually();
+    }
+  }, [isLiffScriptLoaded, liff, manualLiff]);
 
   // 計算預設自取日期時間（D+3，不含週六，固定15:00）
   const calculateDefaultPickupDateTime = (): string => {
@@ -747,24 +799,320 @@ export default function CheckoutPage() {
 
       // 處理LINE Pay支付
       if (paymentMethod === 'line_pay') {
+        // 發送 LINE FLEX 訊息（如果在 LINE App 中）
+        const activeLiff = liff || manualLiff;
+        if (activeLiff && activeLiff.isInClient && activeLiff.isInClient() && activeLiff.sendMessages) {
+          try {
+            // 構建 FLEX 訊息
+            const flexMessage = [{
+              type: 'text',
+              text: data.order.order_number // 添加普通文字訊息
+            }, {
+              type: "flex",
+              altText: `訂單編號 ${data.order.order_number} 建立成功，LINE Pay支付`,
+              contents: {
+                type: "bubble",
+                header: {
+                  type: "box",
+                  layout: "vertical",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "訂單已建立",
+                      size: "xl",
+                      align: "center",
+                      weight: "bold",
+                      color: "#ffffff"
+                    }
+                  ],
+                  backgroundColor: "#06C755",  // LINE Pay綠色
+                  paddingAll: "md"
+                },
+                body: {
+                  type: "box",
+                  layout: "vertical",
+                  spacing: "md",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "vertical",
+                      backgroundColor: "#E6F7ED",  // 淺綠色背景
+                      paddingAll: "md",
+                      cornerRadius: "md",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "LINE Pay 付款",
+                          size: "md",
+                          weight: "bold",
+                          align: "center",
+                          color: "#06C755",
+                          wrap: true
+                        }
+                      ]
+                    },
+                    {
+                      type: "separator",
+                      margin: "md"
+                    },
+                    {
+                      type: "text",
+                      text: `訂單編號：${data.order.order_number || "未提供"}`,
+                      size: "sm",
+                      color: "#333333",
+                      margin: "md"
+                    },
+                    {
+                      type: "text",
+                      text: "訂單明細",
+                      weight: "bold",
+                      color: "#06C755",
+                      margin: "lg",
+                      size: "md"
+                    },
+                    ...(data.order.items && data.order.items.length > 0 ? data.order.items.map((item: any) => ({
+                      type: "box",
+                      layout: "vertical",
+                      margin: "md",
+                      contents: [
+                        {
+                          type: "box",
+                          layout: "horizontal",
+                          contents: [
+                            {
+                              type: "text",
+                              text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                              size: "sm",
+                              color: "#555555",
+                              flex: 5,
+                              margin: "sm"
+                            },
+                            {
+                              type: "text",
+                              text: `$${item.subtotal}`,
+                              size: "sm",
+                              align: "end",
+                              color: "#111111",
+                              flex: 2
+                            }
+                          ]
+                        },
+                        // 添加口味備註的顯示
+                        ...(item.order_item_notes ? [{
+                          type: "text",
+                          text: `[口味: ${item.order_item_notes}]`,
+                          size: "xs",
+                          color: "#888888",
+                          margin: "sm",
+                          wrap: true
+                        }] : [])
+                      ]
+                    })) : [{
+                      type: "text",
+                      text: "無法獲取訂單明細",
+                      size: "sm",
+                      color: "#555555",
+                      align: "center"
+                    }]),
+                    
+                    // 運費顯示（如果有運費）
+                    ...(data.order.shipping_fee && data.order.shipping_fee > 0 ? [{
+                      type: "box",
+                      layout: "horizontal",
+                      margin: "md",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "運費",
+                          size: "sm",
+                          color: "#333333"
+                        },
+                        {
+                          type: "text",
+                          text: `$${data.order.shipping_fee}`,
+                          size: "sm",
+                          align: "end",
+                          color: "#111111"
+                        }
+                      ]
+                    }] : []),
+                    
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      margin: "md",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "總計",
+                          size: "sm",
+                          weight: "bold",
+                          color: "#333333"
+                        },
+                        {
+                          type: "text",
+                          text: `$${data.order.total_amount}`,
+                          size: "sm",
+                          align: "end",
+                          weight: "bold",
+                          color: "#111111"
+                        }
+                      ]
+                    },
+                    
+                    {
+                      type: "separator",
+                      margin: "lg"
+                    },
+                    {
+                      type: "box",
+                      layout: "vertical",
+                      backgroundColor: "#E6F7ED",
+                      paddingAll: "md",
+                      cornerRadius: "md",
+                      margin: "lg",
+                      contents: [
+                        {
+                          type: "text",
+                          text: shippingMethod === 'pickup' ? "自取資訊" : "配送資訊",
+                          weight: "bold",
+                          color: "#06C755",
+                          size: "md",
+                          align: "center"
+                        },
+                        {
+                          type: "text",
+                          text: shippingMethod === 'pickup' 
+                            ? "桃園市蘆竹區油管路一段696號"
+                            : "商品將以黑貓宅急便低溫冷凍配送",
+                          size: "sm",
+                          color: "#444444",
+                          align: "center",
+                          margin: "sm",
+                          wrap: true
+                        },
+                        // 自取日期時間顯示
+                        ...(shippingMethod === 'pickup' && formData.pickupDateTime ? [{
+                          type: "text",
+                          text: "預計自取時間",
+                          weight: "bold",
+                          color: "#06C755",
+                          size: "sm",
+                          align: "center",
+                          margin: "md"
+                        }, {
+                          type: "text",
+                          text: (() => {
+                            try {
+                              const dt = new Date(formData.pickupDateTime);
+                              const year = dt.getFullYear();
+                              const month = String(dt.getMonth() + 1).padStart(2, '0');
+                              const day = String(dt.getDate()).padStart(2, '0');
+                              const hours = String(dt.getHours()).padStart(2, '0');
+                              const minutes = String(dt.getMinutes()).padStart(2, '0');
+                              return `${year}年${month}月${day}日 ${hours}:${minutes}`;
+                            } catch (e) {
+                              return formData.pickupDateTime;
+                            }
+                          })(),
+                          size: "sm",
+                          color: "#06C755",
+                          align: "center",
+                          margin: "sm",
+                          weight: "bold"
+                        }] : [])
+                      ]
+                    },
+                    {
+                      type: "text",
+                      text: "若有任何問題，請透過LINE與我們聯繫\n謝謝！",
+                      size: "xs",
+                      color: "#888888",
+                      align: "center",
+                      wrap: true,
+                      margin: "md"
+                    }
+                  ]
+                },
+                footer: {
+                  type: "box",
+                  layout: "vertical",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "感謝您的訂購",
+                      size: "sm",
+                      align: "center",
+                      color: "#aaaaaa"
+                    }
+                  ]
+                }
+              }
+            }];
+
+            // 發送 FLEX 訊息
+            await activeLiff.sendMessages(flexMessage);
+            console.log('LINE Pay FLEX 訊息已發送');
+          } catch (error) {
+            console.error('發送 LINE FLEX 訊息失敗', error);
+            // 即使發送訊息失敗，仍然繼續處理支付流程
+          }
+        }
+
         // 重定向到LINE Pay支付頁面
         if (data.linepay && data.linepay.paymentUrl) {
           // 根據是否在手機 app 中選擇適當的 LINE Pay URL
-          console.log('data.linepay.paymentUrl', data.linepay.paymentUrl);
+          
           localStorage.removeItem('bakeryCart');
-          if (liff && liff.isInClient()) {
+          
+          try {
+            if (activeLiff && activeLiff.isInClient && activeLiff.isInClient()) {
+              // 在 LINE App 中，使用 app URL
+              const paymentUrl = 'https://joinmeet.sunnyhausbakery.com.tw/client/payment-redirect?url=' + encodeURIComponent(data.linepay.paymentUrl.app);
+              console.log('LINE App 中，嘗試開啟支付頁面:', paymentUrl);
+              
+              // 檢查 openWindow 方法是否存在
+              if (activeLiff.openWindow) {
+                activeLiff.openWindow({
+                  url: paymentUrl,
+                  external: true
+                });
+                
+                // 可選：延遲關閉 LIFF 窗口（給用戶時間看到跳轉）
+                setTimeout(() => {
+                  if (activeLiff.closeWindow) {
+                    console.log('關閉 LIFF 窗口');
+                    activeLiff.closeWindow();
+                  }
+                }, 1000); // 1秒後關閉
+              } 
+            } else {
+              // 在瀏覽器中，使用 web URL
+              const paymentUrl = 'https://joinmeet.sunnyhausbakery.com.tw/client/payment-redirect?url=' + encodeURIComponent(data.linepay.paymentUrl.web);
+              console.log('瀏覽器中，嘗試開啟支付頁面:', paymentUrl);
+              
+              if (activeLiff && activeLiff.openWindow) {
+                activeLiff.openWindow({
+                  url: paymentUrl,
+                  external: true
+                });
+                
+                // 可選：延遲關閉 LIFF 窗口（給用戶時間看到跳轉）
+                setTimeout(() => {
+                  if (activeLiff.closeWindow) {
+                    console.log('關閉 LIFF 窗口');
+                    activeLiff.closeWindow();
+                  }
+                }, 1000); // 1秒後關閉
+              }
+            }
+          } catch (error: any) {
+            const errorMsg = `支付頁面重定向失敗: ${error.message || error}`;
+            console.error(errorMsg, error);
+            setDebugErrors(prev => [...prev, errorMsg]);
             
-            // 使用liff.openWindow()但不設定external: true，避免顯示安全性警告
-            window.open(
-              'https://tttr.zeabur.app/client/payment-redirect?url=' + data.linepay.paymentUrl.app,
-              '_blank'
-            );
-          } else {
-            // 如果是在瀏覽器中，使用 web URL
-            window.open(
-              'https://tttr.zeabur.app/client/payment-redirect?url=' + data.linepay.paymentUrl.web,
-              '_blank'
-            );
+            // 嘗試備用方案：直接重定向
+          
           }
           return;
         } else {
@@ -800,8 +1148,10 @@ export default function CheckoutPage() {
       const discountParam = discountAmount > 0 ? `&discount=${discountAmount}` : '';
       
       router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&paymentMethod=${paymentMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}${discountParam}`);
-    } catch (error) {
+    } catch (error: any) {
+      const errorMsg = `結帳失敗: ${error.message || error}`;
       console.error('結帳失敗', error);
+      setDebugErrors(prev => [...prev, errorMsg]);
       setFormError('結帳過程中發生錯誤，請稍後再試');
       setPaymentStatus('failed');
     } finally {
@@ -830,6 +1180,11 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
+      {/* 載入 LIFF SDK */}
+      <Script 
+        src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+        onLoad={handleLiffScriptLoad}
+      />
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-2">結帳</h1>
         <div className="h-1 w-20 bg-amber-400 rounded-full"></div>
@@ -1047,7 +1402,7 @@ export default function CheckoutPage() {
             <button 
               type="button"
               onClick={toggleDiscountModal}
-              className="w-full flex items-center justify-center py-3 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors"
+              className="w-full flex items-center justify-center py-3 px-4 border border-amber-500 text-amber-600 rounded-md hover:bg-amber-50 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-500 touch-manipulation"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 17h.01M17 7h.01M17 17h.01M3 7a4 4 0 014-4h10a4 4 0 014 4v10a4 4 0 01-4 4H7a4 4 0 01-4-4V7z" />
@@ -1235,26 +1590,175 @@ export default function CheckoutPage() {
               <div className="mt-4 bg-gray-100 p-3 rounded-md text-xs">
                 <div className="flex justify-between mb-2">
                   <span>Debug 模式</span>
-                  <button 
-                    type="button"
-                    onClick={() => {
-                      // 檢查 localStorage 中的 LINE ID
-                      const localCustomerData = getCustomerDataFromLocalStorage();
-                      const localStorageLineId = localCustomerData?.lineId || '未獲取';
-                      
-                      console.log('目前顧客資料狀態:', {
-                        formData,
-                        customerData,
-                        profile,
-                        lineIdFromProfile: profile?.userId || '未獲取',
-                        lineIdFromLocalStorage: localStorageLineId,
-                        localStorage: getCustomerDataFromLocalStorage()
-                      });
-                    }}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    檢查數據
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        // 檢查 localStorage 中的 LINE ID
+                        const localCustomerData = getCustomerDataFromLocalStorage();
+                        const localStorageLineId = localCustomerData?.lineId || '未獲取';
+                        
+                        console.log('目前顧客資料狀態:', {
+                          formData,
+                          customerData,
+                          profile,
+                          lineIdFromProfile: profile?.userId || '未獲取',
+                          lineIdFromLocalStorage: localStorageLineId,
+                          localStorage: getCustomerDataFromLocalStorage()
+                        });
+                      }}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      檢查數據
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        await initializeLiffManually();
+                      }}
+                      className="text-orange-600 hover:text-orange-800"
+                    >
+                      初始化LIFF
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        // 測試發送 LIFF 訊息
+                        const activeLiff = liff || manualLiff;
+                        if (!activeLiff) {
+                          const error = 'LIFF 物件不存在，請確保 LIFF 已正確初始化';
+                          console.error(error);
+                          setDebugErrors(prev => [...prev, error]);
+                          alert(error);
+                          return;
+                        }
+                        
+                        if (!activeLiff.isInClient || !activeLiff.isInClient()) {
+                          const error = '目前不在 LINE 應用中，無法發送訊息';
+                          console.warn(error);
+                          setDebugErrors(prev => [...prev, error]);
+                          alert(error);
+                          return;
+                        }
+                        
+                        if (!activeLiff.sendMessages) {
+                          const error = 'sendMessages 方法不存在';
+                          console.error(error);
+                          setDebugErrors(prev => [...prev, error]);
+                          alert(error);
+                          return;
+                        }
+                        
+                        try {
+                          // 構建測試訊息
+                          const testMessage = [{
+                            type: 'text',
+                            text: '🧪 測試訊息'
+                          }, {
+                            type: "flex",
+                            altText: "LIFF sendMessages 測試",
+                            contents: {
+                              type: "bubble",
+                              header: {
+                                type: "box",
+                                layout: "vertical",
+                                contents: [
+                                  {
+                                    type: "text",
+                                    text: "🧪 測試訊息",
+                                    size: "xl",
+                                    align: "center",
+                                    weight: "bold",
+                                    color: "#ffffff"
+                                  }
+                                ],
+                                backgroundColor: "#06C755",
+                                paddingAll: "md"
+                              },
+                              body: {
+                                type: "box",
+                                layout: "vertical",
+                                spacing: "md",
+                                contents: [
+                                  {
+                                    type: "text",
+                                    text: "LIFF sendMessages() 測試成功！",
+                                    size: "md",
+                                    weight: "bold",
+                                    align: "center",
+                                    color: "#06C755",
+                                    wrap: true
+                                  },
+                                  {
+                                    type: "separator",
+                                    margin: "md"
+                                  },
+                                  {
+                                    type: "text",
+                                    text: `測試時間：${new Date().toLocaleString('zh-TW')}`,
+                                    size: "sm",
+                                    color: "#333333",
+                                    margin: "md",
+                                    align: "center"
+                                  },
+                                  {
+                                    type: "text",
+                                    text: "🎯 功能測試項目：",
+                                    weight: "bold",
+                                    color: "#06C755",
+                                    margin: "lg",
+                                    size: "md"
+                                  },
+                                  {
+                                    type: "text",
+                                    text: "✅ LIFF 初始化\n✅ LINE App 環境檢測\n✅ sendMessages API\n✅ FLEX Message 格式",
+                                    size: "sm",
+                                    color: "#555555",
+                                    margin: "sm",
+                                    wrap: true
+                                  }
+                                ]
+                              },
+                              footer: {
+                                type: "box",
+                                layout: "vertical",
+                                contents: [
+                                  {
+                                    type: "text",
+                                    text: "開發測試完成",
+                                    size: "sm",
+                                    align: "center",
+                                    color: "#aaaaaa"
+                                  }
+                                ]
+                              }
+                            }
+                          }];
+                          
+                          console.log('發送測試訊息:', testMessage);
+                          await activeLiff.sendMessages(testMessage);
+                          console.log('✅ 測試訊息發送成功！');
+                          setDebugErrors(prev => [...prev, '✅ 測試訊息發送成功！']);
+                          alert('✅ 測試訊息發送成功！請檢查您的 LINE 聊天室');
+                        } catch (error: any) {
+                          const errorMsg = `❌ 測試訊息發送失敗: ${error.message || error}`;
+                          console.error(errorMsg, error);
+                          setDebugErrors(prev => [...prev, errorMsg]);
+                          alert(errorMsg);
+                        }
+                      }}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      測試LIFF訊息
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setDebugErrors([])}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      清除錯誤
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <div>Profile: {profile ? '已載入' : '未載入'}</div>
@@ -1264,7 +1768,36 @@ export default function CheckoutPage() {
                     const localCustomerData = getCustomerDataFromLocalStorage();
                     return localCustomerData?.lineId || '未獲取';
                   })()}</div>
+                  <div>LIFF 物件 (Provider): {liff ? '存在' : '不存在'}</div>
+                  <div>LIFF 物件 (手動): {manualLiff ? '存在' : '不存在'}</div>
+                  <div>LIFF 腳本: {isLiffScriptLoaded ? '已載入' : '未載入'}</div>
+                  <div>在 LINE App 中: {(() => {
+                    const activeLiff = liff || manualLiff;
+                    return activeLiff && activeLiff.isInClient ? (activeLiff.isInClient() ? '是' : '否') : '未知';
+                  })()}</div>
+                  <div>sendMessages 可用: {(() => {
+                    const activeLiff = liff || manualLiff;
+                    return activeLiff && activeLiff.sendMessages ? '是' : '否';
+                  })()}</div>
+                  <div>openWindow 可用: {(() => {
+                    const activeLiff = liff || manualLiff;
+                    return activeLiff && activeLiff.openWindow ? '是' : '否';
+                  })()}</div>
                 </div>
+                
+                {/* 錯誤訊息顯示 */}
+                {debugErrors.length > 0 && (
+                  <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                    <div className="text-red-700 font-medium mb-1">錯誤記錄:</div>
+                    <div className="max-h-32 overflow-y-auto">
+                      {debugErrors.map((error, index) => (
+                        <div key={index} className="text-red-600 text-xs mb-1 break-words">
+                          {new Date().toLocaleTimeString()}: {error}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </form>
@@ -1441,7 +1974,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               form="checkoutForm" // 連結到表單ID
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 px-4 rounded-md font-medium transition-colors"
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 px-4 rounded-md font-medium transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation disabled:opacity-50"
               disabled={submitting}
             >
               {submitting ? (
@@ -1541,7 +2074,7 @@ export default function CheckoutPage() {
               <>
                 <button 
                   onClick={toggleDiscountModal}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-400 touch-manipulation disabled:opacity-50"
                   disabled={isValidatingDiscount}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1568,7 +2101,7 @@ export default function CheckoutPage() {
                   <button 
                     type="button"
                     onClick={toggleDiscountModal}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation disabled:opacity-50"
                     disabled={isValidatingDiscount}
                   >
                     取消
@@ -1578,7 +2111,7 @@ export default function CheckoutPage() {
                     type="button"
                     onClick={validateDiscountCode}
                     disabled={isValidatingDiscount || !formData.discountCode}
-                    className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center"
+                    className="px-4 py-2 bg-amber-500 text-white rounded-md hover:bg-amber-600 disabled:bg-gray-300 transition-colors flex items-center focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation disabled:opacity-50"
                   >
                     確認
                   </button>
@@ -1590,4 +2123,11 @@ export default function CheckoutPage() {
       )}
     </div>
   );
+}
+
+// 聲明 window.liff 類型
+declare global {
+  interface Window {
+    liff: any;
+  }
 }

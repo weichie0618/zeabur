@@ -611,7 +611,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
               onClick={(e) => e.stopPropagation()}
             >
               <button 
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-50 bg-white rounded-full p-2 border-2 border-white shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform duration-200"
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-50 bg-white rounded-full p-2 border-2 border-white shadow-lg flex items-center justify-center transform hover:scale-110 transition-transform duration-200 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation"
                 onClick={closeModal}
                 aria-label="關閉"
               >
@@ -642,7 +642,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                             e.stopPropagation();
                             prevImage();
                           }}
-                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors"
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -655,7 +655,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                             e.stopPropagation();
                             nextImage();
                           }}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-1.5 shadow-md flex items-center justify-center text-amber-600 hover:text-amber-800 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -672,7 +672,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                                 e.stopPropagation();
                                 setCurrentImageIndex(idx);
                               }}
-                              className={`w-2 h-2 rounded-full transition-all ${currentImageIndex === idx ? 'bg-amber-500 w-4' : 'bg-gray-300 hover:bg-gray-400'}`}
+                              className={`w-2 h-2 rounded-full transition-all ${currentImageIndex === idx ? 'bg-amber-500 w-4' : 'bg-gray-300 hover:bg-gray-400'} focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-500 touch-manipulation`}
                             />
                           ))}
                         </div>
@@ -782,7 +782,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                               <div className="flex items-center">
                                 <button 
                                   onClick={() => handleFlavorChange(flavor.flavor, -1)}
-                                  className="w-7 h-7 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                                  className="w-7 h-7 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -793,7 +793,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                                 </div>
                                 <button 
                                   onClick={() => handleFlavorChange(flavor.flavor, 1)}
-                                  className="w-7 h-7 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                                  className="w-7 h-7 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                     <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -845,7 +845,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                     <div className="flex items-center justify-start">
                       <button 
                         onClick={decreaseModalQuantity}
-                        className="w-10 h-10 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                        className="w-10 h-10 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -856,7 +856,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       </div>
                       <button 
                         onClick={increaseModalQuantity}
-                        className="w-10 h-10 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                        className="w-10 h-10 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -934,7 +934,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       isMobile 
                         ? 'bg-amber-500 active:bg-amber-600' // 移動設備使用 active 而非 hover
                         : 'bg-amber-500 hover:bg-amber-600'
-                    } text-white rounded-md transition-colors font-medium flex items-center justify-center overflow-hidden group relative`}
+                    } text-white rounded-md transition-colors font-medium flex items-center justify-center overflow-hidden group relative focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation`}
                   >
                     <motion.div 
                       className="absolute top-0 left-0 w-full h-full bg-amber-600 origin-left"
@@ -988,7 +988,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
               <p className="font-medium">{error}</p>
               <button 
                 onClick={handleRefresh}
-                className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded"
+                className="mt-2 text-sm bg-red-100 hover:bg-red-200 px-3 py-1 rounded focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-red-500 touch-manipulation"
               >
                 重新載入
               </button>
@@ -1053,7 +1053,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       </p>
                       <button 
                         onClick={() => handleProductClick(product)}
-                        className="text-amber-600 hover:text-amber-800 text-xs mt-1"
+                        className="text-amber-600 hover:text-amber-800 text-xs mt-1 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                       >
                         查看
                       </button>
@@ -1065,7 +1065,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       isMobile 
                         ? 'bg-amber-200 active:bg-amber-300' // 移動設備使用 active 而非 hover
                         : 'bg-amber-100 hover:bg-amber-200'
-                    } text-amber-800 py-2 rounded-md transition-colors flex items-center justify-center group relative overflow-hidden`}
+                    } text-amber-800 py-2 rounded-md transition-colors flex items-center justify-center group relative overflow-hidden focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation`}
                   >
                     {/* 默認按鈕內容 */}
                     <span className={`relative z-10 flex items-center justify-center transition-opacity duration-200 ${animatingButtons.has(product.id) ? 'opacity-0' : 'opacity-100'}`}>
@@ -1166,7 +1166,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                   </h3>
                   <button 
                     onClick={cancelFlavorSelection}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1200,7 +1200,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                       <div className="flex items-center">
                         <button 
                           onClick={() => handleFlavorChange(flavor.flavor, -1)}
-                          className="w-8 h-8 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                          className="w-8 h-8 rounded-l-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
@@ -1211,7 +1211,7 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                         </div>
                         <button 
                           onClick={() => handleFlavorChange(flavor.flavor, 1)}
-                          className="w-8 h-8 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors"
+                          className="w-8 h-8 rounded-r-md bg-amber-100 hover:bg-amber-200 text-amber-800 flex items-center justify-center border border-amber-200 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-amber-600 touch-manipulation"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -1253,13 +1253,13 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
                 <div className="flex space-x-3">
                   <button 
                     onClick={cancelFlavorSelection}
-                    className="flex-1 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-gray-500 touch-manipulation"
                   >
                     取消
                   </button>
                   <button 
                     onClick={confirmFlavorSelection}
-                    className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors"
+                    className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-md transition-colors focus:outline-none md:focus-visible:outline-2 md:focus-visible:outline-white touch-manipulation"
                   >
                     確認
                   </button>

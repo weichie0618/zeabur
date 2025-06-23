@@ -35,6 +35,9 @@ import OrderFilters from './components/OrderFilters';
 import Pagination from './components/Pagination';
 import StatusUpdateModal from './components/StatusUpdateModal';
 
+// 引入共用 Hook
+import { useOrderStatusUpdate } from './hooks/useOrderStatusUpdate';
+
 export default function OrdersManagement() {
   // 狀態
   const [orders, setOrders] = useState<Order[]>([]);
@@ -62,6 +65,20 @@ export default function OrdersManagement() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showStatusUpdate, setShowStatusUpdate] = useState<boolean>(false);
   const [showExportModal, setShowExportModal] = useState<boolean>(false);
+  
+  // 使用共用的狀態更新 Hook
+  const { updateStatus, loading: statusUpdateLoading } = useOrderStatusUpdate({
+    accessToken,
+    onSuccess: (message) => {
+      setSuccess(message);
+      setTimeout(() => setSuccess(''), 3000);
+      setShowStatusUpdate(false);
+      handleFetchOrders(currentPage); // 重新獲取訂單列表
+    },
+    onError: (error) => {
+      setError(error);
+    }
+  });
 
   const router = useRouter();
   
@@ -266,34 +283,11 @@ export default function OrdersManagement() {
     setShowStatusUpdate(true);
   };
 
-  // 更新訂單狀態
+  // 更新訂單狀態 - 使用共用 Hook
   const handleUpdateStatus = async (status: string, note: string) => {
-    if (!accessToken || !selectedOrder) {
-      setError('認證失敗或缺少訂單資訊');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      await updateOrderStatus(accessToken, selectedOrder.id, status, note);
-      
-      setSuccess('訂單狀態更新成功');
-      // 更新成功後關閉模態視窗
-      setShowStatusUpdate(false);
-      // 重新獲取訂單列表
-      handleFetchOrders(currentPage);
-      
-      // 3秒後清除成功訊息
-      setTimeout(() => {
-        setSuccess('');
-      }, 3000);
-    } catch (err: any) {
-      setError(err.message || '處理訂單狀態更新時出錯');
-      console.error('更新訂單狀態錯誤:', err);
-    } finally {
-      setLoading(false);
-    }
+    if (!selectedOrder) return;
+    
+    await updateStatus(selectedOrder, status, note);
   };
 
   return (
@@ -365,7 +359,7 @@ export default function OrdersManagement() {
               </button>
               {error.includes('認證失敗') && (
                 <button
-                  onClick={handleRelogin}
+                  onClick={() => handleRelogin()}
                   className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
                 >
                   重新登入
@@ -512,7 +506,7 @@ export default function OrdersManagement() {
         onClose={() => setShowStatusUpdate(false)}
         order={selectedOrder}
         onUpdateStatus={handleUpdateStatus}
-        loading={loading}
+        loading={statusUpdateLoading}
       />
     </div>
   );

@@ -2,7 +2,7 @@
 // @ts-nocheck
 //認證警告組件
 import React from 'react';
-import { handleRelogin } from '../utils';
+import { handleRelogin } from '../../utils/authService';
 
 interface AuthWarningProps {
   showWarning: boolean;
@@ -36,7 +36,7 @@ const AuthWarning: React.FC<AuthWarningProps> = ({
           關閉
         </button>
         <button 
-          onClick={handleRelogin}
+          onClick={() => handleRelogin()}
           className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
         >
           重新登入

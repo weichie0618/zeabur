@@ -97,7 +97,8 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
   // 添加當前顯示圖片索引狀態
   const [currentImageIndex, setCurrentImageIndex] = useState<number>(0);
   // 添加時間戳避免圖片快取
-  const [timestamp, setTimestamp] = useState<number>(Date.now());
+  const [timestamp, setTimestamp] = useState<number>(0);
+  const [isClient, setIsClient] = useState(false);
   // 添加口味選擇相關狀態
   const [showFlavorModal, setShowFlavorModal] = useState<boolean>(false);
   const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
@@ -120,6 +121,12 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
+  }, []);
+
+  // 在 useEffect 中設置客戶端時間戳
+  useEffect(() => {
+    setIsClient(true);
+    setTimestamp(Date.now());
   }, []);
 
   // 當類別變更時，適當地捲動到產品部分並更新標題
@@ -468,10 +475,11 @@ export const ProductsClient: React.FC<ProductsClientProps> = ({ initialProducts,
     return `${sortedImages[currentImageIndex]?.imageUrl || selectedProduct.images}?t=${timestamp}`;
   }, [selectedProduct, currentImageIndex, timestamp]);
 
-  // 添加防止圖片快取的函數
+  // 修改 getImageUrlWithTimestamp 函數
   const getImageUrlWithTimestamp = useCallback((url: string) => {
-    return `${url}?t=${timestamp}`;
-  }, [timestamp]);
+    // 只在客戶端且有時間戳時添加時間戳
+    return isClient && timestamp ? `${url}?t=${timestamp}` : url;
+  }, [timestamp, isClient]);
 
   // 添加口味處理函數
   const handleFlavorChange = useCallback((flavor: string, change: number) => {

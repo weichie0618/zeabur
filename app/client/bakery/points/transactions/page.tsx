@@ -112,12 +112,13 @@ export default function TransactionsPage() {
       const checkData = await checkResponse.json();
       console.log('📋 用戶API響應數據:', checkData);
       
-      if (checkData.success && checkData.data) {
+      // 修正：API返回格式是 {message: '查詢成功', data: {...}} 而不是 {success: true, data: {...}}
+      if (checkResponse.ok && checkData.data) {
         console.log('✅ 成功獲取/創建用戶:', checkData.data);
         return checkData.data;
       }
 
-      console.log('❌ 用戶API返回失敗');
+      console.log('❌ 用戶API返回失敗，響應:', checkData);
       return null;
     } catch (error) {
       console.error('❌ 獲取或創建LINE用戶失敗:', error);

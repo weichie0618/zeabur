@@ -68,6 +68,8 @@ const formatDate = (dateString: string) => {
 };
 
 export default function TransactionsPage() {
+  console.log('🎯 TransactionsPage 元件載入');
+  
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
   const [lineUser, setLineUser] = useState<LineUser | null>(null);
@@ -79,16 +81,32 @@ export default function TransactionsPage() {
   const [manualLiff, setManualLiff] = useState<any>(null);
   const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
-  // 添加測試相關狀態
-  const [testLoading, setTestLoading] = useState<boolean>(false);
-  const [testResult, setTestResult] = useState<any>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
+  console.log('🔧 TransactionsPage 當前狀態:', {
+    liff: !!liff,
+    profile: !!profile,
+    isLoggedIn,
+    liffLoading,
+    lineUser: !!lineUser,
+    transactionsCount: transactions.length,
+    loading,
+    error
+  });
 
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    if (!profile?.userId) return null;
+    console.log('👤 開始獲取或創建LINE用戶, profile:', profile);
+    if (!profile?.userId) {
+      console.log('❌ 沒有profile或userId');
+      return null;
+    }
 
     try {
+      console.log('📤 發送創建LINE用戶請求:', {
+        lineId: profile.userId,
+        displayName: profile.displayName,
+        name: profile.displayName
+      });
+
       const checkResponse = await fetch('/api/customer/line/customer', {
         method: 'POST',
         headers: {
@@ -101,79 +119,56 @@ export default function TransactionsPage() {
         }),
       });
 
+      console.log('📥 LINE用戶API響應狀態:', checkResponse.status);
       const checkData = await checkResponse.json();
+      console.log('📥 LINE用戶API響應數據:', checkData);
       
       if (checkData.success && checkData.data) {
+        console.log('✅ LINE用戶創建/獲取成功:', checkData.data);
         return checkData.data;
       }
 
+      console.log('❌ LINE用戶創建/獲取失敗');
       return null;
     } catch (error) {
-      console.error('獲取或創建LINE用戶失敗:', error);
+      console.error('💥 獲取或創建LINE用戶失敗:', error);
       return null;
     }
   }, [profile]);
 
   // 載入交易記錄
   const loadTransactions = useCallback(async (lineUserId: number) => {
+    console.log('🔥 開始載入交易記錄 - lineUserId:', lineUserId);
     setLoading(true);
     setError('');
 
     try {
-      const response = await fetch(`/api/points/transactions/${lineUserId}?limit=50`);
+      const apiUrl = `/api/points/transactions/${lineUserId}?limit=50`;
+      console.log('🌐 發送API請求到:', apiUrl);
+      
+      const response = await fetch(apiUrl);
+      console.log('📡 API響應狀態:', response.status, response.statusText);
+      console.log('📡 API響應headers:', Object.fromEntries(response.headers.entries()));
+      
       const data = await response.json();
+      console.log('📝 API響應數據:', data);
 
       if (data.success && data.data) {
+        console.log('✅ 交易記錄載入成功，記錄數量:', data.data.length);
+        console.log('📊 交易記錄詳情:', data.data);
         setTransactions(data.data);
       } else {
+        console.log('❌ API回應失敗:', data);
         setError('載入交易記錄失敗');
       }
     } catch (error) {
-      console.error('載入交易記錄失敗:', error);
+      console.error('💥 載入交易記錄發生錯誤:', error);
       setError('載入交易記錄失敗');
     } finally {
       setLoading(false);
+      console.log('🏁 載入交易記錄完成');
     }
   }, []);
-
-  // 添加測試API調用函數
-  const testApiCall = async () => {
-    if (!lineUser) {
-      setDebugInfo('無LINE用戶資訊');
-      return;
-    }
-
-    setTestLoading(true);
-    setTestResult(null);
-    setDebugInfo(`開始測試API調用...用戶ID: ${lineUser.id}`);
-
-    try {
-      const url = `/api/points/transactions/${lineUser.id}?limit=50`;
-      setDebugInfo(prev => prev + `\n呼叫URL: ${url}`);
-      
-      const response = await fetch(url);
-      setDebugInfo(prev => prev + `\n響應狀態: ${response.status} ${response.statusText}`);
-      
-      const data = await response.json();
-      setDebugInfo(prev => prev + `\n響應資料: ${JSON.stringify(data, null, 2)}`);
-      
-      setTestResult(data);
-      
-      if (data.success && data.data) {
-        setTransactions(data.data);
-        setDebugInfo(prev => prev + `\n成功載入 ${data.data.length} 筆交易記錄`);
-      } else {
-        setDebugInfo(prev => prev + `\nAPI返回失敗: ${data.message || '未知錯誤'}`);
-      }
-    } catch (error) {
-      console.error('測試API調用失敗:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setDebugInfo(prev => prev + `\n錯誤: ${errorMessage}`);
-      setTestResult({ error: errorMessage });
-    } finally {
-      setTestLoading(false);
-    }
-  };
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -222,16 +217,33 @@ export default function TransactionsPage() {
   // 初始化
   useEffect(() => {
     const initializeUser = async () => {
+      console.log('🚀 開始初始化用戶');
       const currentLiff = liff || manualLiff;
       const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
       const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
       
+      console.log('🔍 當前狀態檢查:', {
+        liffLoading,
+        currentIsLoggedIn,
+        hasProfile: !!currentProfile,
+        profileUserId: currentProfile?.userId,
+        liffExists: !!currentLiff,
+        manualLiffExists: !!manualLiff
+      });
+      
       if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
+        console.log('✅ 條件滿足，開始獲取用戶和載入交易記錄');
         const user = await getOrCreateLineUser();
         if (user) {
+          console.log('👤 設置LINE用戶:', user);
           setLineUser(user);
+          console.log('📊 開始載入用戶交易記錄, userId:', user.id);
           await loadTransactions(user.id);
+        } else {
+          console.log('❌ 無法獲取LINE用戶');
         }
+      } else {
+        console.log('⏳ 條件不滿足，等待中...');
       }
     };
 
@@ -297,47 +309,13 @@ export default function TransactionsPage() {
               <h1 className="text-2xl font-bold text-gray-900">點數交易記錄</h1>
               <p className="text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={testApiCall}
-                disabled={testLoading || !lineUser}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                {testLoading ? '測試中...' : '🔧 測試API'}
-              </button>
-              <Link
-                href="/client/bakery/points"
-                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                返回點數商城
-              </Link>
-            </div>
+            <Link
+              href="/client/bakery/points"
+              className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              返回點數商城
+            </Link>
           </div>
-
-          {/* 用戶資訊和調試區域 */}
-          {lineUser && (
-            <div className="bg-blue-50 rounded-lg p-4 space-y-3">
-              <div className="text-sm text-blue-800">
-                <strong>用戶資訊:</strong> ID: {lineUser.id}, LINE ID: {lineUser.lineId}, 名稱: {lineUser.displayName || lineUser.name || '未知'}
-              </div>
-              
-              {debugInfo && (
-                <div className="bg-white rounded border p-3">
-                  <div className="text-sm font-medium text-gray-700 mb-2">調試資訊:</div>
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono">{debugInfo}</pre>
-                </div>
-              )}
-              
-              {testResult && (
-                <div className="bg-white rounded border p-3">
-                  <div className="text-sm font-medium text-gray-700 mb-2">API回應:</div>
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-mono bg-gray-50 p-2 rounded">
-                    {JSON.stringify(testResult, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* 交易記錄 */}
           <div className="bg-white rounded-lg shadow-md">
@@ -386,16 +364,7 @@ export default function TransactionsPage() {
                   />
                 </svg>
                 <h3 className="text-lg font-medium text-gray-600 mb-2">暫無交易記錄</h3>
-                <p className="text-gray-500 mb-4">您還沒有任何點數交易記錄</p>
-                {lineUser && (
-                  <button
-                    onClick={testApiCall}
-                    disabled={testLoading}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  >
-                    {testLoading ? '測試中...' : '🔧 重新測試載入'}
-                  </button>
-                )}
+                <p className="text-gray-500">您還沒有任何點數交易記錄</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">

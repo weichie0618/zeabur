@@ -32,17 +32,7 @@ export default function BakeryLayout({
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               {/* LOGO - 在所有螢幕尺寸下都顯示 */}
-              <Link 
-                href="/client/bakery" 
-                className="text-2xl font-bold hover:text-amber-100 transition-colors duration-200 flex items-center"
-                onClick={closeMobileMenu}
-              >
-                <span className="bg-white text-amber-600 w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm font-bold">
-                  晴
-                </span>
-                <span className="hidden sm:inline">晴朗家烘焙</span>
-                <span className="sm:hidden">晴朗家</span>
-              </Link>
+              <Link href="/client/bakery" className="text-2xl font-bold">晴朗家烘焙</Link>
 
               {/* 桌面版導覽選單 - 在 md 以上螢幕顯示 */}
               <nav className="hidden md:flex items-center space-x-8">

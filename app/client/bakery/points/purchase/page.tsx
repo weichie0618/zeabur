@@ -27,7 +27,6 @@ export default function PurchasePage() {
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
   // 狀態管理
-  const [lineUser, setLineUser] = useState<LineUser | null>(null);
   const [virtualCards, setVirtualCards] = useState<VirtualCard[]>([]);
   const [selectedCard, setSelectedCard] = useState<VirtualCard | null>(null);
   
@@ -42,35 +41,80 @@ export default function PurchasePage() {
   const [manualLiff, setManualLiff] = useState<any>(null);
   const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
-  // 獲取或創建 LINE 用戶
+  // 從 localStorage 獲取客戶資料的輔助函數
+  const getCustomerDataFromLocalStorage = (): any | null => {
+    try {
+      const savedCustomerData = localStorage.getItem('customerData');
+      if (savedCustomerData) {
+        const parsedData = JSON.parse(savedCustomerData);
+        console.log('從 localStorage 讀取到客戶資料:', parsedData);
+        return parsedData;
+      }
+    } catch (e) {
+      console.error('解析本地客戶資料失敗', e);
+    }
+    return null;
+  };
+
+  // 獲取 LINE 用戶 ID（與 checkout 頁面邏輯一致）
+  const getLineUserId = useCallback((): string | null => {
+    // 首先嘗試從 LIFF SDK 獲取
+    if (isLoggedIn && profile && profile.userId) {
+      console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
+      return profile.userId;
+    }
+    
+    // 嘗試從手動 LIFF 獲取
+    if (manualLiff?.isLoggedIn && manualLiff.isLoggedIn()) {
+      try {
+        // 嘗試從手動 LIFF 獲取 profile
+        console.log('嘗試從手動 LIFF 獲取用戶 ID');
+        return null; // 手動 LIFF 的 profile 需要異步獲取
+      } catch (error) {
+        console.error('從手動 LIFF 獲取 profile 失敗:', error);
+      }
+    }
+    
+    // 嘗試從 localStorage 獲取
+    const localCustomerData = getCustomerDataFromLocalStorage();
+    if (localCustomerData && localCustomerData.lineId) {
+      console.log('從 localStorage 成功獲取 LINE 用戶 ID:', localCustomerData.lineId);
+      return localCustomerData.lineId;
+    }
+    
+    console.warn('無法獲取 LINE 用戶 ID');
+    return null;
+  }, [isLoggedIn, profile, manualLiff]);
+
+  // 獲取 LINE 用戶資料
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    if (!profile?.userId) return null;
+    const lineUserId = getLineUserId();
+    if (!lineUserId) return null;
 
     try {
+      // 檢查用戶是否存在
       const checkResponse = await fetch('/api/customer/line/customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineId: profile.userId,
-          displayName: profile.displayName,
-          name: profile.displayName
+          lineId: lineUserId
         }),
       });
 
       const checkData = await checkResponse.json();
       
-      if (checkData.success && checkData.data) {
+      if (checkData.data) {
         return checkData.data;
       }
 
       return null;
     } catch (error) {
-      console.error('獲取或創建LINE用戶失敗:', error);
+      console.error('獲取LINE用戶失敗:', error);
       return null;
     }
-  }, [profile]);
+  }, [getLineUserId]);
 
   // 載入虛擬點數卡商品
   const loadVirtualCards = useCallback(async () => {
@@ -98,8 +142,34 @@ export default function PurchasePage() {
 
   // 處理購買虛擬點數卡
   const handlePurchase = useCallback(async (card: VirtualCard) => {
-    if (!lineUser) {
-      alert('請先登入LINE');
+    const currentLineUserId = getLineUserId();
+    console.log('購買檢查 - lineUserId:', currentLineUserId);
+    console.log('購買檢查 - isLoggedIn:', isLoggedIn);
+    console.log('購買檢查 - profile:', profile);
+    console.log('購買檢查 - manualLiff isLoggedIn:', manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : 'N/A');
+    
+    // 使用與 checkout 頁面相同的邏輯獲取 LINE ID
+    const lineUserId = getLineUserId();
+    
+    if (!lineUserId) {
+      // 檢查是否已登入但沒有用戶 ID
+      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+      
+      if (currentIsLoggedIn) {
+        alert('無法獲取您的 LINE 用戶 ID，請重新整理頁面後再試');
+      } else {
+        alert('請先登入 LINE');
+        
+        // 嘗試登入
+        const currentLiff = liff || manualLiff;
+        if (currentLiff && currentLiff.login) {
+          try {
+            currentLiff.login();
+          } catch (error) {
+            console.error('LIFF 登入失敗:', error);
+          }
+        }
+      }
       return;
     }
 
@@ -107,13 +177,22 @@ export default function PurchasePage() {
     setPurchasing(true);
 
     try {
+      // 獲取 LINE 用戶資料來取得內部 ID
+      const user = await getOrCreateLineUser();
+      if (!user) {
+        alert('無法獲取用戶資料，請稍後再試');
+        setPurchasing(false);
+        setSelectedCard(null);
+        return;
+      }
+
       const response = await fetch('/api/points/virtual-cards/purchase', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineUserId: lineUser.id,
+          lineUserId: user.id,
           virtualCardProductId: card.id,
           paymentMethod: 'line_pay',
           ipAddress: undefined,
@@ -139,7 +218,7 @@ export default function PurchasePage() {
       setPurchasing(false);
       setSelectedCard(null);
     }
-  }, [lineUser]);
+  }, [getLineUserId, getOrCreateLineUser, isLoggedIn, profile, manualLiff, liff]);
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -185,23 +264,19 @@ export default function PurchasePage() {
     }
   }, [isLiffScriptLoaded, liff, manualLiff]);
 
-  // 初始化用戶
+  // 初始化用戶（簡化版本）
   useEffect(() => {
-    const initializeUser = async () => {
-      const currentLiff = liff || manualLiff;
-      const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
-      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
-      
-      if (currentIsLoggedIn && currentProfile?.userId) {
-        const user = await getOrCreateLineUser();
-        if (user) {
-          setLineUser(user);
-        }
-      }
-    };
-
-    initializeUser();
-  }, [isLoggedIn, profile, manualLiff, getOrCreateLineUser]);
+    const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+    const lineUserId = getLineUserId();
+    
+    if (currentIsLoggedIn && lineUserId) {
+      console.log('LINE用戶已登入，ID:', lineUserId);
+    } else if (currentIsLoggedIn && !lineUserId) {
+      console.log('已登入但無法獲取用戶ID');
+    } else {
+      console.log('用戶未登入');
+    }
+  }, [isLoggedIn, profile, manualLiff, getLineUserId, liff]);
 
   // 載入商品
   useEffect(() => {
@@ -258,6 +333,18 @@ export default function PurchasePage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">虛擬點數卡商城</h1>
           <p className="text-gray-600">購買點數卡，享受更多優惠！</p>
+          
+          {/* 用戶狀態調試資訊 */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-left max-w-md mx-auto">
+              <div><strong>調試資訊:</strong></div>
+              <div>LIFF已登入: {String(currentIsLoggedIn)}</div>
+              <div>用戶ID: {profile?.userId || 'N/A'}</div>
+              <div>用戶名稱: {profile?.displayName || 'N/A'}</div>
+              <div>LINE用戶ID: {getLineUserId() || '未獲取'}</div>
+              <div>手動LIFF: {manualLiff ? '已初始化' : '未初始化'}</div>
+            </div>
+          )}
           
           {/* 返回連結 */}
           <div className="mt-4">

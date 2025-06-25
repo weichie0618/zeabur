@@ -16,23 +16,16 @@ interface VirtualCard {
   status: string;
 }
 
-interface LineUser {
-  id: number;
-  lineId: string;
-  displayName?: string;
-  name?: string;
-}
+
 
 export default function PurchasePage() {
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
   // 狀態管理
   const [virtualCards, setVirtualCards] = useState<VirtualCard[]>([]);
-  const [selectedCard, setSelectedCard] = useState<VirtualCard | null>(null);
   
   // 載入狀態
   const [cardsLoading, setCardsLoading] = useState<boolean>(false);
-  const [purchasing, setPurchasing] = useState<boolean>(false);
   
   // 錯誤狀態
   const [cardsError, setCardsError] = useState<string>('');
@@ -56,65 +49,9 @@ export default function PurchasePage() {
     return null;
   };
 
-  // 獲取 LINE 用戶 ID（與 checkout 頁面邏輯一致）
-  const getLineUserId = useCallback((): string | null => {
-    // 首先嘗試從 LIFF SDK 獲取
-    if (isLoggedIn && profile && profile.userId) {
-      console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
-      return profile.userId;
-    }
-    
-    // 嘗試從手動 LIFF 獲取
-    if (manualLiff?.isLoggedIn && manualLiff.isLoggedIn()) {
-      try {
-        // 嘗試從手動 LIFF 獲取 profile
-        console.log('嘗試從手動 LIFF 獲取用戶 ID');
-        return null; // 手動 LIFF 的 profile 需要異步獲取
-      } catch (error) {
-        console.error('從手動 LIFF 獲取 profile 失敗:', error);
-      }
-    }
-    
-    // 嘗試從 localStorage 獲取
-    const localCustomerData = getCustomerDataFromLocalStorage();
-    if (localCustomerData && localCustomerData.lineId) {
-      console.log('從 localStorage 成功獲取 LINE 用戶 ID:', localCustomerData.lineId);
-      return localCustomerData.lineId;
-    }
-    
-    console.warn('無法獲取 LINE 用戶 ID');
-    return null;
-  }, [isLoggedIn, profile, manualLiff]);
 
-  // 獲取 LINE 用戶資料
-  const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    const lineUserId = getLineUserId();
-    if (!lineUserId) return null;
 
-    try {
-      // 檢查用戶是否存在
-      const checkResponse = await fetch('/api/customer/line/customer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lineId: lineUserId
-        }),
-      });
 
-      const checkData = await checkResponse.json();
-      
-      if (checkData.data) {
-        return checkData.data;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('獲取LINE用戶失敗:', error);
-      return null;
-    }
-  }, [getLineUserId]);
 
   // 載入虛擬點數卡商品
   const loadVirtualCards = useCallback(async () => {
@@ -142,83 +79,58 @@ export default function PurchasePage() {
 
   // 處理購買虛擬點數卡
   const handlePurchase = useCallback(async (card: VirtualCard) => {
-    const currentLineUserId = getLineUserId();
-    console.log('購買檢查 - lineUserId:', currentLineUserId);
-    console.log('購買檢查 - isLoggedIn:', isLoggedIn);
-    console.log('購買檢查 - profile:', profile);
-    console.log('購買檢查 - manualLiff isLoggedIn:', manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : 'N/A');
-    
-    // 使用與 checkout 頁面相同的邏輯獲取 LINE ID
-    const lineUserId = getLineUserId();
-    
-    if (!lineUserId) {
-      // 檢查是否已登入但沒有用戶 ID
-      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
-      
-      if (currentIsLoggedIn) {
-        alert('無法獲取您的 LINE 用戶 ID，請重新整理頁面後再試');
-      } else {
-        alert('請先登入 LINE');
-        
-        // 嘗試登入
-        const currentLiff = liff || manualLiff;
-        if (currentLiff && currentLiff.login) {
-          try {
-            currentLiff.login();
-          } catch (error) {
-            console.error('LIFF 登入失敗:', error);
-          }
-        }
-      }
-      return;
-    }
-
-    setSelectedCard(card);
-    setPurchasing(true);
+    // 添加虛擬點數卡到購物車
+    const virtualCardItem = {
+      id: `virtual_card_${card.id}`,
+      name: card.name,
+      price: card.price,
+      quantity: 1,
+      image: card.imageUrl || '',
+      product_type: 'virtual_card',
+      virtual_card_id: card.id,
+      points_value: card.pointsValue,
+      description: card.description
+    };
 
     try {
-      // 獲取 LINE 用戶資料來取得內部 ID
-      const user = await getOrCreateLineUser();
-      if (!user) {
-        alert('無法獲取用戶資料，請稍後再試');
-        setPurchasing(false);
-        setSelectedCard(null);
-        return;
+      // 獲取現有購物車
+      let currentCart: any[] = [];
+      try {
+        const savedCart = localStorage.getItem('bakeryCart');
+        if (savedCart) {
+          currentCart = JSON.parse(savedCart);
+        }
+      } catch (error) {
+        console.error('讀取購物車失敗:', error);
       }
 
-      const response = await fetch('/api/points/virtual-cards/purchase', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lineUserId: user.id,
-          virtualCardProductId: card.id,
-          paymentMethod: 'line_pay',
-          ipAddress: undefined,
-          userAgent: navigator.userAgent,
-          notes: `從LINE購買 ${card.name}`
-        }),
-      });
+      // 檢查是否已經有相同的虛擬點數卡
+      const existingItemIndex = currentCart.findIndex(
+        item => item.product_type === 'virtual_card' && item.virtual_card_id === card.id
+      );
 
-      const data = await response.json();
-
-      if (data.success) {
-        alert(`🎉 購買成功！\n您已成功購買 ${card.name}\n將獲得 ${card.pointsValue.toLocaleString()} 點數`);
-        
-        // 跳轉到點數頁面查看結果
-        window.location.href = '/client/bakery/points';
+      if (existingItemIndex !== -1) {
+        // 如果已存在，增加數量
+        currentCart[existingItemIndex].quantity += 1;
       } else {
-        alert(`購買失敗：${data.message}`);
+        // 如果不存在，添加新項目
+        currentCart.push(virtualCardItem);
       }
+
+      // 保存到 localStorage
+      localStorage.setItem('bakeryCart', JSON.stringify(currentCart));
+
+      // 顯示成功訊息
+      alert(`✅ ${card.name} 已加入購物車！\n即將前往結帳頁面`);
+
+      // 跳轉到結帳頁面
+      window.location.href = '/client/bakery/points/purchase/checkout';
+
     } catch (error) {
-      console.error('購買失敗:', error);
-      alert('購買過程中發生錯誤，請稍後再試');
-    } finally {
-      setPurchasing(false);
-      setSelectedCard(null);
+      console.error('添加到購物車失敗:', error);
+      alert('添加到購物車時發生錯誤，請稍後再試');
     }
-  }, [getLineUserId, getOrCreateLineUser, isLoggedIn, profile, manualLiff, liff]);
+  }, []);
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -267,16 +179,13 @@ export default function PurchasePage() {
   // 初始化用戶（簡化版本）
   useEffect(() => {
     const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
-    const lineUserId = getLineUserId();
     
-    if (currentIsLoggedIn && lineUserId) {
-      console.log('LINE用戶已登入，ID:', lineUserId);
-    } else if (currentIsLoggedIn && !lineUserId) {
-      console.log('已登入但無法獲取用戶ID');
+    if (currentIsLoggedIn) {
+      console.log('LINE用戶已登入');
     } else {
       console.log('用戶未登入');
     }
-  }, [isLoggedIn, profile, manualLiff, getLineUserId, liff]);
+  }, [isLoggedIn, profile, manualLiff, liff]);
 
   // 載入商品
   useEffect(() => {
@@ -341,7 +250,7 @@ export default function PurchasePage() {
               <div>LIFF已登入: {String(currentIsLoggedIn)}</div>
               <div>用戶ID: {profile?.userId || 'N/A'}</div>
               <div>用戶名稱: {profile?.displayName || 'N/A'}</div>
-              <div>LINE用戶ID: {getLineUserId() || '未獲取'}</div>
+              <div>LINE用戶ID: {profile?.userId || '未獲取'}</div>
               <div>手動LIFF: {manualLiff ? '已初始化' : '未初始化'}</div>
             </div>
           )}
@@ -442,21 +351,9 @@ export default function PurchasePage() {
                 {/* 購買按鈕 */}
                 <button
                   onClick={() => handlePurchase(card)}
-                  disabled={purchasing && selectedCard?.id === card.id}
-                  className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
-                    purchasing && selectedCard?.id === card.id
-                      ? 'bg-gray-400 text-white cursor-not-allowed'
-                      : 'bg-amber-600 hover:bg-amber-700 text-white hover:shadow-lg transform hover:scale-105'
-                  }`}
+                  className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 bg-amber-600 hover:bg-amber-700 text-white hover:shadow-lg transform hover:scale-105"
                 >
-                  {purchasing && selectedCard?.id === card.id ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      處理中...
-                    </div>
-                  ) : (
-                    '立即購買'
-                  )}
+                  加入購物車
                 </button>
               </div>
             </div>

@@ -68,7 +68,7 @@ export default function BakeryLayout({
               {/* 漢堡選單按鈕 - 只在 md 以下螢幕顯示 */}
               <button
                 onClick={toggleMobileMenu}
-                className="md:hidden p-2 rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-300 transition-colors duration-200"
+                className="md:hidden p-2 rounded-lg hover:bg-amber-700 focus:outline-none transition-colors duration-200 touch-manipulation"
                 aria-label="切換選單"
               >
                 <div className="w-6 h-6 flex flex-col justify-center items-center">

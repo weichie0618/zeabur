@@ -68,8 +68,6 @@ const formatDate = (dateString: string) => {
 };
 
 export default function TransactionsPage() {
-  console.log('🎯 TransactionsPage 元件載入');
-  
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
   const [lineUser, setLineUser] = useState<LineUser | null>(null);
@@ -81,32 +79,11 @@ export default function TransactionsPage() {
   const [manualLiff, setManualLiff] = useState<any>(null);
   const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
-  console.log('🔧 TransactionsPage 當前狀態:', {
-    liff: !!liff,
-    profile: !!profile,
-    isLoggedIn,
-    liffLoading,
-    lineUser: !!lineUser,
-    transactionsCount: transactions.length,
-    loading,
-    error
-  });
-
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    console.log('👤 開始獲取或創建LINE用戶, profile:', profile);
-    if (!profile?.userId) {
-      console.log('❌ 沒有profile或userId');
-      return null;
-    }
+    if (!profile?.userId) return null;
 
     try {
-      console.log('📤 發送創建LINE用戶請求:', {
-        lineId: profile.userId,
-        displayName: profile.displayName,
-        name: profile.displayName
-      });
-
       const checkResponse = await fetch('/api/customer/line/customer', {
         method: 'POST',
         headers: {
@@ -119,54 +96,38 @@ export default function TransactionsPage() {
         }),
       });
 
-      console.log('📥 LINE用戶API響應狀態:', checkResponse.status);
       const checkData = await checkResponse.json();
-      console.log('📥 LINE用戶API響應數據:', checkData);
       
       if (checkData.success && checkData.data) {
-        console.log('✅ LINE用戶創建/獲取成功:', checkData.data);
         return checkData.data;
       }
 
-      console.log('❌ LINE用戶創建/獲取失敗');
       return null;
     } catch (error) {
-      console.error('💥 獲取或創建LINE用戶失敗:', error);
+      console.error('獲取或創建LINE用戶失敗:', error);
       return null;
     }
   }, [profile]);
 
   // 載入交易記錄
   const loadTransactions = useCallback(async (lineUserId: number) => {
-    console.log('🔥 開始載入交易記錄 - lineUserId:', lineUserId);
     setLoading(true);
     setError('');
 
     try {
-      const apiUrl = `/api/points/transactions/${lineUserId}?limit=50`;
-      console.log('🌐 發送API請求到:', apiUrl);
-      
-      const response = await fetch(apiUrl);
-      console.log('📡 API響應狀態:', response.status, response.statusText);
-      console.log('📡 API響應headers:', Object.fromEntries(response.headers.entries()));
-      
+      const response = await fetch(`/api/points/transactions/${lineUserId}?limit=50`);
       const data = await response.json();
-      console.log('📝 API響應數據:', data);
 
       if (data.success && data.data) {
-        console.log('✅ 交易記錄載入成功，記錄數量:', data.data.length);
-        console.log('📊 交易記錄詳情:', data.data);
         setTransactions(data.data);
       } else {
-        console.log('❌ API回應失敗:', data);
         setError('載入交易記錄失敗');
       }
     } catch (error) {
-      console.error('💥 載入交易記錄發生錯誤:', error);
+      console.error('載入交易記錄失敗:', error);
       setError('載入交易記錄失敗');
     } finally {
       setLoading(false);
-      console.log('🏁 載入交易記錄完成');
     }
   }, []);
 
@@ -217,33 +178,16 @@ export default function TransactionsPage() {
   // 初始化
   useEffect(() => {
     const initializeUser = async () => {
-      console.log('🚀 開始初始化用戶');
       const currentLiff = liff || manualLiff;
       const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
       const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
       
-      console.log('🔍 當前狀態檢查:', {
-        liffLoading,
-        currentIsLoggedIn,
-        hasProfile: !!currentProfile,
-        profileUserId: currentProfile?.userId,
-        liffExists: !!currentLiff,
-        manualLiffExists: !!manualLiff
-      });
-      
       if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
-        console.log('✅ 條件滿足，開始獲取用戶和載入交易記錄');
         const user = await getOrCreateLineUser();
         if (user) {
-          console.log('👤 設置LINE用戶:', user);
           setLineUser(user);
-          console.log('📊 開始載入用戶交易記錄, userId:', user.id);
           await loadTransactions(user.id);
-        } else {
-          console.log('❌ 無法獲取LINE用戶');
         }
-      } else {
-        console.log('⏳ 條件不滿足，等待中...');
       }
     };
 

@@ -54,27 +54,25 @@ export default function PointsPage() {
 
     try {
       // 先檢查用戶是否存在
-      const checkResponse = await fetch('/api/customer/line/user', {
+      const checkResponse = await fetch('/api/line/customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineId: profile.userId,
-          displayName: profile.displayName,
-          name: profile.displayName
+          lineId: profile.userId
         }),
       });
 
       const checkData = await checkResponse.json();
       
-      if (checkData.success && checkData.data) {
+      if (checkData.data) {
         return checkData.data;
       }
 
       return null;
     } catch (error) {
-      console.error('獲取或創建LINE用戶失敗:', error);
+      console.error('獲取LINE用戶失敗:', error);
       return null;
     }
   }, [profile]);

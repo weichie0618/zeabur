@@ -79,7 +79,7 @@ export default function TransactionsPage() {
     if (!profile?.userId) return null;
 
     try {
-      const checkResponse = await fetch('/api/customer/line/user', {
+      const checkResponse = await fetch('/api/customer/line/customer', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

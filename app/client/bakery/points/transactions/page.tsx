@@ -81,9 +81,21 @@ export default function TransactionsPage() {
 
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    if (!profile?.userId) return null;
+    console.log('👤 getOrCreateLineUser 開始執行');
+    console.log('📋 profile 資料:', profile);
+    
+    if (!profile?.userId) {
+      console.log('❌ 沒有 profile.userId，返回 null');
+      return null;
+    }
 
     try {
+      console.log('📤 發送創建/獲取用戶請求:', {
+        lineId: profile.userId,
+        displayName: profile.displayName,
+        name: profile.displayName
+      });
+
       const checkResponse = await fetch('/api/customer/line/customer', {
         method: 'POST',
         headers: {
@@ -96,15 +108,19 @@ export default function TransactionsPage() {
         }),
       });
 
+      console.log('📥 用戶API響應 - status:', checkResponse.status);
       const checkData = await checkResponse.json();
+      console.log('📋 用戶API響應數據:', checkData);
       
       if (checkData.success && checkData.data) {
+        console.log('✅ 成功獲取/創建用戶:', checkData.data);
         return checkData.data;
       }
 
+      console.log('❌ 用戶API返回失敗');
       return null;
     } catch (error) {
-      console.error('獲取或創建LINE用戶失敗:', error);
+      console.error('❌ 獲取或創建LINE用戶失敗:', error);
       return null;
     }
   }, [profile]);
@@ -184,19 +200,43 @@ export default function TransactionsPage() {
   // 初始化
   useEffect(() => {
     const initializeUser = async () => {
+      console.log('🔄 initializeUser 開始執行');
+      console.log('📊 當前狀態:', {
+        liffLoading,
+        isLoggedIn,
+        profile: profile?.userId ? { userId: profile.userId, displayName: profile.displayName } : null,
+        manualLiff: manualLiff ? 'exists' : null
+      });
+
       const currentLiff = liff || manualLiff;
       const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
       const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
       
+      console.log('🔍 條件檢查:', {
+        liffLoading: liffLoading,
+        notLiffLoading: !liffLoading,
+        currentIsLoggedIn,
+        hasUserId: !!currentProfile?.userId,
+        currentProfile: currentProfile ? { userId: currentProfile.userId } : null
+      });
+      
       if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
+        console.log('✅ 條件通過，開始獲取用戶資料');
         const user = await getOrCreateLineUser();
+        console.log('👤 獲取到的用戶:', user);
         if (user) {
+          console.log('🎯 設定用戶並載入交易記錄, userId:', user.id);
           setLineUser(user);
           await loadTransactions(user.id);
+        } else {
+          console.log('❌ 未獲取到有效用戶');
         }
+      } else {
+        console.log('❌ 條件未通過，無法載入交易記錄');
       }
     };
 
+    console.log('🚀 useEffect 觸發 - initializeUser');
     initializeUser();
   }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadTransactions]);
 

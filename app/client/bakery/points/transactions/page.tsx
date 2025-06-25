@@ -115,16 +115,22 @@ export default function TransactionsPage() {
     setError('');
 
     try {
+      console.log('📤 發送交易記錄請求 - lineUserId:', lineUserId);
       const response = await fetch(`/api/points/transactions/${lineUserId}?limit=50`);
+      console.log('📥 收到響應 - status:', response.status, 'statusText:', response.statusText);
+      
       const data = await response.json();
+      console.log('📋 響應數據:', data);
 
       if (data.success && data.data) {
+        console.log('✅ 成功載入交易記錄，共', data.data.length, '筆記錄');
         setTransactions(data.data);
       } else {
+        console.log('❌ 載入交易記錄失敗 - 數據格式錯誤:', data);
         setError('載入交易記錄失敗');
       }
     } catch (error) {
-      console.error('載入交易記錄失敗:', error);
+      console.error('❌ 載入交易記錄失敗 - 網路或解析錯誤:', error);
       setError('載入交易記錄失敗');
     } finally {
       setLoading(false);

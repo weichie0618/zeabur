@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { virtualCardApi, handleApiError, formatPoints, formatCurrency, formatDisplayDate } from '../api';
-import { VirtualCardProduct, VirtualCardPurchase } from '../types';
+import { VirtualCardProduct, VirtualCardPurchase, VirtualCardPaymentStatus } from '../types';
 import { initializeAuth } from '../../utils/authService';
 
 export default function VirtualCardsPage() {
@@ -44,6 +44,11 @@ export default function VirtualCardsPage() {
   // 操作載入狀態
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
   const [updatingProduct, setUpdatingProduct] = useState<number | null>(null);
+  const [updatingPayment, setUpdatingPayment] = useState<number | null>(null);
+
+  // 購買記錄詳情模態框
+  const [showPurchaseModal, setShowPurchaseModal] = useState<boolean>(false);
+  const [viewingPurchase, setViewingPurchase] = useState<VirtualCardPurchase | null>(null);
 
   // 添加調試狀態
   const [debugInfo, setDebugInfo] = useState<string>('');
@@ -245,6 +250,50 @@ export default function VirtualCardsPage() {
   const handleViewProduct = (product: VirtualCardProduct) => {
     setViewingProduct(product);
     setShowViewModal(true);
+  };
+
+  // 查看購買記錄詳情
+  const handleViewPurchase = (purchase: VirtualCardPurchase) => {
+    setViewingPurchase(purchase);
+    setShowPurchaseModal(true);
+  };
+
+  // 更新支付狀態
+  const handleUpdatePaymentStatus = async (purchase: VirtualCardPurchase, newStatus: VirtualCardPaymentStatus) => {
+    if (purchase.paymentStatus === newStatus) return;
+
+    const confirmMessage = newStatus === VirtualCardPaymentStatus.PAID 
+      ? `確定要將購買記錄 #${purchase.id} 標記為已付款嗎？\n這將會自動給予用戶 ${purchase.pointsRedeemed} 點數。`
+      : `確定要將購買記錄 #${purchase.id} 的狀態改為 ${newStatus === VirtualCardPaymentStatus.FAILED ? '失敗' : '取消'} 嗎？`;
+    
+    if (!confirm(confirmMessage)) return;
+
+    setUpdatingPayment(purchase.id);
+    
+    try {
+      const response = await virtualCardApi.updatePaymentStatus(purchase.id, {
+        paymentStatus: newStatus,
+        adminNote: `管理員手動更新狀態為 ${newStatus}`
+      });
+      
+      if (response.success) {
+        await loadPurchases(); // 重新載入購買記錄
+        setError(''); // 清除錯誤
+        
+        if (newStatus === VirtualCardPaymentStatus.PAID) {
+          alert(`✅ 支付狀態已更新！用戶將獲得 ${purchase.pointsRedeemed} 點數。`);
+        } else {
+          alert(`✅ 支付狀態已更新為 ${newStatus === VirtualCardPaymentStatus.FAILED ? '失敗' : '取消'}。`);
+        }
+      } else {
+        setError('更新支付狀態失敗');
+      }
+    } catch (error) {
+      console.error('更新支付狀態失敗:', error);
+      handleApiError(error, setError, () => {}, setShowAuthWarning);
+    } finally {
+      setUpdatingPayment(null);
+    }
   };
 
   // 如果還在載入中，顯示載入狀態和調試信息
@@ -614,6 +663,9 @@ export default function VirtualCardsPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       購買時間
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      操作
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -651,10 +703,32 @@ export default function VirtualCardsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDisplayDate(purchase.createdAt)}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleViewPurchase(purchase)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            檢視
+                          </button>
+                                                     <button
+                             onClick={() => handleUpdatePaymentStatus(purchase, VirtualCardPaymentStatus.PAID)}
+                             className="text-green-600 hover:text-green-900"
+                           >
+                             標記為已付款
+                           </button>
+                           <button
+                             onClick={() => handleUpdatePaymentStatus(purchase, VirtualCardPaymentStatus.FAILED)}
+                             className="text-red-600 hover:text-red-900"
+                           >
+                             標記為失敗
+                           </button>
+                        </div>
+                      </td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                      <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
                         {purchasesLoading ? '載入中...' : '暫無購買記錄'}
                       </td>
                     </tr>
@@ -777,6 +851,120 @@ export default function VirtualCardsPage() {
                 </button>
                 <button
                   onClick={() => setShowViewModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  關閉
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 購買記錄詳情模態框 */}
+      {showPurchaseModal && viewingPurchase && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setShowPurchaseModal(false)}>
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white" onClick={(e) => e.stopPropagation()}>
+            <div className="mt-3">
+              {/* 模態框標題 */}
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900">購買記錄詳情</h3>
+                <button
+                  onClick={() => setShowPurchaseModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* 購買記錄信息 */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">購買ID</label>
+                    <div className="mt-1 text-sm text-gray-900">#{viewingPurchase.id}</div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">用戶</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {viewingPurchase.lineUser?.displayName || viewingPurchase.lineUser?.name}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">產品</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {viewingPurchase.virtualCardProduct?.name}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">支付金額</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {formatCurrency(viewingPurchase.purchasePrice || 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">獲得點數</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {formatPoints(viewingPurchase.pointsRedeemed || 0)}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">狀態</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        viewingPurchase.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
+                        viewingPurchase.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {viewingPurchase.paymentStatus === 'paid' ? '已完成' :
+                         viewingPurchase.paymentStatus === 'pending' ? '處理中' : '失敗'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">購買時間</label>
+                    <div className="mt-1 text-sm text-gray-900">
+                      {formatDisplayDate(viewingPurchase.createdAt)}
+                    </div>
+                  </div>
+                </div>
+                
+                                 {viewingPurchase.notes && (
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700">備註</label>
+                     <div className="mt-1 text-sm text-gray-900 p-3 bg-gray-50 rounded-md">
+                       {viewingPurchase.notes}
+                     </div>
+                   </div>
+                 )}
+              </div>
+
+              {/* 操作按鈕 */}
+              <div className="mt-6 flex justify-end space-x-2">
+                <button
+                  onClick={() => {
+                    setShowPurchaseModal(false);
+                    handleViewPurchase(viewingPurchase);
+                  }}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  編輯購買記錄
+                </button>
+                                 <button
+                   onClick={() => handleUpdatePaymentStatus(viewingPurchase, VirtualCardPaymentStatus.PAID)}
+                   className="text-green-600 hover:text-green-900"
+                 >
+                   標記為已付款
+                 </button>
+                 <button
+                   onClick={() => handleUpdatePaymentStatus(viewingPurchase, VirtualCardPaymentStatus.FAILED)}
+                   className="text-red-600 hover:text-red-900"
+                 >
+                   標記為失敗
+                 </button>
+                <button
+                  onClick={() => setShowPurchaseModal(false)}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   關閉

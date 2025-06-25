@@ -19,21 +19,6 @@ interface VirtualCardItem {
   description: string;
 }
 
-// 表單驗證狀態接口
-interface FormValidation {
-  name: boolean;
-  email: boolean;
-  phone: boolean;
-}
-
-// 客戶資料介面
-interface CustomerData {
-  name?: string;
-  email?: string;
-  phone?: string;
-  lineId?: string;
-}
-
 // LINE 用戶接口
 interface LineUser {
   id: number;
@@ -44,26 +29,13 @@ interface LineUser {
 
 export default function VirtualCardCheckoutPage() {
   const router = useRouter();
-  const { liff, profile, isLoggedIn, isLoading: liffLoading, customerData, updateCustomerData } = useLiff();
+  const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
   // 狀態管理
   const [cart, setCart] = useState<VirtualCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'line_pay' | 'bank_transfer'>('line_pay');
-  
-  // 表單資料
-  const [formData, setFormData] = useState({
-    customerName: '',
-    email: '',
-    phone: ''
-  });
-  
-  const [validation, setValidation] = useState<FormValidation>({
-    name: true,
-    email: true,
-    phone: true
-  });
   
   const [formError, setFormError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
@@ -72,34 +44,12 @@ export default function VirtualCardCheckoutPage() {
   const [manualLiff, setManualLiff] = useState<any>(null);
   const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
-  // 從 localStorage 獲取客戶資料的輔助函數
-  const getCustomerDataFromLocalStorage = (): CustomerData | null => {
-    try {
-      const savedCustomerData = localStorage.getItem('customerData');
-      if (savedCustomerData) {
-        const parsedData = JSON.parse(savedCustomerData);
-        console.log('從 localStorage 讀取到客戶資料:', parsedData);
-        return parsedData;
-      }
-    } catch (e) {
-      console.error('解析本地客戶資料失敗', e);
-    }
-    return null;
-  };
-
   // 獲取 LINE 用戶 ID
   const getLineUserId = useCallback((): string | null => {
-    // 首先嘗試從 LIFF SDK 獲取
+    // 從 LIFF SDK 獲取
     if (isLoggedIn && profile && profile.userId) {
       console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
       return profile.userId;
-    }
-    
-    // 嘗試從 localStorage 獲取
-    const localCustomerData = getCustomerDataFromLocalStorage();
-    if (localCustomerData && localCustomerData.lineId) {
-      console.log('從 localStorage 成功獲取 LINE 用戶 ID:', localCustomerData.lineId);
-      return localCustomerData.lineId;
     }
     
     console.warn('無法獲取 LINE 用戶 ID');
@@ -157,66 +107,6 @@ export default function VirtualCardCheckoutPage() {
     loadCart();
   }, []);
 
-  // 如果有LIFF用戶資料，自動填充表單
-  useEffect(() => {
-    if (isLoggedIn && profile && !liffLoading) {
-      console.log('從 LIFF 獲取到用戶資料:', profile);
-      setFormData(prev => ({
-        ...prev,
-        customerName: profile.displayName || prev.customerName,
-        email: profile.email || prev.email,
-      }));
-    }
-  }, [isLoggedIn, profile, liffLoading]);
-
-  // 如果有客戶資料，自動填充表單
-  useEffect(() => {
-    // 先檢查從 LiffProvider 中獲取的客戶資料
-    if (customerData) {
-      console.log('從 LiffProvider 中獲取的客戶資料:', customerData);
-      setFormData(prev => ({
-        ...prev,
-        customerName: customerData.name || prev.customerName,
-        email: customerData.email || prev.email,
-        phone: customerData.phone || prev.phone,
-      }));
-    } else {
-      // 嘗試從 localStorage 加載客戶數據
-      const localCustomerData = getCustomerDataFromLocalStorage();
-      if (localCustomerData) {
-        setFormData(prev => ({
-          ...prev,
-          customerName: localCustomerData.name || prev.customerName,
-          email: localCustomerData.email || prev.email,
-          phone: localCustomerData.phone || prev.phone,
-        }));
-      }
-    }
-  }, [customerData]);
-
-  // 處理輸入變更
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // 清除對應欄位的錯誤狀態
-    if (validation[name as keyof FormValidation] === false) {
-      setValidation(prev => ({ ...prev, [name]: true }));
-    }
-  };
-
-  // 表單驗證
-  const validateForm = (): boolean => {
-    const newValidation: FormValidation = {
-      name: formData.customerName.trim() !== '',
-      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email),
-      phone: /^[0-9-+().\s]{8,}$/.test(formData.phone)
-    };
-
-    setValidation(newValidation);
-    return Object.values(newValidation).every(valid => valid);
-  };
-
   // 計算總金額
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalPoints = cart.reduce((sum, item) => sum + (item.points_value * item.quantity), 0);
@@ -268,11 +158,6 @@ export default function VirtualCardCheckoutPage() {
   // 處理結帳提交
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      setFormError('請填寫所有必填欄位並確保格式正確');
-      return;
-    }
 
     // 檢查購物車是否為空
     if (cart.length === 0) {
@@ -307,17 +192,6 @@ export default function VirtualCardCheckoutPage() {
     setFormError(null);
     setSubmitting(true);
     setPaymentStatus('processing');
-
-    // 將客戶資料保存到 Context 和 localStorage
-    const customerDataToSave = {
-      name: formData.customerName,
-      email: formData.email,
-      phone: formData.phone,
-      lineId: lineUserId
-    };
-    
-    updateCustomerData(customerDataToSave);
-    console.log('虛擬點數卡結帳頁面: 已更新客戶資料', customerDataToSave);
 
     try {
       // 獲取 LINE 用戶資料來取得內部 ID
@@ -501,76 +375,9 @@ export default function VirtualCardCheckoutPage() {
             </div>
           </div>
 
-          {/* 右側：客戶資訊和付款方式 */}
+          {/* 右側：付款方式和結帳 */}
           <div className="space-y-6">
             <form onSubmit={handleCheckoutSubmit} className="space-y-6">
-              {/* 客戶資訊 */}
-              <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">客戶資訊</h2>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
-                      姓名 *
-                    </label>
-                    <input
-                      type="text"
-                      id="customerName"
-                      name="customerName"
-                      value={formData.customerName}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-                        !validation.name ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="請輸入您的姓名"
-                    />
-                    {!validation.name && (
-                      <p className="text-red-500 text-xs mt-1">請輸入姓名</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      電子郵件 *
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-                        !validation.email ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="請輸入您的電子郵件"
-                    />
-                    {!validation.email && (
-                      <p className="text-red-500 text-xs mt-1">請輸入有效的電子郵件地址</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                      手機號碼 *
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 ${
-                        !validation.phone ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="請輸入您的手機號碼"
-                    />
-                    {!validation.phone && (
-                      <p className="text-red-500 text-xs mt-1">請輸入有效的手機號碼</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
               {/* 付款方式 */}
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">付款方式</h2>
@@ -658,7 +465,7 @@ export default function VirtualCardCheckoutPage() {
           <ul className="text-blue-800 space-y-2 text-sm">
             <li className="flex items-start">
               <span className="text-blue-600 mr-2">•</span>
-              點數卡購買後，點數會立即加入您的帳戶
+              點數卡購買後，會由總部核帳完成，將點數卡加入您的帳戶
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-2">•</span>
@@ -667,6 +474,10 @@ export default function VirtualCardCheckoutPage() {
             <li className="flex items-start">
               <span className="text-blue-600 mr-2">•</span>
               點數無使用期限，請安心購買
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              本商品由本公司自行擔保，若出現無法使用錯誤等情形，請於 7 日內聯繫客服，我們將協助處理
             </li>
             <li className="flex items-start">
               <span className="text-blue-600 mr-2">•</span>

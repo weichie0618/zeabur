@@ -62,6 +62,12 @@ export default function PointsBalance({ points, loading, error, onRefresh }: Poi
           <p>點數可用於購物時折抵現金，1點 = 1元</p>
         </div>
         <Link
+          href="/client/bakery/points/purchase"
+          className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors mr-2"
+        >
+          購買點數卡
+        </Link>
+        <Link
           href="/client/bakery/points/transactions"
           className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors"
         >

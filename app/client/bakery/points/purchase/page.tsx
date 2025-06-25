@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
 import Link from 'next/link';
 
@@ -36,6 +37,10 @@ export default function PurchasePage() {
   
   // 錯誤狀態
   const [cardsError, setCardsError] = useState<string>('');
+
+  // 手動 LIFF 初始化狀態
+  const [manualLiff, setManualLiff] = useState<any>(null);
+  const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
@@ -136,24 +141,79 @@ export default function PurchasePage() {
     }
   }, [lineUser]);
 
+  // LIFF 腳本載入完成處理
+  const handleLiffScriptLoad = () => {
+    console.log('LIFF 腳本載入完成');
+    setIsLiffScriptLoaded(true);
+  };
+
+  // 手動初始化 LIFF
+  const initializeLiffManually = async () => {
+    if (!window.liff) {
+      console.error('LIFF SDK 未載入');
+      return;
+    }
+
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+    if (!liffId) {
+      console.error('LIFF ID 未設定');
+      return;
+    }
+
+    try {
+      console.log('開始手動初始化 LIFF...');
+      await window.liff.init({ liffId });
+      console.log('LIFF 手動初始化成功');
+      setManualLiff(window.liff);
+      
+      if (window.liff.isLoggedIn()) {
+        console.log('用戶已登入');
+      } else if (window.liff.isInClient()) {
+        console.log('在 LINE 中但未登入，自動登入...');
+        window.liff.login();
+      }
+    } catch (error) {
+      console.error('LIFF 手動初始化失敗:', error);
+    }
+  };
+
+  // 當 LIFF 腳本載入完成且沒有從 LiffProvider 獲取到 LIFF 時，嘗試手動初始化
+  useEffect(() => {
+    if (isLiffScriptLoaded && !liff && !manualLiff) {
+      console.log('嘗試手動初始化 LIFF...');
+      initializeLiffManually();
+    }
+  }, [isLiffScriptLoaded, liff, manualLiff]);
+
   // 初始化用戶
   useEffect(() => {
-    if (isLoggedIn && profile?.userId) {
-      getOrCreateLineUser().then(user => {
+    const initializeUser = async () => {
+      const currentLiff = liff || manualLiff;
+      const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
+      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+      
+      if (currentIsLoggedIn && currentProfile?.userId) {
+        const user = await getOrCreateLineUser();
         if (user) {
           setLineUser(user);
         }
-      });
-    }
-  }, [isLoggedIn, profile, getOrCreateLineUser]);
+      }
+    };
+
+    initializeUser();
+  }, [isLoggedIn, profile, manualLiff, getOrCreateLineUser]);
 
   // 載入商品
   useEffect(() => {
     loadVirtualCards();
   }, [loadVirtualCards]);
 
+  // 檢查 LIFF 狀態
+  const currentLiff = liff || manualLiff;
+  const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+
   // 載入中狀態
-  if (liffLoading) {
+  if (liffLoading && !manualLiff) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
@@ -162,37 +222,56 @@ export default function PurchasePage() {
   }
 
   // 未登入狀態
-  if (!isLoggedIn) {
+  if (!currentIsLoggedIn) {
     return (
-      <div className="text-center py-12">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mx-4">
-          <h2 className="text-lg font-medium text-yellow-800 mb-2">需要登入</h2>
-          <p className="text-yellow-700">請先登入 LINE 帳號才能購買點數卡</p>
+      <>
+        <Script 
+          src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+          onLoad={handleLiffScriptLoad}
+        />
+        <div className="text-center py-12">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mx-4">
+            <h2 className="text-lg font-medium text-yellow-800 mb-2">需要登入</h2>
+            <p className="text-yellow-700 mb-4">請先登入 LINE 帳號才能購買點數卡</p>
+            {currentLiff && (
+              <button
+                onClick={() => currentLiff.login()}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              >
+                登入 LINE
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
-      {/* 頁面標題 */}
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">虛擬點數卡商城</h1>
-        <p className="text-gray-600">購買點數卡，享受更多優惠！</p>
-        
-        {/* 返回連結 */}
-        <div className="mt-4">
-          <Link 
-            href="/client/bakery/points" 
-            className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            回到點數總覽
-          </Link>
+    <>
+      <Script 
+        src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+        onLoad={handleLiffScriptLoad}
+      />
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* 頁面標題 */}
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">虛擬點數卡商城</h1>
+          <p className="text-gray-600">購買點數卡，享受更多優惠！</p>
+          
+          {/* 返回連結 */}
+          <div className="mt-4">
+            <Link 
+              href="/client/bakery/points" 
+              className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              回到點數總覽
+            </Link>
+          </div>
         </div>
-      </div>
 
       {/* 錯誤提示 */}
       {cardsError && (
@@ -336,5 +415,13 @@ export default function PurchasePage() {
         </ul>
       </div>
     </div>
+    </>
   );
+}
+
+// 擴展 Window 介面以支援 LIFF
+declare global {
+  interface Window {
+    liff: any;
+  }
 } 

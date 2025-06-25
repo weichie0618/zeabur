@@ -1,21 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
 import PointsBalance from './components/PointsBalance';
-import VirtualCardList from './components/VirtualCardList';
 import PurchaseHistory from './components/PurchaseHistory';
 
-interface VirtualCard {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  pointsValue: number;
-  imageUrl?: string;
-  displayOrder?: number;
-  status: string;
-}
+
 
 interface Purchase {
   id: number;
@@ -43,19 +34,19 @@ export default function PointsPage() {
   // 狀態管理
   const [lineUser, setLineUser] = useState<LineUser | null>(null);
   const [currentPoints, setCurrentPoints] = useState<number>(0);
-  const [virtualCards, setVirtualCards] = useState<VirtualCard[]>([]);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   
   // 載入狀態
   const [pointsLoading, setPointsLoading] = useState<boolean>(false);
-  const [cardsLoading, setCardsLoading] = useState<boolean>(false);
   const [purchasesLoading, setPurchasesLoading] = useState<boolean>(false);
-  const [purchasing, setPurchasing] = useState<number | null>(null);
   
   // 錯誤狀態
   const [pointsError, setPointsError] = useState<string>('');
-  const [cardsError, setCardsError] = useState<string>('');
   const [purchasesError, setPurchasesError] = useState<string>('');
+
+  // 手動 LIFF 初始化狀態
+  const [manualLiff, setManualLiff] = useState<any>(null);
+  const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
 
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
@@ -110,27 +101,7 @@ export default function PointsPage() {
     }
   }, []);
 
-  // 載入虛擬點數卡商品
-  const loadVirtualCards = useCallback(async () => {
-    setCardsLoading(true);
-    setCardsError('');
 
-    try {
-      const response = await fetch('/api/points/virtual-cards');
-      const data = await response.json();
-
-      if (data.success && data.data) {
-        setVirtualCards(data.data);
-      } else {
-        setCardsError('載入商品失敗');
-      }
-    } catch (error) {
-      console.error('載入虛擬點數卡商品失敗:', error);
-      setCardsError('載入商品失敗');
-    } finally {
-      setCardsLoading(false);
-    }
-  }, []);
 
   // 載入購買記錄
   const loadPurchaseHistory = useCallback(async (lineUserId: number) => {
@@ -152,65 +123,60 @@ export default function PointsPage() {
     }
   }, []);
 
-  // 處理購買虛擬點數卡
-  const handlePurchase = useCallback(async (card: VirtualCard) => {
-    if (!lineUser) {
-      alert('請先登入LINE');
+  // LIFF 腳本載入完成處理
+  const handleLiffScriptLoad = () => {
+    console.log('LIFF 腳本載入完成');
+    setIsLiffScriptLoaded(true);
+  };
+
+  // 手動初始化 LIFF
+  const initializeLiffManually = async () => {
+    if (!window.liff) {
+      console.error('LIFF SDK 未載入');
       return;
     }
 
-    // 確認購買
-    const confirmed = confirm(
-      `確定要購買 ${card.name} 嗎？\n` +
-      `價格：NT$ ${card.price.toLocaleString()}\n` +
-      `獲得點數：${card.pointsValue.toLocaleString()} 點`
-    );
-
-    if (!confirmed) return;
-
-    setPurchasing(card.id);
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+    if (!liffId) {
+      console.error('LIFF ID 未設定');
+      return;
+    }
 
     try {
-      const response = await fetch('/api/points/virtual-cards/purchase', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lineUserId: lineUser.id,
-          virtualCardProductId: card.id,
-          paymentMethod: 'line_pay', // 預設使用 LINE Pay
-          ipAddress: undefined,
-          userAgent: navigator.userAgent,
-          notes: `從LINE購買 ${card.name}`
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert('購買請求已提交！請完成付款流程。');
-        
-        // 重新載入數據
-        await Promise.all([
-          loadPointsBalance(lineUser.id),
-          loadPurchaseHistory(lineUser.id)
-        ]);
-      } else {
-        alert(`購買失敗：${data.message}`);
+      console.log('開始手動初始化 LIFF...');
+      await window.liff.init({ liffId });
+      console.log('LIFF 手動初始化成功');
+      setManualLiff(window.liff);
+      
+      if (window.liff.isLoggedIn()) {
+        console.log('用戶已登入');
+      } else if (window.liff.isInClient()) {
+        console.log('在 LINE 中但未登入，自動登入...');
+        window.liff.login();
       }
     } catch (error) {
-      console.error('購買虛擬點數卡失敗:', error);
-      alert('購買失敗，請稍後重試');
-    } finally {
-      setPurchasing(null);
+      console.error('LIFF 手動初始化失敗:', error);
     }
-  }, [lineUser, loadPointsBalance, loadPurchaseHistory]);
+  };
+
+  // 當 LIFF 腳本載入完成且沒有從 LiffProvider 獲取到 LIFF 時，嘗試手動初始化
+  useEffect(() => {
+    if (isLiffScriptLoaded && !liff && !manualLiff) {
+      console.log('嘗試手動初始化 LIFF...');
+      initializeLiffManually();
+    }
+  }, [isLiffScriptLoaded, liff, manualLiff]);
+
+
 
   // 初始化用戶和載入數據
   useEffect(() => {
     const initializeUser = async () => {
-      if (!liffLoading && isLoggedIn && profile?.userId) {
+      const currentLiff = liff || manualLiff;
+      const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
+      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+      
+      if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
         const user = await getOrCreateLineUser();
         if (user) {
           setLineUser(user);
@@ -218,21 +184,21 @@ export default function PointsPage() {
           // 並行載入所有數據
           await Promise.all([
             loadPointsBalance(user.id),
-            loadVirtualCards(),
             loadPurchaseHistory(user.id)
           ]);
         }
-      } else if (!liffLoading && !isLoggedIn) {
-        // 即使未登入也載入商品
-        loadVirtualCards();
       }
     };
 
     initializeUser();
-  }, [liffLoading, isLoggedIn, profile, getOrCreateLineUser, loadPointsBalance, loadVirtualCards, loadPurchaseHistory]);
+  }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadPointsBalance, loadPurchaseHistory]);
+
+  // 檢查 LIFF 狀態
+  const currentLiff = liff || manualLiff;
+  const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
 
   // 如果 LIFF 還在載入中
-  if (liffLoading) {
+  if (liffLoading && !manualLiff) {
     return (
       <div className="max-w-6xl mx-auto py-6 px-4">
         <div className="text-center py-12 bg-amber-50 rounded-lg">
@@ -245,72 +211,73 @@ export default function PointsPage() {
   }
 
   // 如果未登入 LINE
-  if (!isLoggedIn) {
+  if (!currentIsLoggedIn) {
     return (
-      <div className="max-w-6xl mx-auto py-6 px-4">
-        <div className="text-center py-10 bg-amber-50 rounded-lg mb-6">
-          <div className="text-amber-600 text-5xl mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-            </svg>
+      <>
+        <Script 
+          src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+          onLoad={handleLiffScriptLoad}
+        />
+        <div className="max-w-6xl mx-auto py-6 px-4">
+          <div className="text-center py-10 bg-amber-50 rounded-lg mb-6">
+            <div className="text-amber-600 text-5xl mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </div>
+            <p className="text-gray-700 font-medium mb-2">請先登入LINE</p>
+            <p className="text-gray-500 text-sm max-w-md mx-auto mb-6">登入後即可查看您的點數餘額並購買點數卡</p>
+            {currentLiff && (
+              <button
+                onClick={() => currentLiff.login()}
+                className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors"
+              >
+                登入 LINE
+              </button>
+            )}
           </div>
-          <p className="text-gray-700 font-medium mb-2">請先登入LINE</p>
-          <p className="text-gray-500 text-sm max-w-md mx-auto">登入後即可查看您的點數餘額並購買點數卡</p>
         </div>
-        
-        {/* 即使未登入也顯示商品列表 */}
-        <div className="space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-4">虛擬點數卡商品</h2>
-            <VirtualCardList
-              cards={virtualCards}
-              loading={cardsLoading}
-              error={cardsError}
-              onPurchase={() => alert('請先登入LINE')}
-              purchasing={null}
-            />
-          </div>
-        </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto py-6 px-4">
-      <div className="space-y-6">
-        {/* 頁面標題 */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">點數商城</h1>
-          <p className="text-gray-600">購買虛擬點數卡，享受更多購物優惠</p>
-        </div>
+    <>
+      <Script 
+        src="https://static.line-scdn.net/liff/edge/2/sdk.js"
+        onLoad={handleLiffScriptLoad}
+      />
+      <div className="max-w-6xl mx-auto py-6 px-4">
+        <div className="space-y-6">
+          {/* 頁面標題 */}
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">點數商城</h1>
+            <p className="text-gray-600">購買虛擬點數卡，享受更多購物優惠</p>
+          </div>
 
-        {/* 點數餘額 */}
-        <PointsBalance
-          points={currentPoints}
-          loading={pointsLoading}
-          error={pointsError}
-          onRefresh={() => lineUser && loadPointsBalance(lineUser.id)}
-        />
+          {/* 點數餘額 */}
+          <PointsBalance
+            points={currentPoints}
+            loading={pointsLoading}
+            error={pointsError}
+            onRefresh={() => lineUser && loadPointsBalance(lineUser.id)}
+          />
 
-        {/* 虛擬點數卡商品 */}
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4">虛擬點數卡商品</h2>
-          <VirtualCardList
-            cards={virtualCards}
-            loading={cardsLoading}
-            error={cardsError}
-            onPurchase={handlePurchase}
-            purchasing={purchasing}
+          {/* 購買記錄 */}
+          <PurchaseHistory
+            purchases={purchases}
+            loading={purchasesLoading}
+            error={purchasesError}
           />
         </div>
-
-        {/* 購買記錄 */}
-        <PurchaseHistory
-          purchases={purchases}
-          loading={purchasesLoading}
-          error={purchasesError}
-        />
       </div>
-    </div>
+    </>
   );
+}
+
+// 擴展 Window 介面以支援 LIFF
+declare global {
+  interface Window {
+    liff: any;
+  }
 } 

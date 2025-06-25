@@ -86,7 +86,7 @@ export default function BakeryLayout({
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
               isMobileMenuOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
             }`}>
-              <nav className="pt-4 pb-2 border-t border-amber-500 mt-4">
+              <nav className="pt-4 pb-2 border-t border-amber-500 mt-4 relative z-50">
                 <div className="flex flex-col space-y-2">
                   <Link 
                     href="/client/bakery/points" 
@@ -119,37 +119,10 @@ export default function BakeryLayout({
                       <div className="text-amber-200 text-sm">查看購買記錄</div>
                     </div>
                   </Link>
-
-                  {/* 手機版額外功能 */}
-                  <div className="border-t border-amber-500 pt-2 mt-2">
-                    <Link 
-                      href="/client/bakery" 
-                      className="flex items-center px-4 py-3 rounded-lg hover:bg-amber-700 transition-colors duration-200"
-                      onClick={closeMobileMenu}
-                    >
-                      <div className="bg-amber-500 p-2 rounded-lg mr-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                      </div>
-                      <div>
-                        <div className="font-medium text-lg">返回首頁</div>
-                        <div className="text-amber-200 text-sm">瀏覽商品</div>
-                      </div>
-                    </Link>
-                  </div>
                 </div>
               </nav>
             </div>
           </div>
-
-          {/* 手機版選單背景遮罩 */}
-          {isMobileMenuOpen && (
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-              onClick={closeMobileMenu}
-            ></div>
-          )}
         </header>
         
         <main className="flex-grow container mx-auto px-4 py-8">

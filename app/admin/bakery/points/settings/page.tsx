@@ -2,102 +2,290 @@
 
 import React, { useState, useEffect } from 'react';
 import { settingsApi, handleApiError } from '../api';
-import { PointSettings, UpdateSettingsRequest } from '../types';
+import { PointSettings } from '../types';
 import { initializeAuth } from '../../utils/authService';
 
-export default function PointsSettingsPage() {
+export default function SettingsPage() {
   const [accessToken, setAccessToken] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   
-  // 系統設定
+  // 系統設定數據
   const [settings, setSettings] = useState<PointSettings[]>([]);
   const [settingsLoading, setSettingsLoading] = useState<boolean>(false);
-  const [saveLoading, setSaveLoading] = useState<boolean>(false);
-  
-  // 設定值暫存
-  const [settingValues, setSettingValues] = useState<{ [key: number]: string }>({});
-  const [hasChanges, setHasChanges] = useState<boolean>(false);
+  const [saving, setSaving] = useState<boolean>(false);
+
+  // 表單狀態
+  const [formSettings, setFormSettings] = useState<{[key: string]: string}>({});
+
+  // 添加調試狀態
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   // 初始化認證
   useEffect(() => {
-    initializeAuth(setAccessToken, setError, setLoading, setShowAuthWarning);
+    console.log('開始初始化認證...');
+    setDebugInfo('正在初始化認證...');
+    
+    try {
+      initializeAuth(
+        (token) => {
+          console.log('認證成功，令牌長度:', token?.length || 0);
+          setAccessToken(token);
+          setDebugInfo(`認證成功，令牌長度: ${token?.length || 0}`);
+        },
+        (errorMsg) => {
+          console.error('認證失敗:', errorMsg);
+          setError(errorMsg);
+          setDebugInfo(`認證失敗: ${errorMsg}`);
+        },
+        (loadingState) => {
+          console.log('載入狀態:', loadingState);
+          setLoading(loadingState);
+          setDebugInfo(`載入狀態: ${loadingState}`);
+        },
+        setShowAuthWarning,
+        false // 不自動重定向
+      );
+    } catch (err) {
+      console.error('初始化認證時發生錯誤:', err);
+      setError(`初始化認證時發生錯誤: ${err}`);
+      setDebugInfo(`初始化認證時發生錯誤: ${err}`);
+      setLoading(false);
+    }
   }, []);
 
-  // 載入系統設定
+  // 載入設定
   useEffect(() => {
     if (accessToken) {
+      console.log('開始載入系統設定...');
+      setDebugInfo(prev => prev + ' | 開始載入系統設定...');
       loadSettings();
     }
   }, [accessToken]);
 
   const loadSettings = async () => {
     setSettingsLoading(true);
+    setDebugInfo(prev => prev + ' | 正在載入設定數據...');
+    
     try {
+      console.log('正在調用系統設定 API...');
+      
       const response = await settingsApi.getSettings();
       
+      console.log('系統設定 API 響應:', response);
+      setDebugInfo(prev => prev + ' | API 響應已接收');
+
       if (response.success) {
-        setSettings(response.data);
-        // 初始化設定值
-        const initialValues: { [key: number]: string } = {};
-        response.data.forEach(setting => {
-          initialValues[setting.id] = setting.settingValue;
+        setSettings(response.data || []);
+        setDebugInfo(prev => prev + ` | 載入了 ${response.data?.length || 0} 個設定項目`);
+        
+        // 初始化表單狀態
+        const formData: {[key: string]: string} = {};
+        response.data?.forEach(setting => {
+          formData[setting.settingKey] = setting.settingValue;
         });
-        setSettingValues(initialValues);
+        setFormSettings(formData);
+      } else {
+        setError('載入系統設定失敗');
+        setDebugInfo(prev => prev + ' | 設定載入失敗');
       }
     } catch (error) {
+      console.error('載入系統設定失敗:', error);
+      setDebugInfo(prev => prev + ` | API 錯誤: ${error}`);
       handleApiError(error, setError, setSettingsLoading, setShowAuthWarning);
     } finally {
       setSettingsLoading(false);
+      setLoading(false);
+      setDebugInfo(prev => prev + ' | 設定載入完成');
     }
-  };
-
-  const handleSettingChange = (settingId: number, value: string) => {
-    setSettingValues(prev => ({
-      ...prev,
-      [settingId]: value
-    }));
-    setHasChanges(true);
   };
 
   const handleSaveSettings = async () => {
-    setSaveLoading(true);
+    setSaving(true);
+    
     try {
-      const updateRequest: UpdateSettingsRequest = {
-        settings: Object.entries(settingValues).map(([id, value]) => ({
-          id: parseInt(id),
-          settingValue: value
-        }))
-      };
+      const updateData = settings.map(setting => ({
+        id: setting.id,
+        settingValue: formSettings[setting.settingKey] || setting.settingValue
+      }));
 
-      const response = await settingsApi.updateSettings(updateRequest);
+      const response = await settingsApi.updateSettings({ settings: updateData });
       
       if (response.success) {
-        setSettings(response.data);
-        setHasChanges(false);
-        alert('設定更新成功！');
+        setSettings(response.data || []);
+        // 可以在這裡顯示成功訊息
+      } else {
+        setError('保存設定失敗');
       }
     } catch (error) {
-      handleApiError(error, setError, setSaveLoading);
+      handleApiError(error, setError, setSaving, setShowAuthWarning);
     } finally {
-      setSaveLoading(false);
+      setSaving(false);
     }
   };
 
-  const resetChanges = () => {
-    const originalValues: { [key: number]: string } = {};
-    settings.forEach(setting => {
-      originalValues[setting.id] = setting.settingValue;
-    });
-    setSettingValues(originalValues);
-    setHasChanges(false);
+  const getSettingDisplayName = (key: string): string => {
+    const displayNames: {[key: string]: string} = {
+      // 基本功能開關
+      'points_system_enabled': '啟用點數系統',
+      'virtual_card_enabled': '啟用虛擬點數卡',
+      'point_usage_enabled': '啟用點數使用',
+      'point_card_enabled': '啟用點數卡販售',
+      
+      // 回饋設定
+      'earn_rate_percentage': '購買回饋比例 (%)',
+      'min_order_amount_for_points': '最低回饋訂單金額 (元)',
+      'max_points_per_order': '單筆最高回饋點數',
+      'min_earn_amount': '最低回饋訂單金額 (元)', // 舊版相容
+      
+      // 點數使用規則
+      'points_to_currency_rate': '點數兌換率 (1點=多少元)',
+      'max_points_usage_percentage': '最高抵扣比例 (%)',
+      'points_expire_days': '點數有效期 (天)',
+      
+      // 其他設定
+      'POINTS_EXPIRY_DAYS': '點數有效期 (天)', // 舊版相容
+      'POINTS_MIN_USE': '最低使用點數',
+      'POINTS_MAX_USE_RATE': '最高抵扣比例 (%)',
+      'VIRTUAL_CARD_MIN_AMOUNT': '虛擬卡最低金額 (元)'
+    };
+    return displayNames[key] || key;
   };
 
+  const getSettingDescription = (key: string): string => {
+    const descriptions: {[key: string]: string} = {
+      // 基本功能開關
+      'points_system_enabled': '控制整個點數系統的開關，關閉後用戶無法獲得或使用點數',
+      'virtual_card_enabled': '是否啟用虛擬點數卡功能，允許販售和購買點數卡',
+      'point_usage_enabled': '是否允許用戶使用點數抵扣訂單金額',
+      'point_card_enabled': '是否啟用點數卡商品的販售功能',
+      
+      // 回饋設定
+      'earn_rate_percentage': '每消費 100 元可獲得多少點數',
+      'min_order_amount_for_points': '訂單金額需達到此金額才能獲得點數回饋',
+      'max_points_per_order': '單筆訂單最多可獲得的點數上限，防止過度回饋',
+      'min_earn_amount': '訂單金額需達到此金額才能獲得點數回饋',
+      
+      // 點數使用規則
+      'points_to_currency_rate': '點數兌換成現金的比例，1點等於多少新台幣',
+      'max_points_usage_percentage': '點數最多可以抵扣訂單金額的百分比，建議不超過50%',
+      'points_expire_days': '點數從獲得日期開始的有效天數，設為 0 表示永不過期',
+      
+      // 其他設定
+      'POINTS_EXPIRY_DAYS': '點數從獲得日期開始的有效天數，設為 0 表示永不過期（舊版相容）',
+      'POINTS_MIN_USE': '每次使用點數的最低金額，避免小額使用造成系統負擔',
+      'POINTS_MAX_USE_RATE': '點數最多可以抵扣訂單金額的百分比（舊版相容）',
+      'VIRTUAL_CARD_MIN_AMOUNT': '虛擬點數卡的最低購買金額'
+    };
+    return descriptions[key] || '';
+  };
+
+  // 渲染設定分組
+  const renderSettingsGroup = (title: string, description: string, settingKeys: string[]) => {
+    const groupSettings = settings.filter(setting => settingKeys.includes(setting.settingKey));
+    
+    if (groupSettings.length === 0) return null;
+
+    return (
+      <div className="border border-gray-200 rounded-lg p-6">
+        <div className="mb-4">
+          <h4 className="text-lg font-medium text-gray-900">{title}</h4>
+          <p className="text-sm text-gray-600">{description}</p>
+        </div>
+        
+        <div className="space-y-6">
+          {groupSettings.map((setting) => (
+            <div key={setting.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  {getSettingDisplayName(setting.settingKey)}
+                </label>
+                <p className="mt-1 text-sm text-gray-500">
+                  {getSettingDescription(setting.settingKey)}
+                </p>
+              </div>
+              
+              <div>
+                {(setting.settingKey === 'VIRTUAL_CARD_ENABLED' || 
+                  setting.settingKey === 'virtual_card_enabled' ||
+                  setting.settingKey === 'points_system_enabled' ||
+                  setting.settingKey === 'point_usage_enabled' ||
+                  setting.settingKey === 'point_card_enabled') ? (
+                  <select
+                    value={formSettings[setting.settingKey] || ''}
+                    onChange={(e) => setFormSettings(prev => ({
+                      ...prev,
+                      [setting.settingKey]: e.target.value
+                    }))}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  >
+                    <option value="true">啟用</option>
+                    <option value="false">停用</option>
+                  </select>
+                ) : (
+                  <input
+                    type="number"
+                    value={formSettings[setting.settingKey] || ''}
+                    onChange={(e) => setFormSettings(prev => ({
+                      ...prev,
+                      [setting.settingKey]: e.target.value
+                    }))}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder={setting.settingValue}
+                    min="0"
+                    step={setting.settingKey.includes('rate') || setting.settingKey.includes('RATE') ? "0.01" : "1"}
+                  />
+                )}
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                目前值: <span className="font-medium">{setting.settingValue}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // 如果還在載入中，顯示載入狀態和調試信息
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex flex-col justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+        <p className="text-gray-600 mb-2">正在載入系統設定...</p>
+        <div className="text-sm text-gray-500 max-w-2xl text-center">
+          <strong>調試信息:</strong>
+          <br />
+          {debugInfo}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="flex">
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">載入錯誤</h3>
+            <div className="mt-2 text-sm text-red-700">{error}</div>
+            <div className="mt-4 text-xs text-gray-600">
+              <strong>調試信息:</strong>
+              <br />
+              {debugInfo}
+            </div>
+            <div className="mt-4">
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700"
+              >
+                重新載入
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -106,9 +294,9 @@ export default function PointsSettingsPage() {
     <div className="space-y-6">
       {/* 頁面標題 */}
       <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">點數系統設定</h1>
+        <h1 className="text-2xl font-bold text-gray-900">系統設定</h1>
         <p className="mt-2 text-sm text-gray-600">
-          調整點數系統的各項參數和規則
+          配置點數系統的各項參數和規則
         </p>
       </div>
 
@@ -129,136 +317,88 @@ export default function PointsSettingsPage() {
         </div>
       )}
 
-      {/* 變更提示 */}
-      {hasChanges && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">設定已變更</h3>
-              <div className="mt-2 text-sm text-blue-700">
-                您有未儲存的變更，請記得點擊「儲存變更」按鈕。
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 設定表單 */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-6">系統參數設定</h3>
-
+          <h3 className="text-lg font-medium text-gray-900 mb-6">點數系統設定</h3>
+          
           {settingsLoading ? (
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
             </div>
           ) : (
-            <div className="space-y-6">
-              {settings.map((setting) => (
-                <div key={setting.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 mr-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {setting.description}
-                      </label>
-                      <p className="text-xs text-gray-500 mb-2">
-                        設定鍵: {setting.settingKey}
-                      </p>
-                      
-                      {setting.settingType === 'boolean' ? (
-                        <select
-                          value={settingValues[setting.id] || setting.settingValue}
-                          onChange={(e) => handleSettingChange(setting.id, e.target.value)}
-                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        >
-                          <option value="true">啟用</option>
-                          <option value="false">停用</option>
-                        </select>
-                      ) : setting.settingType === 'number' ? (
-                        <input
-                          type="number"
-                          value={settingValues[setting.id] || setting.settingValue}
-                          onChange={(e) => handleSettingChange(setting.id, e.target.value)}
-                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                      ) : (
-                        <input
-                          type="text"
-                          value={settingValues[setting.id] || setting.settingValue}
-                          onChange={(e) => handleSettingChange(setting.id, e.target.value)}
-                          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        />
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          setting.isActive
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {setting.isActive ? '啟用' : '停用'}
-                      </span>
-                    </div>
-                  </div>
+            <div className="space-y-8">
+              {settings && settings.length > 0 ? (
+                <>
+                  {/* 功能開關設定 */}
+                  {renderSettingsGroup(
+                    "功能開關設定",
+                    "控制各項功能的啟用與停用",
+                    ['points_system_enabled', 'virtual_card_enabled', 'point_usage_enabled', 'point_card_enabled']
+                  )}
+                  
+                  {/* 回饋設定 */}
+                  {renderSettingsGroup(
+                    "回饋設定",
+                    "配置點數回饋的相關參數",
+                    ['earn_rate_percentage', 'min_order_amount_for_points', 'max_points_per_order', 'min_earn_amount']
+                  )}
+                  
+                  {/* 點數使用規則 */}
+                  {renderSettingsGroup(
+                    "點數使用規則",
+                    "設定點數使用和兌換的相關規則",
+                    ['points_to_currency_rate', 'max_points_usage_percentage', 'points_expire_days', 'POINTS_EXPIRY_DAYS', 'POINTS_MIN_USE', 'POINTS_MAX_USE_RATE']
+                  )}
+                  
+                  {/* 其他設定 */}
+                  {renderSettingsGroup(
+                    "其他設定",
+                    "額外的系統設定參數",
+                    ['VIRTUAL_CARD_MIN_AMOUNT']
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-sm text-gray-500">
+                    {settingsLoading ? '載入中...' : '暫無設定項目'}
+                  </p>
                 </div>
-              ))}
+              )}
+
+              {settings && settings.length > 0 && (
+                <div className="flex justify-end pt-6">
+                  <button
+                    onClick={handleSaveSettings}
+                    disabled={saving}
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        保存中...
+                      </>
+                    ) : (
+                      '保存設定'
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
-
-          {/* 操作按鈕 */}
-          <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-            <button
-              onClick={resetChanges}
-              disabled={!hasChanges || saveLoading}
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              重置變更
-            </button>
-            <button
-              onClick={handleSaveSettings}
-              disabled={!hasChanges || saveLoading}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {saveLoading ? '儲存中...' : '儲存變更'}
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* 設定說明 */}
-      <div className="bg-gray-50 shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">設定說明</h3>
-          <div className="space-y-3 text-sm text-gray-600">
-            <div>
-              <strong>點數系統開關:</strong> 控制整個點數系統是否啟用
-            </div>
-            <div>
-              <strong>購買回饋比例:</strong> 用戶購買商品時獲得點數的百分比（如：10 表示 10%）
-            </div>
-            <div>
-              <strong>虛擬點數卡功能:</strong> 是否允許用戶購買虛擬點數卡
-            </div>
-            <div>
-              <strong>點數使用功能:</strong> 是否允許用戶使用點數抵扣
-            </div>
-            <div>
-              <strong>最低獲得點數金額:</strong> 購買金額需達到此數值才能獲得點數
-            </div>
-            <div>
-              <strong>單筆最高使用點數:</strong> 單次訂單最多可使用的點數數量
-            </div>
-          </div>
+      
+
+      {/* 調試信息 (僅在開發環境顯示) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 rounded-lg p-4 text-sm text-gray-600">
+          <strong>調試信息:</strong>
+          <br />
+          {debugInfo}
         </div>
-      </div>
+      )}
     </div>
   );
 } 

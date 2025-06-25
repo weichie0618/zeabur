@@ -246,13 +246,19 @@ export const formatDisplayDate = (dateString: string): string => {
 /**
  * 格式化點數顯示
  */
-export const formatPoints = (points: number): string => {
+export const formatPoints = (points: number | null | undefined): string => {
+  if (points === null || points === undefined || isNaN(points)) {
+    return '0 點';
+  }
   return points.toLocaleString() + ' 點';
 };
 
 /**
  * 格式化金額顯示
  */
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (amount: number | null | undefined): string => {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return 'NT$ 0';
+  }
   return `NT$ ${amount.toLocaleString()}`;
 }; 

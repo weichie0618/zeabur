@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -13,26 +13,93 @@ export default function AdminLayout({
 }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  
+  // 互斥手風琴控制 - 同時只能展開一個分組
+  const getInitialExpandedGroup = () => {
+    if (pathname === '/admin/bakery' || 
+        pathname.startsWith('/admin/bakery/orders') ||
+        pathname.startsWith('/admin/bakery/products') ||
+        pathname.startsWith('/admin/bakery/categories') ||
+        pathname.startsWith('/admin/bakery/customers') ||
+        pathname.startsWith('/admin/bakery/owners')) {
+      return 'main';
+    }
+    if (pathname.startsWith('/admin/bakery/points')) {
+      return 'points';
+    }
+    if (pathname.startsWith('/admin/bakery/coupons')) {
+      return 'other';
+    }
+    if (pathname.startsWith('/admin/bakery/export') ||
+        pathname.startsWith('/admin/bakery/performance')) {
+      return 'report';
+    }
+    return 'main'; // 預設展開主要功能
+  };
+
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(getInitialExpandedGroup());
+
+  // 切換分組展開狀態
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroup(expandedGroup === groupName ? null : groupName);
+  };
 
   // 導航項目的活躍狀態樣式
   const getNavItemClass = (path: string) => {
     const isActive = pathname === path;
-    return `block px-4 py-2 my-1 mx-2 rounded-md ${
+    return `block px-3 py-2 my-1 mx-2 rounded-md text-sm transition-colors ${
       isActive 
         ? 'bg-gray-900 text-white' 
         : 'text-gray-300 hover:bg-gray-700'
     }`;
   };
 
+  // 子選單項目樣式
+  const getSubNavItemClass = (path: string) => {
+    const isActive = pathname === path;
+    return `block px-6 py-2 my-1 mx-2 rounded-md text-sm transition-colors ${
+      isActive 
+        ? 'bg-amber-500 text-white font-medium' 
+        : 'text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+    }`;
+  };
+
+  // 分組標題樣式
+  const getGroupHeaderClass = (isExpanded: boolean) => {
+    return `px-4 py-3 text-sm text-gray-300 uppercase font-bold flex items-center justify-between cursor-pointer hover:text-white hover:bg-gray-700 transition-all duration-200 rounded-md mx-2 my-1 ${
+      isExpanded ? 'text-white bg-gray-700' : ''
+    }`;
+  };
+
+  // 摺疊圖示
+  const CollapseIcon = ({ isExpanded }: { isExpanded: boolean }) => (
+    <svg
+      className={`h-4 w-4 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+
+  // 分組圖示組件
+  const GroupIcon = ({ children }: { children: React.ReactNode }) => (
+    <span className="mr-2 text-amber-400">
+      {children}
+    </span>
+  );
+
   return (
     <ProtectedRoute requiredRole="admin">
       <div className="flex h-screen bg-gray-100">
         {/* 側邊欄 */}
-        <aside className="w-64 bg-gray-800 text-white">
-          <div className="p-6">
-            <Link href="/admin/bakery" className="text-xl font-bold flex items-center">
-              <span className="bg-amber-500 h-8 w-8 rounded-md flex items-center justify-center text-white mr-3">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <aside className="w-64 bg-gray-800 text-white flex flex-col">
+          {/* 標題區域 */}
+          <div className="p-4 border-b border-gray-700">
+            <Link href="/admin/bakery" className="text-lg font-bold flex items-center hover:text-gray-300 transition-colors">
+              <span className="bg-amber-500 h-7 w-7 rounded-md flex items-center justify-center text-white mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
               </span>
@@ -40,148 +107,201 @@ export default function AdminLayout({
             </Link>
           </div>
           
-          <nav className="mt-6">
-            <div className="px-4 py-2 text-xs text-gray-400 uppercase">主要功能</div>
-            <Link href="/admin/bakery" className={getNavItemClass('/admin/bakery')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                儀表板
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/orders" className={getNavItemClass('/admin/bakery/orders')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                </svg>
-                訂單管理
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/products" className={getNavItemClass('/admin/bakery/products')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-                產品管理
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/categories" className={getNavItemClass('/admin/bakery/categories')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2M7 7h10" />
-                </svg>
-                分類管理
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/coupons" className={getNavItemClass('/admin/bakery/coupons')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                </svg>
-                優惠碼管理
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/customers" className={getNavItemClass('/admin/bakery/customers')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                客戶管理
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/owners" className={getNavItemClass('/admin/bakery/owners')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                業主管理
-              </span>
-            </Link>
-            
-            <div className="px-4 py-2 mt-6 text-xs text-gray-400 uppercase">點數系統</div>
-            
-            <Link href="/admin/bakery/points" className={getNavItemClass('/admin/bakery/points')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-                點數概覽
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/points/users" className={getNavItemClass('/admin/bakery/points/users')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-                用戶點數
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/points/transactions" className={getNavItemClass('/admin/bakery/points/transactions')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                </svg>
-                交易記錄
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/points/virtual-cards" className={getNavItemClass('/admin/bakery/points/virtual-cards')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                虛擬點數卡
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/points/settings" className={getNavItemClass('/admin/bakery/points/settings')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                系統設定
-              </span>
-            </Link>
-            
-            <div className="px-4 py-2 mt-6 text-xs text-gray-400 uppercase">報表</div>
-            
-            <Link href="/admin/bakery/export" className={getNavItemClass('/admin/bakery/export')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                訂單匯出
-              </span>
-            </Link>
-            
-            <Link href="/admin/bakery/performance" className={getNavItemClass('/admin/bakery/performance')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                業績報表
-              </span>
-            </Link>
-            
-            {/* <Link href="/admin/bakery/settings" className={getNavItemClass('/admin/bakery/settings')}>
-              <span className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                系統設定
-              </span>
-            </Link> */}
+          {/* 可滾動的導航區域 */}
+          <nav className="flex-1 overflow-y-auto py-2">
+            {/* 主要功能 - 手風琴 */}
+            <div>
+              <div 
+                className={getGroupHeaderClass(expandedGroup === 'main')}
+                onClick={() => toggleGroup('main')}
+              >
+                <span className="flex items-center">
+                  <GroupIcon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2M7 7h10" />
+                    </svg>
+                  </GroupIcon>
+                  主要功能
+                </span>
+                <CollapseIcon isExpanded={expandedGroup === 'main'} />
+              </div>
+              
+              {expandedGroup === 'main' && (
+                <div className="transition-all duration-300 ease-in-out pb-2">
+                  <Link href="/admin/bakery" className={getNavItemClass('/admin/bakery')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      儀表板
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/orders" className={getNavItemClass('/admin/bakery/orders')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                      </svg>
+                      訂單管理
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/products" className={getNavItemClass('/admin/bakery/products')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      產品管理
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/categories" className={getNavItemClass('/admin/bakery/categories')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2M7 7h10" />
+                      </svg>
+                      分類管理
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/customers" className={getNavItemClass('/admin/bakery/customers')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      客戶管理
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/owners" className={getNavItemClass('/admin/bakery/owners')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      業主管理
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 點數系統 - 手風琴 */}
+            <div className="mt-4">
+              <div 
+                className={getGroupHeaderClass(expandedGroup === 'points')}
+                onClick={() => toggleGroup('points')}
+              >
+                <span className="flex items-center">
+                  <GroupIcon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                    </svg>
+                  </GroupIcon>
+                  點數系統
+                </span>
+                <CollapseIcon isExpanded={expandedGroup === 'points'} />
+              </div>
+              
+              {expandedGroup === 'points' && (
+                <div className="transition-all duration-300 ease-in-out pb-2">
+                  <Link href="/admin/bakery/points" className={getNavItemClass('/admin/bakery/points')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                      </svg>
+                      點數概覽
+                    </span>
+                  </Link>
+                  
+                  {/* 點數子選單 */}
+                  <div className="ml-4 mt-2 pb-1 border-l-2 border-gray-600">
+                    <Link href="/admin/bakery/points/users" className={getSubNavItemClass('/admin/bakery/points/users')}>
+                      用戶點數
+                    </Link>
+                    <Link href="/admin/bakery/points/transactions" className={getSubNavItemClass('/admin/bakery/points/transactions')}>
+                      交易記錄
+                    </Link>
+                    <Link href="/admin/bakery/points/virtual-cards" className={getSubNavItemClass('/admin/bakery/points/virtual-cards')}>
+                      虛擬點數卡
+                    </Link>
+                    <Link href="/admin/bakery/points/settings" className={getSubNavItemClass('/admin/bakery/points/settings')}>
+                      系統設定
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 其他功能 - 手風琴 */}
+            <div className="mt-4">
+              <div 
+                className={getGroupHeaderClass(expandedGroup === 'other')}
+                onClick={() => toggleGroup('other')}
+              >
+                <span className="flex items-center">
+                  <GroupIcon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </GroupIcon>
+                  其他功能
+                </span>
+                <CollapseIcon isExpanded={expandedGroup === 'other'} />
+              </div>
+              
+              {expandedGroup === 'other' && (
+                <div className="transition-all duration-300 ease-in-out pb-2">
+                  <Link href="/admin/bakery/coupons" className={getNavItemClass('/admin/bakery/coupons')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                      優惠碼
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 報表功能 - 手風琴 */}
+            <div className="mt-4">
+              <div 
+                className={getGroupHeaderClass(expandedGroup === 'report')}
+                onClick={() => toggleGroup('report')}
+              >
+                <span className="flex items-center">
+                  <GroupIcon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </GroupIcon>
+                  報表
+                </span>
+                <CollapseIcon isExpanded={expandedGroup === 'report'} />
+              </div>
+              
+              {expandedGroup === 'report' && (
+                <div className="transition-all duration-300 ease-in-out pb-2">
+                  <Link href="/admin/bakery/export" className={getNavItemClass('/admin/bakery/export')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+                      </svg>
+                      訂單匯出
+                    </span>
+                  </Link>
+                  
+                  <Link href="/admin/bakery/performance" className={getNavItemClass('/admin/bakery/performance')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      業績報表
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </div>
           </nav>
         </aside>
         
@@ -200,7 +320,7 @@ export default function AdminLayout({
                   <span className="text-gray-700 mr-4">{user?.name || '管理員'}</span>
                   <button 
                     onClick={() => logout()}
-                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm"
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-md text-sm transition-colors"
                   >
                     登出
                   </button>

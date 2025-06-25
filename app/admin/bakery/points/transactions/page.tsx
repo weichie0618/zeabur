@@ -21,30 +21,78 @@ export default function TransactionsPage() {
     limit: 20
   });
 
+  // 添加調試狀態
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
   // 初始化認證
   useEffect(() => {
-    initializeAuth(setAccessToken, setError, setLoading, setShowAuthWarning);
+    console.log('開始初始化認證...');
+    setDebugInfo('正在初始化認證...');
+    
+    try {
+      initializeAuth(
+        (token) => {
+          console.log('認證成功，令牌長度:', token?.length || 0);
+          setAccessToken(token);
+          setDebugInfo(`認證成功，令牌長度: ${token?.length || 0}`);
+        },
+        (errorMsg) => {
+          console.error('認證失敗:', errorMsg);
+          setError(errorMsg);
+          setDebugInfo(`認證失敗: ${errorMsg}`);
+        },
+        (loadingState) => {
+          console.log('載入狀態:', loadingState);
+          setLoading(loadingState);
+          setDebugInfo(`載入狀態: ${loadingState}`);
+        },
+        setShowAuthWarning,
+        false // 不自動重定向
+      );
+    } catch (err) {
+      console.error('初始化認證時發生錯誤:', err);
+      setError(`初始化認證時發生錯誤: ${err}`);
+      setDebugInfo(`初始化認證時發生錯誤: ${err}`);
+      setLoading(false);
+    }
   }, []);
 
   // 載入交易記錄
   useEffect(() => {
     if (accessToken) {
+      console.log('開始載入交易記錄...');
+      setDebugInfo(prev => prev + ' | 開始載入交易記錄...');
       loadTransactions();
     }
   }, [accessToken, filters]);
 
   const loadTransactions = async () => {
     setTransactionsLoading(true);
+    setDebugInfo(prev => prev + ' | 正在載入交易記錄...');
+    
     try {
+      console.log('正在調用交易記錄 API...');
+      
       const response = await pointsApi.getTransactions(filters);
       
+      console.log('交易記錄 API 響應:', response);
+      setDebugInfo(prev => prev + ' | API 響應已接收');
+
       if (response.success) {
-        setTransactions(response.data);
+        setTransactions(response.data || []);
+        setDebugInfo(prev => prev + ` | 載入了 ${response.data?.length || 0} 筆交易記錄`);
+      } else {
+        setError('載入交易記錄失敗');
+        setDebugInfo(prev => prev + ' | 交易記錄載入失敗');
       }
     } catch (error) {
+      console.error('載入交易記錄失敗:', error);
+      setDebugInfo(prev => prev + ` | API 錯誤: ${error}`);
       handleApiError(error, setError, setTransactionsLoading, setShowAuthWarning);
     } finally {
       setTransactionsLoading(false);
+      setLoading(false);
+      setDebugInfo(prev => prev + ' | 載入完成');
     }
   };
 
@@ -101,10 +149,43 @@ export default function TransactionsPage() {
     }
   };
 
+  // 如果還在載入中，顯示載入狀態和調試信息
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="flex flex-col justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+        <p className="text-gray-600 mb-2">正在載入交易記錄...</p>
+        <div className="text-sm text-gray-500 max-w-2xl text-center">
+          <strong>調試信息:</strong>
+          <br />
+          {debugInfo}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+        <div className="flex">
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">載入錯誤</h3>
+            <div className="mt-2 text-sm text-red-700">{error}</div>
+            <div className="mt-4 text-xs text-gray-600">
+              <strong>調試信息:</strong>
+              <br />
+              {debugInfo}
+            </div>
+            <div className="mt-4">
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700"
+              >
+                重新載入
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -221,7 +302,7 @@ export default function TransactionsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {transactions.map((transaction) => (
+                  {transactions && transactions.length > 0 ? transactions.map((transaction) => (
                     <tr key={transaction.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         #{transaction.id}
@@ -239,13 +320,13 @@ export default function TransactionsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`text-sm font-medium ${
-                          transaction.points > 0 ? 'text-green-600' : 'text-red-600'
+                          (transaction.points || 0) > 0 ? 'text-green-600' : 'text-red-600'
                         }`}>
-                          {transaction.points > 0 ? '+' : ''}{formatPoints(transaction.points)}
+                          {(transaction.points || 0) > 0 ? '+' : ''}{formatPoints(transaction.points || 0)}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatPoints(transaction.pointsBefore)} → {formatPoints(transaction.pointsAfter)}
+                        {formatPoints(transaction.pointsBefore || 0)} → {formatPoints(transaction.pointsAfter || 0)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(transaction.status)}`}>
@@ -256,13 +337,28 @@ export default function TransactionsPage() {
                         {formatDisplayDate(transaction.createdAt)}
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                        {transactionsLoading ? '載入中...' : '暫無交易記錄'}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       </div>
+
+      {/* 調試信息 (僅在開發環境顯示) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 rounded-lg p-4 text-sm text-gray-600">
+          <strong>調試信息:</strong>
+          <br />
+          {debugInfo}
+        </div>
+      )}
     </div>
   );
 } 

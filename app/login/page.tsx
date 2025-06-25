@@ -94,16 +94,7 @@ export default function LoginPage() {
     }
   }, [clearAuth]);
 
-  // 當頁面初次加載時，如果檢測到有 token 但沒有明確的參數，也標記為已過期
-  useEffect(() => {
-    // 只在頁面首次加載時檢查一次
-    const hasToken = localStorage.getItem('accessToken') !== null;
-    if (hasToken && !isExpired) {
-      addDebugInfo('頁面初始化時檢測到有 token，標記為已過期以避免循環');
-      setIsExpired(true);
-      clearAuth();
-    }
-  }, [clearAuth, isExpired]);
+  // 已移除：頁面初次加載時的 token 檢查邏輯，因為它會干擾正常的登入跳轉流程
 
   // 監聽認證狀態變更，根據角色進行導航
   useEffect(() => {

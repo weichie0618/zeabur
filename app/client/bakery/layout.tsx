@@ -46,6 +46,15 @@ export default function BakeryLayout({
                   <span className="font-medium">點數商城</span>
                 </Link>
                 <Link 
+                  href="/client/bakery/points/purchase" 
+                  className="hover:text-amber-100 transition-colors duration-200 flex items-center group"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                  </svg>
+                  <span className="font-medium">購買點數卡</span>
+                </Link>
+                <Link 
                   href="/client/bakery/orders" 
                   className="hover:text-amber-100 transition-colors duration-200 flex items-center group"
                 >
@@ -84,7 +93,7 @@ export default function BakeryLayout({
 
             {/* 手機版下拉選單 - 只在 md 以下螢幕顯示 */}
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-              isMobileMenuOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+              isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}>
               <nav className="pt-4 pb-2 border-t border-amber-500 mt-4 relative z-50">
                 <div className="flex flex-col space-y-2">
@@ -100,7 +109,23 @@ export default function BakeryLayout({
                     </div>
                     <div>
                       <div className="font-medium text-lg">點數商城</div>
-                      <div className="text-amber-200 text-sm">購買虛擬點數卡</div>
+                      <div className="text-amber-200 text-sm">查看點數餘額與記錄</div>
+                    </div>
+                  </Link>
+                  
+                  <Link 
+                    href="/client/bakery/points/purchase" 
+                    className="flex items-center px-4 py-3 rounded-lg hover:bg-amber-700 transition-colors duration-200 group"
+                    onClick={closeMobileMenu}
+                  >
+                    <div className="bg-amber-500 p-2 rounded-lg mr-3 group-hover:bg-amber-400 transition-colors duration-200">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-medium text-lg">購買點數卡</div>
+                      <div className="text-amber-200 text-sm">購買虛擬點數卡商品</div>
                     </div>
                   </Link>
                   

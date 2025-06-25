@@ -63,7 +63,7 @@ export default function PointsPage() {
 
     try {
       // 先檢查用戶是否存在
-      const checkResponse = await fetch('/api/customer/line/customer', {
+      const checkResponse = await fetch('/api/customer/line/user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

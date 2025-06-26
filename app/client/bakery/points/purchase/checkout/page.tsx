@@ -368,7 +368,7 @@ export default function VirtualCardCheckoutPage() {
                            
                             <div className="text-xs opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                          <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
                             <img 
                               src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
                               alt="Bakery Logo" 
@@ -381,9 +381,9 @@ export default function VirtualCardCheckoutPage() {
                         <div className="text-center my-2">
                           <div className="mb-2">
                             <div className="text-3xl font-black drop-shadow-lg tracking-tight">
-                              {item.points_value.toLocaleString()}
+                              {item.price.toLocaleString()}
                             </div>
-                            <div className="text-sm font-semibold opacity-95 tracking-wider">點數卡</div>
+                            <div className="text-md font-semibold opacity-95 tracking-wider">點數卡</div>
                           </div>
                           
                           
@@ -413,14 +413,27 @@ export default function VirtualCardCheckoutPage() {
                     <div className="text-center">
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
                       <p className="text-gray-600 mb-3 text-sm">{item.description}</p>
+                      
+                      {/* 調試資訊 */}
+                      {(() => {
+                        console.log('=== 優惠贈送調試資訊 ===');
+                        console.log('商品名稱:', item.name);
+                        console.log('點數值:', item.points_value, typeof item.points_value);
+                        console.log('價格:', item.price, typeof item.price);
+                        console.log('條件 (points_value > price):', item.points_value > item.price);
+                        console.log('差額:', item.points_value - item.price);
+                        console.log('========================');
+                        return null;
+                      })()}
+                      
                       {/* 優惠贈送顯示 */}
                       {item.points_value > item.price && (
-                            <div className="inline-flex items-center bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-full px-3 py-1 mt-1">
-                              <svg className="w-3 h-3 mr-1 text-green-200" fill="currentColor" viewBox="0 0 24 24">
+                            <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
+                              <svg className="w-3 h-3 mr-1 text-green-600" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                               </svg>
-                              <span className="text-xs font-bold text-green-200">
-                                +{(item.points_value - item.price).toLocaleString()} 贈送
+                              <span className="text-xs font-bold text-green-700">
+                                +{(item.points_value - item.price).toLocaleString()} 點贈送
                               </span>
                             </div>
                           )}

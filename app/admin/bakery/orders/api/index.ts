@@ -94,6 +94,37 @@ export const fetchOrders = async (
   }
 };
 
+// 獲取待處理訂單數量
+export const fetchPendingOrdersCount = async (accessToken: string): Promise<number> => {
+  try {
+    const params = new URLSearchParams({
+      status: 'pending',
+      page: '1',
+      limit: '1000', // 設置較大的limit來獲取所有待處理訂單
+    });
+
+    const response = await fetch(`/api/orders?${params.toString()}`, {
+      headers: getAuthHeaders(accessToken),
+      credentials: 'include',
+    });
+    
+    if (response.status === 401) {
+      throw new Error('獲取待處理訂單時認證失敗');
+    }
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      return data.orders?.length || 0;
+    } else {
+      return 0; // 發生錯誤時返回0，避免影響主要功能
+    }
+  } catch (err: any) {
+    console.error('獲取待處理訂單數量錯誤:', err);
+    return 0; // 發生錯誤時返回0，避免影響主要功能
+  }
+};
+
 // 獲取訂單詳情
 export const fetchOrderDetail = async (
   accessToken: string,

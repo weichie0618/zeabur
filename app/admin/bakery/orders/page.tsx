@@ -74,6 +74,9 @@ export default function OrdersManagement() {
       setTimeout(() => setSuccess(''), 3000);
       setShowStatusUpdate(false);
       handleFetchOrders(currentPage); // 重新獲取訂單列表
+      
+      // 觸發訂單狀態更新事件，通知layout更新待處理訂單數量
+      window.dispatchEvent(new CustomEvent('orderStatusUpdated'));
     },
     onError: (error) => {
       setError(error);
@@ -174,6 +177,9 @@ export default function OrdersManagement() {
       setCurrentPage(response.page || 1);
       
       setLoading(false);
+      
+      // 觸發訂單狀態更新事件，通知layout更新待處理訂單數量
+      window.dispatchEvent(new CustomEvent('orderStatusUpdated'));
     } catch (err: any) {
       if (err.message?.includes('認證失敗')) {
         handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
@@ -214,6 +220,9 @@ export default function OrdersManagement() {
       
       // 重新獲取最新訂單資料
       handleFetchOrders(currentPage);
+      
+      // 觸發訂單狀態更新事件，通知layout更新待處理訂單數量
+      window.dispatchEvent(new CustomEvent('orderStatusUpdated'));
     } catch (err: any) {
       if (err.message?.includes('認證失敗')) {
         handleAuthError(err.message, setError, setLoading, setShowAuthWarning);

@@ -373,10 +373,10 @@ export default function VirtualCardCheckoutPage() {
                             </svg>
                           </div>
                           
-                          {/* 烘焙器具裝飾 */}
+                          {/* 麵包裝飾 */}
                           <div className="absolute bottom-5 right-6">
                             <svg className="w-5 h-5 text-white/75" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8zm0 2h8v14H8V5zm2 2v2h4V7h-4zm0 4v2h4v-2h-4zm0 4v2h4v-2h-4z"/>
+                              <path d="M18 9c0-1.1-.9-2-2-2s-2 .9-2 2c0 .74.4 1.38 1 1.72V19c0 .55.45 1 1 1s1-.45 1-1v-8.28c.6-.34 1-.98 1-1.72zm-8 0c0-1.1-.9-2-2-2s-2 .9-2 2c0 .74.4 1.38 1 1.72V19c0 .55.45 1 1 1s1-.45 1-1v-8.28c.6-.34 1-.98 1-1.72zm4-5c-2.21 0-4 1.79-4 4 0 1.1.45 2.1 1.17 2.83L12 17l.83-6.17C13.55 10.1 14 9.1 14 8c0-2.21-1.79-4-4-4z"/>
                             </svg>
                           </div>
                           
@@ -522,9 +522,10 @@ export default function VirtualCardCheckoutPage() {
                 
                    
                     <div className="border-t border-gray-200 pt-3">
-                      <div className="flex justify-end items-center mb-2">
+                      <div className="flex justify-between items-center mb-2">
                         {/* <span className="text-lg font-medium text-gray-900">金額</span> */}
-                        <span className="text-2xl font-bold text-gray-900 ">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-gray-900">NT$</span>
+                        <span className="text-2xl font-bold text-gray-900">{Math.round(item.price * item.quantity).toLocaleString()}</span>
                       </div>
                       {/* <div className="flex justify-between items-center">
                         <span className="text-lg font-medium text-amber-700">獲得點數</span>

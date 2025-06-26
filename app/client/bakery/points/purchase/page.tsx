@@ -331,7 +331,7 @@ export default function PurchasePage() {
                 <div className="space-y-2 mb-6">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">售價</span>
-                    <span className="text-2xl font-bold text-gray-900">NT$ {card.price.toLocaleString()}</span>
+                    <span className="text-2xl font-bold text-gray-900">NT$ {card.price.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">獲得點數</span>

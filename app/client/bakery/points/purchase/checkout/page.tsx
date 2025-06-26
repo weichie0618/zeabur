@@ -502,7 +502,7 @@ export default function VirtualCardCheckoutPage() {
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
                         {/* 優惠贈送顯示 */}
                         {item.points_value > item.price && (
-                            <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
+                            <div className="inline-flex items-center mb-2 bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
                               
                               <span className="text-xs font-bold text-green-700">
                                 +{(item.points_value - item.price).toLocaleString()} 點贈送

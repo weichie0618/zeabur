@@ -454,11 +454,11 @@ export default function VirtualCardCheckoutPage() {
                         {/* 頂部區域 */}
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="text-xs font-bold tracking-wide opacity-90">BAKERY</div>
+                            <div className="text-xs font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
                            
-                            <div className="text-xs opacity-80 mt-0.5">POINTS CARD</div>
+                            <div className="text-xs text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden absolute right-10">
                             <img 
                               src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
                               alt="Bakery Logo" 

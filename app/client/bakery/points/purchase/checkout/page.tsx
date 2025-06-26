@@ -368,7 +368,13 @@ export default function VirtualCardCheckoutPage() {
                            
                             <div className="text-xs opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                         
+                          <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                            <img 
+                              src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
+                              alt="Bakery Logo" 
+                              className="w-6 h-6 object-contain"
+                            />
+                          </div>
                         </div>
 
                         {/* 中央點數顯示 */}

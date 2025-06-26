@@ -371,7 +371,7 @@ export default function VirtualCardCheckoutPage() {
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-sm text-gray-600">數量: {item.quantity}</span>
                         <div className="text-right">
-                          <div className="font-medium text-gray-900">NT$ {(item.price * item.quantity).toLocaleString()}</div>
+                          <div className="font-medium text-gray-900">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</div>
                           <div className="text-sm text-amber-600">獲得 {(item.points_value * item.quantity).toLocaleString()} 點</div>
                         </div>
                       </div>

@@ -136,11 +136,9 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
                   </div>
                   
                   <div className="text-sm text-gray-600 space-y-1">
-                    <div>
-                      訂單編號: #{purchase.id}
-                    </div>
+                   
                     <div className="flex items-center space-x-4">
-                      <span>金額: NT$ {purchase.purchasePrice?.toLocaleString()}</span>
+                      <span>金額: NT$ {Math.round(purchase.purchasePrice).toLocaleString()}</span>
                       <span className="text-green-600 font-medium">
                         獲得點數: {purchase.pointsRedeemed?.toLocaleString()} 點
                       </span>
@@ -153,7 +151,7 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
                 
                 <div className="text-right ml-4">
                   <div className="text-lg font-bold text-gray-900">
-                    NT$ {purchase.purchasePrice?.toLocaleString()}
+                    NT$ {Math.round(purchase.purchasePrice).toLocaleString()}
                   </div>
                 </div>
               </div>

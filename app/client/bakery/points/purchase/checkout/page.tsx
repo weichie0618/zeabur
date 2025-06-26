@@ -458,7 +458,7 @@ export default function VirtualCardCheckoutPage() {
                             <img 
                               src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
                               alt="Bakery Logo" 
-                              className="w-6 h-6 object-contain"
+                              className="w-10 h-10 object-contain"
                             />
                           </div>
                         </div>

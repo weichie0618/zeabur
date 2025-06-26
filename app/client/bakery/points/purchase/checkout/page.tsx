@@ -35,7 +35,7 @@ export default function VirtualCardCheckoutPage() {
   const [cart, setCart] = useState<VirtualCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'line_pay' | 'bank_transfer'>('line_pay');
+  const [paymentMethod, setPaymentMethod] = useState<'bank_transfer'>('bank_transfer');
   
   const [formError, setFormError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
@@ -106,6 +106,25 @@ export default function VirtualCardCheckoutPage() {
 
     loadCart();
   }, []);
+
+  // 移除商品功能
+  const removeFromCart = (itemId: string) => {
+    try {
+      // 從購物車狀態中移除
+      const updatedCart = cart.filter(item => item.id !== itemId);
+      setCart(updatedCart);
+
+      // 更新 localStorage 中的完整購物車
+      const savedCart = localStorage.getItem('bakeryCart');
+      if (savedCart) {
+        const allItems = JSON.parse(savedCart);
+        const filteredItems = allItems.filter((item: any) => item.id !== itemId);
+        localStorage.setItem('bakeryCart', JSON.stringify(filteredItems));
+      }
+    } catch (error) {
+      console.error('移除商品失敗:', error);
+    }
+  };
 
   // 計算總金額
   const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -335,7 +354,7 @@ export default function VirtualCardCheckoutPage() {
               
               <div className="space-y-4">
                 {cart.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                  <div key={item.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg relative">
                     <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
@@ -357,6 +376,17 @@ export default function VirtualCardCheckoutPage() {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* 移除按鈕 */}
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="absolute top-2 right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-colors"
+                      title="移除商品"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -383,23 +413,6 @@ export default function VirtualCardCheckoutPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">付款方式</h2>
                 
                 <div className="space-y-3">
-                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="line_pay"
-                      checked={paymentMethod === 'line_pay'}
-                      onChange={(e) => setPaymentMethod(e.target.value as 'line_pay')}
-                      className="mr-3"
-                    />
-                    <div className="flex items-center">
-                      <div className="bg-green-500 text-white px-2 py-1 rounded text-sm font-medium mr-3">
-                        LINE Pay
-                      </div>
-                      <span className="text-gray-700">LINE Pay 付款</span>
-                    </div>
-                  </label>
-
                   <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"

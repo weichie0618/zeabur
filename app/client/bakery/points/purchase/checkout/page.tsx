@@ -336,60 +336,84 @@ export default function VirtualCardCheckoutPage() {
               
               {cart.map((item) => (
                 <div key={item.id} className="space-y-6">
-                  {/* 點數卡設計 */}
+                  {/* 真實點數卡設計 */}
                   <div className="relative">
-                    {/* 點數卡主體 */}
-                    <div className="relative w-full max-w-sm mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 rounded-2xl shadow-2xl overflow-hidden">
-                      {/* 卡片背景紋理 */}
-                      <div className="absolute inset-0 opacity-20">
-                        <div className="absolute top-4 left-4 w-16 h-16 border-2 border-white/30 rounded-full"></div>
-                        <div className="absolute top-8 right-6 w-12 h-12 border-2 border-white/20 rounded-full"></div>
-                        <div className="absolute bottom-6 left-8 w-8 h-8 border-2 border-white/25 rounded-full"></div>
-                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20"></div>
+                    {/* 點數卡主體 - 適合手機的尺寸 */}
+                    <div className="relative w-full max-w-xs mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
+                      
+                      {/* 卡片背景裝飾 */}
+                      <div className="absolute inset-0">
+                        {/* 背景幾何圖案 */}
+                        <div className="absolute inset-0 opacity-15">
+                          <div className="absolute top-3 left-3 w-12 h-12 border border-white/40 rounded-full"></div>
+                          <div className="absolute top-6 right-4 w-8 h-8 border border-white/30 rounded-full"></div>
+                          <div className="absolute bottom-4 left-6 w-6 h-6 border border-white/35 rounded-full"></div>
+                          <div className="absolute bottom-8 right-8 w-4 h-4 bg-white/20 rounded-full"></div>
+                        </div>
+                        
+                        {/* 漸層覆蓋 */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/10"></div>
+                        
+                        {/* 光澤效果 */}
+                        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/20 to-transparent"></div>
                       </div>
 
                       {/* 卡片內容 */}
-                      <div className="relative h-full p-6 flex flex-col justify-between text-white">
-                        {/* 頂部 - 卡片標題 */}
+                      <div className="relative h-full p-4 flex flex-col justify-between text-white">
+                        
+                        {/* 頂部區域 */}
                         <div className="flex justify-between items-start">
                           <div>
-                            <div className="text-sm font-medium opacity-90">點數卡</div>
-                            <div className="text-xs opacity-75">POINTS CARD</div>
+                            <div className="text-xs font-bold tracking-wide opacity-90">BAKERY</div>
+                            <div className="text-lg font-bold leading-tight">點數卡</div>
+                            <div className="text-xs opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                          <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                             </svg>
                           </div>
                         </div>
 
-                        {/* 中央 - 點數值 */}
-                        <div className="text-center">
-                          <div className="text-4xl font-bold mb-1 drop-shadow-lg">
-                            {item.points_value.toLocaleString()}
+                        {/* 中央點數顯示 */}
+                        <div className="text-center my-2">
+                          <div className="mb-2">
+                            <div className="text-3xl font-black drop-shadow-lg tracking-tight">
+                              {item.points_value.toLocaleString()}
+                            </div>
+                            <div className="text-sm font-semibold opacity-95 tracking-wider">POINTS</div>
                           </div>
-                          <div className="text-lg font-medium opacity-95">POINTS</div>
+                          
+                          {/* 優惠贈送顯示 */}
+                          {item.points_value > item.price && (
+                            <div className="inline-flex items-center bg-green-500/20 backdrop-blur-sm border border-green-400/30 rounded-full px-3 py-1 mt-1">
+                              <svg className="w-3 h-3 mr-1 text-green-200" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                              </svg>
+                              <span className="text-xs font-bold text-green-200">
+                                +{(item.points_value - item.price).toLocaleString()} 贈送
+                              </span>
+                            </div>
+                          )}
                         </div>
 
-                        {/* 底部 - 卡片信息 */}
-                        <div className="flex justify-between items-end">
-                          <div>
-                            <div className="text-xs opacity-75 mb-1">VALID THRU</div>
-                            <div className="text-sm font-medium">∞</div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs opacity-75 mb-1">CARD NO.</div>
-                            <div className="text-sm font-mono">{String(item.virtual_card_id).padStart(8, '0')}</div>
-                          </div>
+                        {/* 底部資訊 */}
+                        <div className="flex justify-between items-end text-xs">
+                          
+                         
                         </div>
                       </div>
 
-                      {/* 金屬光澤效果 */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent"></div>
+                      {/* 卡片邊緣高光 */}
+                      <div className="absolute inset-0 rounded-2xl ring-1 ring-white/20"></div>
+                      
+                      {/* 頂部反光效果 */}
+                      <div className="absolute top-0 left-1/4 right-1/4 h-8 bg-gradient-to-b from-white/30 to-transparent rounded-t-2xl"></div>
                     </div>
 
-                    {/* 卡片陰影效果 */}
-                    <div className="absolute -bottom-2 -right-2 w-full h-full bg-gradient-to-br from-amber-300/20 to-amber-700/20 rounded-2xl -z-10"></div>
+                    {/* 卡片陰影 */}
+                    <div className="absolute -bottom-3 -right-3 w-full h-full bg-gradient-to-br from-amber-400/10 to-orange-600/20 rounded-2xl blur-sm -z-10"></div>
+                    <div className="absolute -bottom-1 -right-1 w-full h-full bg-gradient-to-br from-amber-300/15 to-orange-500/25 rounded-2xl -z-10"></div>
                   </div>
 
                   {/* 商品資訊卡片 */}

@@ -302,18 +302,21 @@ export default function PurchasePage() {
                     <span className="text-gray-700">售價</span>
                     <span className="text-2xl font-bold text-gray-900">NT$ {Math.round(card.price).toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">獲得點數</span>
-                    <span className="text-xl font-bold text-amber-600">{card.pointsValue.toLocaleString()} 點</span>
-                  </div>
                   
-                  {/* 優惠資訊 */}
-                  {card.pointsValue > card.price && (
+                   {/* 優惠資訊 */}
+                   {card.pointsValue > card.price && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-green-600">額外贈送</span>
                       <span className="text-green-600 font-medium">+{(card.pointsValue - card.price).toLocaleString()} 點</span>
                     </div>
                   )}
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">獲得點數</span>
+                    <span className="text-xl font-bold text-amber-600">{card.pointsValue.toLocaleString()} 點</span>
+                  </div>
+                  
+                 
                 </div>
 
                 {/* 購買按鈕 */}

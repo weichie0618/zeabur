@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { virtualCardApi, handleApiError, formatPoints, formatCurrency, formatDisplayDate } from '../api';
-import { VirtualCardProduct, VirtualCardPurchase, VirtualCardPaymentStatus } from '../types';
+import { VirtualCardProduct } from '../types';
 import { initializeAuth } from '../../utils/authService';
+import Link from 'next/link';
 
 export default function VirtualCardsPage() {
   const [accessToken, setAccessToken] = useState<string>('');
@@ -11,11 +12,9 @@ export default function VirtualCardsPage() {
   const [error, setError] = useState<string>('');
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   
-  // 虛擬卡產品和購買記錄
+  // 虛擬卡產品
   const [cardProducts, setCardProducts] = useState<VirtualCardProduct[]>([]);
-  const [purchases, setPurchases] = useState<VirtualCardPurchase[]>([]);
   const [productsLoading, setProductsLoading] = useState<boolean>(false);
-  const [purchasesLoading, setPurchasesLoading] = useState<boolean>(false);
 
   // 新增產品表單
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
@@ -44,11 +43,6 @@ export default function VirtualCardsPage() {
   // 操作載入狀態
   const [updatingStatus, setUpdatingStatus] = useState<number | null>(null);
   const [updatingProduct, setUpdatingProduct] = useState<number | null>(null);
-  const [updatingPayment, setUpdatingPayment] = useState<number | null>(null);
-
-  // 購買記錄詳情模態框
-  const [showPurchaseModal, setShowPurchaseModal] = useState<boolean>(false);
-  const [viewingPurchase, setViewingPurchase] = useState<VirtualCardPurchase | null>(null);
 
   // 添加調試狀態
   const [debugInfo, setDebugInfo] = useState<string>('');
@@ -92,7 +86,6 @@ export default function VirtualCardsPage() {
       console.log('開始載入虛擬卡數據...');
       setDebugInfo(prev => prev + ' | 開始載入虛擬卡數據...');
       loadCardProducts();
-      loadPurchases();
     }
   }, [accessToken]);
 
@@ -121,37 +114,8 @@ export default function VirtualCardsPage() {
       handleApiError(error, setError, setProductsLoading, setShowAuthWarning);
     } finally {
       setProductsLoading(false);
-      setDebugInfo(prev => prev + ' | 產品載入完成');
-    }
-  };
-
-  const loadPurchases = async () => {
-    setPurchasesLoading(true);
-    setDebugInfo(prev => prev + ' | 正在載入購買記錄...');
-    
-    try {
-      console.log('正在調用購買記錄 API...');
-      
-      const response = await virtualCardApi.getPurchases({ page: 1, limit: 50 });
-      
-      console.log('購買記錄 API 響應:', response);
-      setDebugInfo(prev => prev + ' | 購買記錄API響應已接收');
-
-      if (response.success) {
-        setPurchases(response.data || []);
-        setDebugInfo(prev => prev + ` | 載入了 ${response.data?.length || 0} 筆購買記錄`);
-      } else {
-        setError('載入購買記錄失敗');
-        setDebugInfo(prev => prev + ' | 購買記錄載入失敗');
-      }
-    } catch (error) {
-      console.error('載入購買記錄失敗:', error);
-      setDebugInfo(prev => prev + ` | 購買記錄API錯誤: ${error}`);
-      handleApiError(error, setError, setPurchasesLoading, setShowAuthWarning);
-    } finally {
-      setPurchasesLoading(false);
       setLoading(false);
-      setDebugInfo(prev => prev + ' | 購買記錄載入完成');
+      setDebugInfo(prev => prev + ' | 產品載入完成');
     }
   };
 
@@ -252,50 +216,6 @@ export default function VirtualCardsPage() {
     setShowViewModal(true);
   };
 
-  // 查看購買記錄詳情
-  const handleViewPurchase = (purchase: VirtualCardPurchase) => {
-    setViewingPurchase(purchase);
-    setShowPurchaseModal(true);
-  };
-
-  // 更新支付狀態
-  const handleUpdatePaymentStatus = async (purchase: VirtualCardPurchase, newStatus: VirtualCardPaymentStatus) => {
-    if (purchase.paymentStatus === newStatus) return;
-
-    const confirmMessage = newStatus === VirtualCardPaymentStatus.PAID 
-      ? `確定要將購買記錄 #${purchase.id} 標記為已付款嗎？\n這將會自動給予用戶 ${purchase.pointsRedeemed} 點數。`
-      : `確定要將購買記錄 #${purchase.id} 的狀態改為 ${newStatus === VirtualCardPaymentStatus.FAILED ? '失敗' : '取消'} 嗎？`;
-    
-    if (!confirm(confirmMessage)) return;
-
-    setUpdatingPayment(purchase.id);
-    
-    try {
-      const response = await virtualCardApi.updatePaymentStatus(purchase.id, {
-        paymentStatus: newStatus,
-        adminNote: `管理員手動更新狀態為 ${newStatus}`
-      });
-      
-      if (response.success) {
-        await loadPurchases(); // 重新載入購買記錄
-        setError(''); // 清除錯誤
-        
-        if (newStatus === VirtualCardPaymentStatus.PAID) {
-          alert(`✅ 支付狀態已更新！用戶將獲得 ${purchase.pointsRedeemed} 點數。`);
-        } else {
-          alert(`✅ 支付狀態已更新為 ${newStatus === VirtualCardPaymentStatus.FAILED ? '失敗' : '取消'}。`);
-        }
-      } else {
-        setError('更新支付狀態失敗');
-      }
-    } catch (error) {
-      console.error('更新支付狀態失敗:', error);
-      handleApiError(error, setError, () => {}, setShowAuthWarning);
-    } finally {
-      setUpdatingPayment(null);
-    }
-  };
-
   // 如果還在載入中，顯示載入狀態和調試信息
   if (loading) {
     return (
@@ -339,12 +259,36 @@ export default function VirtualCardsPage() {
 
   return (
     <div className="space-y-6">
-      {/* 頁面標題 */}
+      {/* 頁面標題和導航 */}
       <div className="border-b border-gray-200 pb-4">
-        <h1 className="text-2xl font-bold text-gray-900">虛擬點數卡管理</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          管理虛擬點數卡產品和購買記錄
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">虛擬點數卡管理</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              管理虛擬點數卡產品設定
+            </p>
+          </div>
+          <div className="flex space-x-3">
+            <Link
+              href="/admin/bakery/points/virtual-cards/purchases"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              購買記錄管理
+            </Link>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              新增產品
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* 認證警告 */}
@@ -369,12 +313,6 @@ export default function VirtualCardsPage() {
         <div className="px-4 py-5 sm:p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">虛擬卡產品</h3>
-            <button
-              onClick={() => setShowAddForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-            >
-              新增產品
-            </button>
           </div>
 
           {/* 新增產品表單 */}
@@ -628,118 +566,6 @@ export default function VirtualCardsPage() {
         </div>
       </div>
 
-      {/* 購買記錄 */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">購買記錄</h3>
-
-          {purchasesLoading ? (
-            <div className="flex justify-center items-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      購買ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      用戶
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      產品
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      支付金額
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      獲得點數
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      狀態
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      購買時間
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      操作
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {purchases && purchases.length > 0 ? purchases.map((purchase) => (
-                    <tr key={purchase.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{purchase.id}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {purchase.lineUser?.displayName || purchase.lineUser?.name}
-                          </div>
-                          <div className="text-sm text-gray-500">ID: {purchase.lineUserId}</div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {purchase.virtualCardProduct?.name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(purchase.purchasePrice || 0)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        {formatPoints(purchase.pointsRedeemed || 0)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          purchase.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
-                          purchase.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {purchase.paymentStatus === 'paid' ? '已完成' :
-                           purchase.paymentStatus === 'pending' ? '處理中' : '失敗'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDisplayDate(purchase.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleViewPurchase(purchase)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            檢視
-                          </button>
-                                                     <button
-                             onClick={() => handleUpdatePaymentStatus(purchase, VirtualCardPaymentStatus.PAID)}
-                             className="text-green-600 hover:text-green-900"
-                           >
-                             標記為已付款
-                           </button>
-                           <button
-                             onClick={() => handleUpdatePaymentStatus(purchase, VirtualCardPaymentStatus.FAILED)}
-                             className="text-red-600 hover:text-red-900"
-                           >
-                             標記為失敗
-                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                        {purchasesLoading ? '載入中...' : '暫無購買記錄'}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* 檢視產品詳情模態框 */}
       {showViewModal && viewingProduct && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setShowViewModal(false)}>
@@ -851,111 +677,6 @@ export default function VirtualCardsPage() {
                 </button>
                 <button
                   onClick={() => setShowViewModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
-                  關閉
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 購買記錄詳情模態框 */}
-      {showPurchaseModal && viewingPurchase && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" onClick={() => setShowPurchaseModal(false)}>
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white" onClick={(e) => e.stopPropagation()}>
-            <div className="mt-3">
-              {/* 模態框標題 */}
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">購買記錄詳情</h3>
-                <button
-                  onClick={() => setShowPurchaseModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* 購買記錄信息 */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">購買ID</label>
-                    <div className="mt-1 text-sm text-gray-900">#{viewingPurchase.id}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">用戶</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      {viewingPurchase.lineUser?.displayName || viewingPurchase.lineUser?.name}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">產品</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      {viewingPurchase.virtualCardProduct?.name}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">支付金額</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      {formatCurrency(viewingPurchase.purchasePrice || 0)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">獲得點數</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      {formatPoints(viewingPurchase.pointsRedeemed || 0)}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">狀態</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        viewingPurchase.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
-                        viewingPurchase.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {viewingPurchase.paymentStatus === 'paid' ? '已完成' :
-                         viewingPurchase.paymentStatus === 'pending' ? '處理中' : '失敗'}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">購買時間</label>
-                    <div className="mt-1 text-sm text-gray-900">
-                      {formatDisplayDate(viewingPurchase.createdAt)}
-                    </div>
-                  </div>
-                </div>
-                
-                                 {viewingPurchase.notes && (
-                   <div>
-                     <label className="block text-sm font-medium text-gray-700">備註</label>
-                     <div className="mt-1 text-sm text-gray-900 p-3 bg-gray-50 rounded-md">
-                       {viewingPurchase.notes}
-                     </div>
-                   </div>
-                 )}
-              </div>
-
-              {/* 操作按鈕 */}
-              <div className="mt-6 flex justify-end space-x-2">
-                                 <button
-                   onClick={() => handleUpdatePaymentStatus(viewingPurchase, VirtualCardPaymentStatus.PAID)}
-                   className="text-green-600 hover:text-green-900"
-                 >
-                   標記為已付款
-                 </button>
-                 <button
-                   onClick={() => handleUpdatePaymentStatus(viewingPurchase, VirtualCardPaymentStatus.FAILED)}
-                   className="text-red-600 hover:text-red-900"
-                 >
-                   標記為失敗
-                 </button>
-                <button
-                  onClick={() => setShowPurchaseModal(false)}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
                   關閉

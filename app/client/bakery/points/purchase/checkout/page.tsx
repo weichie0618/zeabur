@@ -344,21 +344,41 @@ export default function VirtualCardCheckoutPage() {
                       {/* 烘焙主題背景紋理 */}
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>
                       
-                      {/* 測試背景 - 確保背景可見 */}
-                      <div className="absolute top-1 left-1 w-6 h-6 bg-red-500 rounded-full border-2 border-white z-30"></div>
-                      <div className="absolute top-1 right-1 w-5 h-5 bg-blue-500 rounded-full z-30"></div>
-                      <div className="absolute bottom-1 left-1 w-4 h-4 bg-green-500 rounded-full z-30"></div>
+
                       
                       {/* 卡片背景裝飾 - 烘焙主題 */}
                       <div className="absolute inset-0 z-10">
+                        
+                        {/* 獨立烘焙元素 - 不受透明度影響 */}
+                        
+                        {/* 小麥穗裝飾 */}
+                        <div className="absolute top-2 left-2 z-15">
+                          <svg className="w-10 h-10 text-yellow-300" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.7))', opacity: 0.9}}>
+                            <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14zm0 6l-1 2.5v1.5l1-2.5 1 2.5v-1.5L12 20zm-3-16l-.5 2v2.5l.5-2 .5 2V6l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V6l-.5-2zM9 8l-.5 2v2.5l.5-2 .5 2V10l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V10l-.5-2z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 麵包形狀裝飾 */}
+                        <div className="absolute top-4 right-3 z-15">
+                          <svg className="w-8 h-8 text-orange-300" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.7))', opacity: 0.9}}>
+                            <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5zm4-5c1.93 0 3.5 1.57 3.5 3.5S16.93 14 15 14s-3.5-1.57-3.5-3.5S13.07 7 15 7z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 星星裝飾 */}
+                        <div className="absolute bottom-8 right-4 z-15">
+                          <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.7))', opacity: 0.9}}>
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 明顯的麵粉點 */}
+                        <div className="absolute top-6 left-8 w-4 h-4 bg-yellow-200 rounded-full z-15 shadow-lg" style={{opacity: 0.8}}></div>
+                        <div className="absolute top-10 right-6 w-3 h-3 bg-orange-200 rounded-full z-15 shadow-lg" style={{opacity: 0.8}}></div>
+                        <div className="absolute bottom-10 left-6 w-3.5 h-3.5 bg-white rounded-full z-15 shadow-lg" style={{opacity: 0.9}}></div>
+                        
                         {/* 烘焙背景圖案 */}
                         <div className="absolute inset-0 opacity-40">
-                          {/* 小麥穗裝飾 */}
-                          <div className="absolute top-2 left-2 z-15">
-                            <svg className="w-8 h-8 text-yellow-200" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))'}}>
-                              <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14zm0 6l-1 2.5v1.5l1-2.5 1 2.5v-1.5L12 20zm-3-16l-.5 2v2.5l.5-2 .5 2V6l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V6l-.5-2zM9 8l-.5 2v2.5l.5-2 .5 2V10l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V10l-.5-2z"/>
-                            </svg>
-                          </div>
                           
                           {/* 麵包形狀裝飾 */}
                           <div className="absolute top-4 right-3 z-15">
@@ -474,7 +494,7 @@ export default function VirtualCardCheckoutPage() {
                             <div className="text-3xl font-black drop-shadow-lg tracking-tight">
                               {Math.round(item.price).toLocaleString()}
                             </div>
-                            <div className="text-md font-semibold opacity-95 tracking-wider">點數卡</div>
+                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數儲值</div>
                           </div>
                           
                           
@@ -505,7 +525,7 @@ export default function VirtualCardCheckoutPage() {
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
                         {/* 優惠贈送顯示 */}
                         {item.points_value > item.price && (
-                            <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
+                            <div className="inline-flex items-center mb-2 bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
                               
                               <span className="text-xs font-bold text-green-700">
                                 +{(item.points_value - item.price).toLocaleString()} 點贈送
@@ -526,13 +546,13 @@ export default function VirtualCardCheckoutPage() {
                    
                     <div className="border-t border-gray-200 pt-3">
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-lg font-medium text-gray-900">小計金額</span>
+                        <span className="text-lg font-medium text-gray-900">金額</span>
                         <span className="text-2xl font-bold text-gray-900">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between items-center">
+                      {/* <div className="flex justify-between items-center">
                         <span className="text-lg font-medium text-amber-700">獲得點數</span>
                         <span className="text-2xl font-bold text-amber-600">{(item.points_value * item.quantity).toLocaleString()} 點</span>
-                      </div>
+                      </div> */}
                     </div>
                   </div>
                 </div>

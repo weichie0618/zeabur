@@ -314,12 +314,7 @@ export default function PurchasePage() {
                   </div>
                 )}
                 
-                {/* 推薦標籤 (如果點數價值比價格高) */}
-                {card.pointsValue > card.price && (
-                  <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                    超值
-                  </div>
-                )}
+               
               </div>
 
               {/* 商品資訊 */}

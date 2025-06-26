@@ -6,11 +6,6 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
 
-/**
- * 虛擬點數卡結帳頁面
- * 注意：此頁面設計為單一商品結帳，一次只處理一個虛擬點數卡商品（可能有多個數量）
- */
-
 // 虛擬點數卡項目接口
 interface VirtualCardItem {
   id: string;
@@ -36,7 +31,7 @@ export default function VirtualCardCheckoutPage() {
   const router = useRouter();
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
-  // 狀態管理（cart 數組保持為數組格式以維持UI一致性，但邏輯上只處理第一個元素）
+  // 狀態管理
   const [cart, setCart] = useState<VirtualCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -95,16 +90,12 @@ export default function VirtualCardCheckoutPage() {
   useEffect(() => {
     const loadCart = () => {
       try {
-        const savedCart = localStorage.getItem('bakeryCart');
+        const savedCart = localStorage.getItem('pointsCart');
         if (savedCart) {
-          const allItems = JSON.parse(savedCart);
-          // 只取虛擬點數卡項目，並且只取第一個（結帳商品只會有一個）
-          const virtualCardItems = allItems.filter((item: any) => item.product_type === 'virtual_card');
-          // 確保只有一個商品進入結帳
-          if (virtualCardItems.length > 0) {
-            setCart([virtualCardItems[0]]); // 只取第一個商品
-          } else {
-            setCart([]);
+          const cartItems = JSON.parse(savedCart);
+          // 確保是陣列格式
+          if (Array.isArray(cartItems)) {
+            setCart(cartItems);
           }
         }
       } catch (error) {
@@ -117,27 +108,11 @@ export default function VirtualCardCheckoutPage() {
     loadCart();
   }, []);
 
-  // 移除商品功能（由於只有一個商品，移除後會清空購物車）
-  const removeFromCart = (itemId: string) => {
-    try {
-      // 清空購物車狀態
-      setCart([]);
 
-      // 更新 localStorage 中的完整購物車，移除所有虛擬點數卡
-      const savedCart = localStorage.getItem('bakeryCart');
-      if (savedCart) {
-        const allItems = JSON.parse(savedCart);
-        const filteredItems = allItems.filter((item: any) => item.product_type !== 'virtual_card');
-        localStorage.setItem('bakeryCart', JSON.stringify(filteredItems));
-      }
-    } catch (error) {
-      console.error('移除商品失敗:', error);
-    }
-  };
 
-  // 計算總金額（單一商品）
-  const totalAmount = cart.length > 0 ? cart[0].price * cart[0].quantity : 0;
-  const totalPoints = cart.length > 0 ? cart[0].points_value * cart[0].quantity : 0;
+  // 計算總金額
+  const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const totalPoints = cart.reduce((sum, item) => sum + (item.points_value * item.quantity), 0);
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -231,47 +206,46 @@ export default function VirtualCardCheckoutPage() {
         return;
       }
 
-      // 處理單一虛擬點數卡的購買（可能有多個數量）
-      const item = cart[0]; // 只有一個商品
-      
-      // 根據商品數量進行多次購買
-      for (let i = 0; i < item.quantity; i++) {
-        const response = await fetch('/api/points/virtual-cards/purchase', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            lineUserId: user.id,
-            virtualCardProductId: item.virtual_card_id,
-            paymentMethod: paymentMethod,
-            ipAddress: undefined,
-            userAgent: navigator.userAgent,
-            notes: `從LINE點數商城購買 ${item.name} (${i + 1}/${item.quantity})`
-          }),
-        });
+      // 處理每個虛擬點數卡的購買
+      const purchasePromises = cart.map(async (item) => {
+        for (let i = 0; i < item.quantity; i++) {
+          const response = await fetch('/api/points/virtual-cards/purchase', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              lineUserId: user.id,
+              virtualCardProductId: item.virtual_card_id,
+              paymentMethod: paymentMethod,
+              ipAddress: undefined,
+              userAgent: navigator.userAgent,
+              notes: `從LINE點數商城購買 ${item.name}`
+            }),
+          });
 
-        const data = await response.json();
-        
-        if (!data.success) {
-          throw new Error(`購買 ${item.name} 失敗：${data.message}`);
+          const data = await response.json();
+          
+          if (!data.success) {
+            throw new Error(`購買 ${item.name} 失敗：${data.message}`);
+          }
         }
-      }
+      });
+
+      await Promise.all(purchasePromises);
 
       // 購買成功
       setPaymentStatus('success');
       
-      // 清空購物車中的虛擬點數卡
-      const allItems = JSON.parse(localStorage.getItem('bakeryCart') || '[]');
-      const remainingItems = allItems.filter((item: any) => item.product_type !== 'virtual_card');
-      localStorage.setItem('bakeryCart', JSON.stringify(remainingItems));
+      // 清空點數購物車
+      localStorage.removeItem('pointsCart');
 
       // 跳轉到確認頁面
       const confirmationParams = new URLSearchParams({
         type: 'virtual_card',
         totalAmount: totalAmount.toString(),
         totalPoints: totalPoints.toString(),
-        itemCount: item.quantity.toString(), // 單一商品的數量
+        itemCount: cart.reduce((sum, item) => sum + item.quantity, 0).toString(),
         paymentMethod: paymentMethod
       });
 
@@ -358,57 +332,79 @@ export default function VirtualCardCheckoutPage() {
           {/* 左側：訂單摘要 */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">訂單摘要</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+                虛擬點數卡訂單
+              </h2>
               
-              <div className="space-y-4">
-                {/* 使用 map 來顯示商品，雖然邏輯上只有一個商品，但保持UI代碼的一致性 */}
-                {cart.map((item) => (
-                  <div key={item.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg relative">
-                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
-                      {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
-                      ) : (
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                      )}
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
-                      <p className="text-sm text-gray-600">{item.description}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm text-gray-600">數量: {item.quantity}</span>
-                        <div className="text-right">
-                          <div className="font-medium text-gray-900">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</div>
-                          <div className="text-sm text-amber-600">獲得 {(item.points_value * item.quantity).toLocaleString()} 點</div>
-                        </div>
+              {cart.map((item) => (
+                <div key={item.id} className="space-y-6">
+                  {/* 商品展示卡片 */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
+                    <div className="flex flex-col items-center text-center">
+                      {/* 點數圖示或圖片 */}
+                      <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+                        {item.image ? (
+                          <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-2xl" />
+                        ) : (
+                          <div className="text-center text-white">
+                            <svg className="w-12 h-12 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                            <div className="text-2xl font-bold">{item.points_value.toLocaleString()}</div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* 商品資訊 */}
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{item.name}</h3>
+                      <p className="text-gray-600 mb-4 text-sm">{item.description}</p>
+                      
+                      {/* 購買數量 */}
+                      <div className="inline-flex items-center bg-white border border-amber-200 rounded-full px-4 py-2 mb-4">
+                        <span className="text-gray-700 text-sm">購買數量：</span>
+                        <span className="font-bold text-amber-600 ml-1">{item.quantity} 張</span>
                       </div>
                     </div>
-                    
-                    {/* 移除按鈕 */}
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="absolute top-2 right-2 w-6 h-6 bg-[rgb(255_82_82/0.71)] hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-colors"
-                      title="移除商品"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" />
-                      </svg>
-                    </button>
                   </div>
-                ))}
-              </div>
 
-              {/* 總計 */}
-              <div className="border-t pt-4 mt-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-700">總金額</span>
-                  <span className="text-xl font-bold text-gray-900">NT$ {totalAmount.toLocaleString()}</span>
+                  {/* 價格詳情 */}
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">單價</span>
+                      <span className="font-medium text-gray-900">NT$ {Math.round(item.price).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">數量</span>
+                      <span className="font-medium text-gray-900">{item.quantity} 張</span>
+                    </div>
+                    <div className="border-t border-gray-200 pt-3">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-lg font-medium text-gray-900">小計金額</span>
+                        <span className="text-2xl font-bold text-gray-900">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-medium text-amber-700">獲得點數</span>
+                        <span className="text-2xl font-bold text-amber-600">{(item.points_value * item.quantity).toLocaleString()} 點</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-700">總獲得點數</span>
-                  <span className="text-xl font-bold text-amber-600">{totalPoints.toLocaleString()} 點</span>
+              ))}
+
+              {/* 總計 - 突出顯示 */}
+              <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-6 mt-6 text-white">
+                <div className="text-center">
+                  <div className="text-sm opacity-90 mb-1">訂單總額</div>
+                  <div className="text-3xl font-bold mb-3">NT$ {totalAmount.toLocaleString()}</div>
+                  <div className="flex items-center justify-center">
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                    <span className="text-lg font-medium">將獲得 {totalPoints.toLocaleString()} 點數</span>
+                  </div>
                 </div>
               </div>
             </div>

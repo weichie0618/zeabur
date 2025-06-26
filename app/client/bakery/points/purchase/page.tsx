@@ -93,34 +93,8 @@ export default function PurchasePage() {
     };
 
     try {
-      // 獲取現有購物車
-      let currentCart: any[] = [];
-      try {
-        const savedCart = localStorage.getItem('bakeryCart');
-        if (savedCart) {
-          currentCart = JSON.parse(savedCart);
-        }
-      } catch (error) {
-        console.error('讀取購物車失敗:', error);
-      }
-
-      // 檢查是否已經有相同的虛擬點數卡
-      const existingItemIndex = currentCart.findIndex(
-        item => item.product_type === 'virtual_card' && item.virtual_card_id === card.id
-      );
-
-      if (existingItemIndex !== -1) {
-        // 如果已存在，增加數量
-        currentCart[existingItemIndex].quantity += 1;
-      } else {
-        // 如果不存在，添加新項目
-        currentCart.push(virtualCardItem);
-      }
-
-      // 保存到 localStorage
-      localStorage.setItem('bakeryCart', JSON.stringify(currentCart));
-
-     
+      // 先清空點數購物車，然後只保存選取的商品
+      localStorage.setItem('pointsCart', JSON.stringify([virtualCardItem]));
 
       // 跳轉到結帳頁面
       window.location.href = '/client/bakery/points/purchase/checkout';
@@ -347,7 +321,7 @@ export default function PurchasePage() {
                   onClick={() => handlePurchase(card)}
                   className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 bg-amber-600 hover:bg-amber-700 text-white hover:shadow-lg transform hover:scale-105"
                 >
-                  加入購物車
+                  立即購買
                 </button>
               </div>
             </div>

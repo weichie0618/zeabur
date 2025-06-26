@@ -942,15 +942,6 @@ export default function VirtualCardsPage() {
 
               {/* 操作按鈕 */}
               <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => {
-                    setShowPurchaseModal(false);
-                    handleViewPurchase(viewingPurchase);
-                  }}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  編輯購買記錄
-                </button>
                                  <button
                    onClick={() => handleUpdatePaymentStatus(viewingPurchase, VirtualCardPaymentStatus.PAID)}
                    className="text-green-600 hover:text-green-900"

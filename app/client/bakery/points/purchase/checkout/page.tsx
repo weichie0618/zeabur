@@ -458,7 +458,7 @@ export default function VirtualCardCheckoutPage() {
                            
                             <div className="text-xs text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden absolute right-10">
+                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden absolute right-3">
                             <img 
                               src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
                               alt="Bakery Logo" 

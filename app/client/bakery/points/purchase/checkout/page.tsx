@@ -345,23 +345,24 @@ export default function VirtualCardCheckoutPage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>
                       
                       {/* 測試背景 - 確保背景可見 */}
-                      <div className="absolute top-1 left-1 w-4 h-4 bg-white/60 rounded-full border border-white/80"></div>
-                      <div className="absolute top-1 right-1 w-3 h-3 bg-orange-300/80 rounded-full"></div>
+                      <div className="absolute top-1 left-1 w-6 h-6 bg-red-500 rounded-full border-2 border-white z-30"></div>
+                      <div className="absolute top-1 right-1 w-5 h-5 bg-blue-500 rounded-full z-30"></div>
+                      <div className="absolute bottom-1 left-1 w-4 h-4 bg-green-500 rounded-full z-30"></div>
                       
                       {/* 卡片背景裝飾 - 烘焙主題 */}
-                      <div className="absolute inset-0">
+                      <div className="absolute inset-0 z-10">
                         {/* 烘焙背景圖案 */}
                         <div className="absolute inset-0 opacity-40">
                           {/* 小麥穗裝飾 */}
-                          <div className="absolute top-2 left-2">
-                            <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                          <div className="absolute top-2 left-2 z-15">
+                            <svg className="w-8 h-8 text-yellow-200" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))'}}>
                               <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14zm0 6l-1 2.5v1.5l1-2.5 1 2.5v-1.5L12 20zm-3-16l-.5 2v2.5l.5-2 .5 2V6l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V6l-.5-2zM9 8l-.5 2v2.5l.5-2 .5 2V10l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V10l-.5-2z"/>
                             </svg>
                           </div>
                           
                           {/* 麵包形狀裝飾 */}
-                          <div className="absolute top-4 right-3">
-                            <svg className="w-6 h-6 text-white/75" fill="currentColor" viewBox="0 0 24 24">
+                          <div className="absolute top-4 right-3 z-15">
+                            <svg className="w-7 h-7 text-orange-200" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))'}}>
                               <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5zm4-5c1.93 0 3.5 1.57 3.5 3.5S16.93 14 15 14s-3.5-1.57-3.5-3.5S13.07 7 15 7z"/>
                             </svg>
                           </div>
@@ -381,9 +382,9 @@ export default function VirtualCardCheckoutPage() {
                           </div>
                           
                           {/* 裝飾性小點點 (模擬麵粉) */}
-                          <div className="absolute top-8 left-8 w-2 h-2 bg-white/60 rounded-full"></div>
-                          <div className="absolute top-12 right-12 w-2.5 h-2.5 bg-white/55 rounded-full"></div>
-                          <div className="absolute bottom-12 left-12 w-2 h-2 bg-white/65 rounded-full"></div>
+                          <div className="absolute top-8 left-8 w-3 h-3 bg-white rounded-full z-15 shadow-md"></div>
+                          <div className="absolute top-12 right-12 w-4 h-4 bg-yellow-100 rounded-full z-15 shadow-md"></div>
+                          <div className="absolute bottom-12 left-12 w-3 h-3 bg-orange-100 rounded-full z-15 shadow-md"></div>
                           <div className="absolute bottom-6 right-3 w-1.5 h-1.5 bg-white/70 rounded-full"></div>
                           <div className="absolute top-16 left-16 w-1 h-1 bg-white/80 rounded-full"></div>
                           
@@ -410,8 +411,8 @@ export default function VirtualCardCheckoutPage() {
                           </div>
                           
                           {/* 星星裝飾 (品質象徵) */}
-                          <div className="absolute bottom-10 right-4">
-                            <svg className="w-4 h-4 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                          <div className="absolute bottom-10 right-4 z-15">
+                            <svg className="w-5 h-5 text-yellow-300" fill="currentColor" viewBox="0 0 24 24" style={{filter: 'drop-shadow(1px 1px 2px rgba(0,0,0,0.5))'}}>
                               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                             </svg>
                           </div>
@@ -449,7 +450,7 @@ export default function VirtualCardCheckoutPage() {
                       </div>
 
                       {/* 卡片內容 */}
-                      <div className="relative h-full p-4 flex flex-col justify-between text-white">
+                      <div className="relative h-full p-4 flex flex-col justify-between text-white z-20">
                         
                         {/* 頂部區域 */}
                         <div className="flex justify-between items-start">

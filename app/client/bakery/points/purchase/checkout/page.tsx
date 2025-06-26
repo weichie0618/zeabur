@@ -522,9 +522,9 @@ export default function VirtualCardCheckoutPage() {
                 
                    
                     <div className="border-t border-gray-200 pt-3">
-                      <div className="flex justify-between items-center mb-2">
+                      <div className="flex justify-end items-center mb-2">
                         {/* <span className="text-lg font-medium text-gray-900">金額</span> */}
-                        <span className="text-2xl font-bold text-gray-900 justify-center">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-gray-900 ">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</span>
                       </div>
                       {/* <div className="flex justify-between items-center">
                         <span className="text-lg font-medium text-amber-700">獲得點數</span>

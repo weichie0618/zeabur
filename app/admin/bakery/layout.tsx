@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import { useAuth } from '../../contexts/AuthContext';
+import { virtualCardApi } from './points/api';
 
 export default function AdminLayout({
   children,
@@ -13,6 +14,9 @@ export default function AdminLayout({
 }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  
+  // 待處理購買記錄數量
+  const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number>(0);
   
   // 互斥手風琴控制 - 同時只能展開一個分組
   const getInitialExpandedGroup = () => {
@@ -38,6 +42,46 @@ export default function AdminLayout({
   };
 
   const [expandedGroup, setExpandedGroup] = useState<string | null>(getInitialExpandedGroup());
+
+  // 載入待處理購買記錄數量
+  const loadPendingPurchasesCount = async () => {
+    try {
+      const response = await virtualCardApi.getPurchases({ 
+        page: 1, 
+        limit: 1000,
+        paymentStatus: 'pending' 
+      });
+      
+      if (response.success) {
+        setPendingPurchasesCount(response.data?.length || 0);
+      }
+    } catch (error) {
+      console.error('載入待處理購買記錄失敗:', error);
+      // 靜默失敗，不影響主要功能
+    }
+  };
+
+  // 定期更新待處理記錄數量
+  useEffect(() => {
+    if (user) {
+      loadPendingPurchasesCount();
+      
+      // 每30秒更新一次
+      const interval = setInterval(loadPendingPurchasesCount, 30000);
+      
+      // 監聽來自購買記錄頁面的更新事件
+      const handlePurchaseUpdate = () => {
+        loadPendingPurchasesCount();
+      };
+      
+      window.addEventListener('purchaseStatusUpdated', handlePurchaseUpdate);
+      
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('purchaseStatusUpdated', handlePurchaseUpdate);
+      };
+    }
+  }, [user]);
 
   // 切換分組展開狀態
   const toggleGroup = (groupName: string) => {
@@ -82,6 +126,17 @@ export default function AdminLayout({
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
     </svg>
   );
+
+  // 數字徽章組件
+  const NumberBadge = ({ count }: { count: number }) => {
+    if (count === 0) return null;
+    
+    return (
+      <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px] h-[18px] shadow-sm">
+        {count > 99 ? '99+' : count}
+      </span>
+    );
+  };
 
   // 分組圖示組件
   const GroupIcon = ({ children }: { children: React.ReactNode }) => (
@@ -223,6 +278,12 @@ export default function AdminLayout({
                     </Link>
                     <Link href="/admin/bakery/points/virtual-cards" className={getSubNavItemClass('/admin/bakery/points/virtual-cards')}>
                       虛擬點數卡
+                    </Link>
+                    <Link href="/admin/bakery/points/virtual-cards/purchases" className={getSubNavItemClass('/admin/bakery/points/virtual-cards/purchases')}>
+                      <span className="flex items-center justify-between w-full">
+                        <span>購買記錄</span>
+                        <NumberBadge count={pendingPurchasesCount} />
+                      </span>
                     </Link>
                     <Link href="/admin/bakery/points/settings" className={getSubNavItemClass('/admin/bakery/points/settings')}>
                       系統設定

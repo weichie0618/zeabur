@@ -13,19 +13,26 @@ export default function VirtualCardPurchasesPage() {
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   
   // 購買記錄
-  const [purchases, setPurchases] = useState<VirtualCardPurchase[]>([]);
+  const [allPurchases, setAllPurchases] = useState<VirtualCardPurchase[]>([]);
+  const [filteredPurchases, setFilteredPurchases] = useState<VirtualCardPurchase[]>([]);
   const [purchasesLoading, setPurchasesLoading] = useState<boolean>(false);
 
   // 購買記錄詳情模態框
   const [showPurchaseModal, setShowPurchaseModal] = useState<boolean>(false);
   const [viewingPurchase, setViewingPurchase] = useState<VirtualCardPurchase | null>(null);
 
-  // 分頁和篩選
+  // 分頁和篩選（用戶端）
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
   const [pageSize] = useState<number>(20);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // 計算分頁數據
+  const totalItems = filteredPurchases.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const currentPurchases = filteredPurchases.slice(startIndex, endIndex);
 
   // 操作載入狀態
   const [updatingPayment, setUpdatingPayment] = useState<number | null>(null);
@@ -73,11 +80,10 @@ export default function VirtualCardPurchasesPage() {
     try {
       console.log('正在調用購買記錄 API...');
       
+      // 載入所有記錄，用於用戶端篩選
       const params = {
-        page: currentPage,
-        limit: pageSize,
-        ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(searchQuery && { search: searchQuery })
+        page: 1,
+        limit: 1000, // 載入大量記錄
       };
 
       const response = await virtualCardApi.getPurchases(params);
@@ -86,9 +92,11 @@ export default function VirtualCardPurchasesPage() {
       setDebugInfo(prev => prev + ' | 購買記錄API響應已接收');
 
       if (response.success) {
-        setPurchases(response.data || []);
-        setTotalPages(response.pagination?.totalPages || 1);
+        setAllPurchases(response.data || []);
         setDebugInfo(prev => prev + ` | 載入了 ${response.data?.length || 0} 筆購買記錄`);
+        
+        // 通知 layout 更新待處理記錄數量
+        window.dispatchEvent(new CustomEvent('purchaseStatusUpdated'));
       } else {
         setError('載入購買記錄失敗');
         setDebugInfo(prev => prev + ' | 購買記錄載入失敗');
@@ -102,7 +110,7 @@ export default function VirtualCardPurchasesPage() {
       setLoading(false);
       setDebugInfo(prev => prev + ' | 購買記錄載入完成');
     }
-  }, [currentPage, pageSize, statusFilter, searchQuery]);
+  }, []);
 
   // 載入數據
   useEffect(() => {
@@ -112,6 +120,31 @@ export default function VirtualCardPurchasesPage() {
       loadPurchases();
     }
   }, [accessToken, loadPurchases]);
+
+  // 用戶端篩選邏輯
+  useEffect(() => {
+    let filtered = [...allPurchases];
+
+    // 狀態篩選
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(purchase => purchase.paymentStatus === statusFilter);
+    }
+
+    // 搜尋篩選
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(purchase => 
+        purchase.lineUser?.displayName?.toLowerCase().includes(query) ||
+        purchase.lineUser?.name?.toLowerCase().includes(query) ||
+        purchase.lineUserId.toString().includes(query) ||
+        purchase.virtualCardProduct?.name?.toLowerCase().includes(query) ||
+        purchase.id.toString().includes(query)
+      );
+    }
+
+    setFilteredPurchases(filtered);
+    setCurrentPage(1); // 重置到第一頁
+  }, [allPurchases, statusFilter, searchQuery]);
 
   // 查看購買記錄詳情
   const handleViewPurchase = (purchase: VirtualCardPurchase) => {
@@ -141,6 +174,9 @@ export default function VirtualCardPurchasesPage() {
         await loadPurchases(); // 重新載入購買記錄
         setError(''); // 清除錯誤
         
+        // 通知 layout 更新待處理記錄數量
+        window.dispatchEvent(new CustomEvent('purchaseStatusUpdated'));
+        
         if (newStatus === VirtualCardPaymentStatus.PAID) {
           alert(`✅ 支付狀態已更新！用戶將獲得 ${purchase.pointsRedeemed} 點數。`);
         } else {
@@ -160,15 +196,14 @@ export default function VirtualCardPurchasesPage() {
   // 處理搜尋
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1);
-    // loadPurchases 會透過 useEffect 自動觸發
+    // 篩選會透過 useEffect 自動觸發，不需要額外操作
   };
 
   // 重置篩選
   const handleResetFilters = () => {
     setStatusFilter('all');
     setSearchQuery('');
-    setCurrentPage(1);
+    // setCurrentPage(1) 會在篩選 useEffect 中自動觸發
   };
 
   // 如果還在載入中，顯示載入狀態和調試信息
@@ -308,7 +343,7 @@ export default function VirtualCardPurchasesPage() {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-gray-900">購買記錄</h3>
             <div className="text-sm text-gray-500">
-              第 {currentPage} 頁，共 {totalPages} 頁
+              第 {currentPage} 頁，共 {totalPages} 頁 (總共 {totalItems} 筆記錄)
             </div>
           </div>
 
@@ -348,7 +383,7 @@ export default function VirtualCardPurchasesPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {purchases && purchases.length > 0 ? purchases.map((purchase) => (
+                  {currentPurchases && currentPurchases.length > 0 ? currentPurchases.map((purchase) => (
                     <tr key={purchase.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         #{purchase.id}
@@ -414,7 +449,9 @@ export default function VirtualCardPurchasesPage() {
                   )) : (
                     <tr>
                       <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500">
-                        {purchasesLoading ? '載入中...' : '暫無購買記錄'}
+                        {purchasesLoading ? '載入中...' : 
+                         allPurchases.length === 0 ? '暫無購買記錄' : 
+                         '無符合篩選條件的記錄'}
                       </td>
                     </tr>
                   )}
@@ -427,7 +464,7 @@ export default function VirtualCardPurchasesPage() {
           {totalPages > 1 && (
             <div className="mt-6 flex justify-between items-center">
               <div className="text-sm text-gray-700">
-                第 {currentPage} 頁，共 {totalPages} 頁
+                顯示 {startIndex + 1}-{endIndex} 筆，共 {totalItems} 筆記錄 (第 {currentPage} 頁，共 {totalPages} 頁)
               </div>
               <div className="flex space-x-2">
                 <button

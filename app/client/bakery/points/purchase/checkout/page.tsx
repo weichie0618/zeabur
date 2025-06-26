@@ -341,21 +341,107 @@ export default function VirtualCardCheckoutPage() {
                     {/* 點數卡主體 - 適合手機的尺寸 */}
                     <div className="relative w-full max-w-xs mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
                       
-                      {/* 卡片背景裝飾 */}
+                      {/* 烘焙主題背景紋理 */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/20 via-amber-400/15 to-orange-600/25"></div>
+                      
+                      {/* 卡片背景裝飾 - 烘焙主題 */}
                       <div className="absolute inset-0">
-                        {/* 背景幾何圖案 */}
+                        {/* 烘焙背景圖案 */}
                         <div className="absolute inset-0 opacity-15">
-                          <div className="absolute top-3 left-3 w-12 h-12 border border-white/40 rounded-full"></div>
-                          <div className="absolute top-6 right-4 w-8 h-8 border border-white/30 rounded-full"></div>
-                          <div className="absolute bottom-4 left-6 w-6 h-6 border border-white/35 rounded-full"></div>
-                          <div className="absolute bottom-8 right-8 w-4 h-4 bg-white/20 rounded-full"></div>
+                          {/* 小麥穗裝飾 */}
+                          <div className="absolute top-2 left-2">
+                            <svg className="w-8 h-8 text-white/60" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14zm0 6l-1 2.5v1.5l1-2.5 1 2.5v-1.5L12 20zm-3-16l-.5 2v2.5l.5-2 .5 2V6l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V6l-.5-2zM9 8l-.5 2v2.5l.5-2 .5 2V10l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V10l-.5-2z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 麵包形狀裝飾 */}
+                          <div className="absolute top-4 right-3">
+                            <svg className="w-6 h-6 text-white/50" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5zm4-5c1.93 0 3.5 1.57 3.5 3.5S16.93 14 15 14s-3.5-1.57-3.5-3.5S13.07 7 15 7z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 麵粉雲朵效果 */}
+                          <div className="absolute bottom-3 left-4">
+                            <svg className="w-10 h-6 text-white/40" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M6.5 20c-2.76 0-5-2.24-5-5 0-2.64 2.05-4.78 4.65-4.96C6.72 8.73 8.25 8 10 8c2.21 0 4 1.79 4 4 0 .34-.05.67-.14.98.86.8 1.39 1.93 1.39 3.02 0 2.21-1.79 4-4 4H6.5z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 烘焙器具裝飾 */}
+                          <div className="absolute bottom-5 right-6">
+                            <svg className="w-5 h-5 text-white/45" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H8zm0 2h8v14H8V5zm2 2v2h4V7h-4zm0 4v2h4v-2h-4zm0 4v2h4v-2h-4z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 裝飾性小點點 (模擬麵粉) */}
+                          <div className="absolute top-8 left-8 w-1 h-1 bg-white/30 rounded-full"></div>
+                          <div className="absolute top-12 right-12 w-1.5 h-1.5 bg-white/25 rounded-full"></div>
+                          <div className="absolute bottom-12 left-12 w-1 h-1 bg-white/35 rounded-full"></div>
+                          <div className="absolute bottom-6 right-3 w-1 h-1 bg-white/40 rounded-full"></div>
+                          <div className="absolute top-16 left-16 w-0.5 h-0.5 bg-white/50 rounded-full"></div>
+                          
+                          {/* 額外的烘焙元素 */}
+                          {/* 麵包師帽 */}
+                          <div className="absolute top-6 left-14">
+                            <svg className="w-4 h-4 text-white/35" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2C8.69 2 6 4.69 6 8c0 2.5 1.5 4.61 3.64 5.64C9.87 15.78 10.4 18 12 18s2.13-2.22 2.36-4.36C16.5 12.61 18 10.5 18 8c0-3.31-2.69-6-6-6zm0 14c-.83 0-1.5-.67-1.5-1.5S11.17 13 12 13s1.5.67 1.5 1.5S12.83 16 12 16z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 烘焙刷子 */}
+                          <div className="absolute bottom-8 left-8 rotate-45">
+                            <svg className="w-3 h-3 text-white/40" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M3 17h2v2H3v-2zm2-2h2v2H5v-2zm2-2h2v2H7v-2zm2-2h2v2H9v-2zm2-2h2v2h-2V9zm2-2h2v2h-2V7zm2-2h2v2h-2V5zm2-2h2v2h-2V3z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 烘焙溫度計 */}
+                          <div className="absolute top-10 right-8">
+                            <svg className="w-3 h-3 text-white/45" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-2V5c0-.55.45-1 1-1s1 .45 1 1v6h-2z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 星星裝飾 (品質象徵) */}
+                          <div className="absolute bottom-10 right-4">
+                            <svg className="w-3 h-3 text-white/50" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                          </div>
+                          
+                          {/* 心形裝飾 (愛心烘焙) */}
+                          <div className="absolute top-14 left-6">
+                            <svg className="w-2.5 h-2.5 text-white/35" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            </svg>
+                          </div>
                         </div>
                         
-                        {/* 漸層覆蓋 */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/10"></div>
+                        {/* 溫暖烘焙色調漸層覆蓋 */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-200/10 via-amber-100/5 to-yellow-200/15"></div>
                         
-                        {/* 光澤效果 */}
-                        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/20 to-transparent"></div>
+                        {/* 烘焙質感紋理 */}
+                        <div className="absolute inset-0">
+                          <div className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-orange-900/10"></div>
+                          <div className="absolute inset-0 bg-gradient-to-tl from-amber-300/5 via-transparent to-white/10"></div>
+                        </div>
+                        
+                        {/* 光澤效果 (模擬新鮮出爐的光澤) */}
+                        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/25 to-transparent"></div>
+                        
+                        {/* 邊緣溫暖光暈 */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-amber-600/10 rounded-2xl"></div>
+                        
+                        {/* 烘焙紋理效果 */}
+                        <div className="absolute inset-0 opacity-20">
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 w-1/3 h-full animate-pulse"></div>
+                        </div>
+                        
+                        {/* 專業烘焙質感 */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/5 via-orange-300/10 to-amber-500/15 mix-blend-overlay"></div>
                       </div>
 
                       {/* 卡片內容 */}
@@ -381,7 +467,7 @@ export default function VirtualCardCheckoutPage() {
                         <div className="text-center my-2">
                           <div className="mb-2">
                             <div className="text-3xl font-black drop-shadow-lg tracking-tight">
-                              {item.price.toLocaleString()}
+                              {Math.round(item.price).toLocaleString()}
                             </div>
                             <div className="text-md font-semibold opacity-95 tracking-wider">點數卡</div>
                           </div>
@@ -412,31 +498,20 @@ export default function VirtualCardCheckoutPage() {
                   <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mt-6">
                     <div className="text-center">
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
-                      <p className="text-gray-600 mb-3 text-sm">{item.description}</p>
-                      
-                      {/* 調試資訊 */}
-                      {(() => {
-                        console.log('=== 優惠贈送調試資訊 ===');
-                        console.log('商品名稱:', item.name);
-                        console.log('點數值:', item.points_value, typeof item.points_value);
-                        console.log('價格:', item.price, typeof item.price);
-                        console.log('條件 (points_value > price):', item.points_value > item.price);
-                        console.log('差額:', item.points_value - item.price);
-                        console.log('========================');
-                        return null;
-                      })()}
-                      
-                      {/* 優惠贈送顯示 */}
-                      {item.points_value > item.price && (
+                        {/* 優惠贈送顯示 */}
+                        {item.points_value > item.price && (
                             <div className="inline-flex items-center bg-green-100 border border-green-300 rounded-full px-3 py-1 mt-1">
-                              <svg className="w-3 h-3 mr-1 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                              </svg>
+                              
                               <span className="text-xs font-bold text-green-700">
                                 +{(item.points_value - item.price).toLocaleString()} 點贈送
                               </span>
                             </div>
                           )}
+                      <p className="text-gray-600 mb-3 text-sm">{item.description}</p>
+                      
+                      
+                      
+                    
                     
                     </div>
                   </div>

@@ -122,7 +122,7 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
         </div>
       ) : (
         <div className="space-y-4">
-          {purchases.map((purchase) => (
+          {purchases.filter(purchase => purchase.paymentStatus !== 'failed').map((purchase) => (
             <div key={purchase.id} className="border-b border-gray-200 last:border-b-0 pb-4 last:pb-0">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -130,11 +130,9 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
                     <h4 className="font-medium text-gray-900 mr-3">
                       {purchase.virtualCardProduct?.name || '點數卡'}
                     </h4>
-                    {purchase.paymentStatus !== 'failed' && (
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(purchase.paymentStatus)}`}>
-                        {getStatusText(purchase.paymentStatus)}
-                      </span>
-                    )}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(purchase.paymentStatus)}`}>
+                      {getStatusText(purchase.paymentStatus)}
+                    </span>
                   </div>
                   
                   <div className="text-sm text-gray-600 space-y-1">

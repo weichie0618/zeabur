@@ -6,6 +6,11 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
 
+/**
+ * 虛擬點數卡結帳頁面
+ * 注意：此頁面設計為單一商品結帳，一次只處理一個虛擬點數卡商品（可能有多個數量）
+ */
+
 // 虛擬點數卡項目接口
 interface VirtualCardItem {
   id: string;
@@ -31,8 +36,8 @@ export default function VirtualCardCheckoutPage() {
   const router = useRouter();
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
   
-  // 狀態管理 - 改為單一商品
-  const [item, setItem] = useState<VirtualCardItem | null>(null);
+  // 狀態管理（cart 數組保持為數組格式以維持UI一致性，但邏輯上只處理第一個元素）
+  const [cart, setCart] = useState<VirtualCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer'>('bank_transfer');
@@ -86,48 +91,39 @@ export default function VirtualCardCheckoutPage() {
     }
   }, [getLineUserId]);
 
-  // 載入購物車中的虛擬點數卡 - 確保只有一個商品
+  // 載入購物車中的虛擬點數卡
   useEffect(() => {
-    const loadItem = () => {
+    const loadCart = () => {
       try {
         const savedCart = localStorage.getItem('bakeryCart');
         if (savedCart) {
           const allItems = JSON.parse(savedCart);
-          // 只取第一個虛擬點數卡項目
+          // 只取虛擬點數卡項目，並且只取第一個（結帳商品只會有一個）
           const virtualCardItems = allItems.filter((item: any) => item.product_type === 'virtual_card');
-          
+          // 確保只有一個商品進入結帳
           if (virtualCardItems.length > 0) {
-            // 確保只處理第一個商品
-            const firstItem = virtualCardItems[0];
-            setItem(firstItem);
-            
-            // 如果有多個虛擬點數卡，移除其他的，只保留第一個
-            if (virtualCardItems.length > 1) {
-              const otherItems = allItems.filter((item: any) => item.product_type !== 'virtual_card');
-              const updatedCart = [...otherItems, firstItem];
-              localStorage.setItem('bakeryCart', JSON.stringify(updatedCart));
-            }
+            setCart([virtualCardItems[0]]); // 只取第一個商品
           } else {
-            setItem(null);
+            setCart([]);
           }
         }
       } catch (error) {
         console.error('無法載入購物車資料', error);
-        setItem(null);
       } finally {
         setLoading(false);
       }
     };
 
-    loadItem();
+    loadCart();
   }, []);
 
-  // 移除商品功能
-  const removeItem = () => {
+  // 移除商品功能（由於只有一個商品，移除後會清空購物車）
+  const removeFromCart = (itemId: string) => {
     try {
-      setItem(null);
+      // 清空購物車狀態
+      setCart([]);
 
-      // 從 localStorage 中移除虛擬點數卡
+      // 更新 localStorage 中的完整購物車，移除所有虛擬點數卡
       const savedCart = localStorage.getItem('bakeryCart');
       if (savedCart) {
         const allItems = JSON.parse(savedCart);
@@ -139,9 +135,9 @@ export default function VirtualCardCheckoutPage() {
     }
   };
 
-  // 計算總金額和點數
-  const totalAmount = item ? item.price * item.quantity : 0;
-  const totalPoints = item ? item.points_value * item.quantity : 0;
+  // 計算總金額（單一商品）
+  const totalAmount = cart.length > 0 ? cart[0].price * cart[0].quantity : 0;
+  const totalPoints = cart.length > 0 ? cart[0].points_value * cart[0].quantity : 0;
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -187,13 +183,13 @@ export default function VirtualCardCheckoutPage() {
     }
   }, [isLiffScriptLoaded, liff, manualLiff]);
 
-  // 處理結帳提交 - 優化為單一商品處理
+  // 處理結帳提交
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 檢查是否有商品
-    if (!item) {
-      setFormError('沒有要結帳的虛擬點數卡商品');
+    // 檢查購物車是否為空
+    if (cart.length === 0) {
+      setFormError('購物車中沒有虛擬點數卡商品');
       return;
     }
 
@@ -235,7 +231,10 @@ export default function VirtualCardCheckoutPage() {
         return;
       }
 
-      // 處理虛擬點數卡的購買 - 簡化為單一商品處理
+      // 處理單一虛擬點數卡的購買（可能有多個數量）
+      const item = cart[0]; // 只有一個商品
+      
+      // 根據商品數量進行多次購買
       for (let i = 0; i < item.quantity; i++) {
         const response = await fetch('/api/points/virtual-cards/purchase', {
           method: 'POST',
@@ -248,7 +247,7 @@ export default function VirtualCardCheckoutPage() {
             paymentMethod: paymentMethod,
             ipAddress: undefined,
             userAgent: navigator.userAgent,
-            notes: `從LINE點數商城購買 ${item.name}`
+            notes: `從LINE點數商城購買 ${item.name} (${i + 1}/${item.quantity})`
           }),
         });
 
@@ -272,7 +271,7 @@ export default function VirtualCardCheckoutPage() {
         type: 'virtual_card',
         totalAmount: totalAmount.toString(),
         totalPoints: totalPoints.toString(),
-        itemCount: item.quantity.toString(),
+        itemCount: item.quantity.toString(), // 單一商品的數量
         paymentMethod: paymentMethod
       });
 
@@ -300,8 +299,8 @@ export default function VirtualCardCheckoutPage() {
     );
   }
 
-  // 沒有商品
-  if (!item) {
+  // 購物車為空
+  if (cart.length === 0) {
     return (
       <>
         <Script 
@@ -314,7 +313,7 @@ export default function VirtualCardCheckoutPage() {
               <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">沒有要結帳的虛擬點數卡</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">購物車中沒有虛擬點數卡</h3>
               <p className="text-gray-600 mb-4">請先選擇您要購買的虛擬點數卡</p>
               <Link 
                 href="/client/bakery/points/purchase" 
@@ -356,62 +355,60 @@ export default function VirtualCardCheckoutPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* 左側：商品資訊 */}
+          {/* 左側：訂單摘要 */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">商品資訊</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">訂單摘要</h2>
               
-              {/* 單一商品展示 */}
-              <div className="p-6 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl border-2 border-amber-200 relative">
-                <div className="flex items-center space-x-6">
-                  <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-xl" />
-                    ) : (
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    )}
-                  </div>
-                  
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{item.name}</h3>
-                    <p className="text-gray-600 mb-3">{item.description}</p>
+              <div className="space-y-4">
+                {/* 使用 map 來顯示商品，雖然邏輯上只有一個商品，但保持UI代碼的一致性 */}
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg relative">
+                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-lg flex items-center justify-center">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                      ) : (
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                        </svg>
+                      )}
+                    </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-white rounded-lg p-3 text-center">
-                        <div className="text-sm text-gray-600 mb-1">購買數量</div>
-                        <div className="text-lg font-bold text-gray-900">{item.quantity}</div>
-                      </div>
-                      <div className="bg-white rounded-lg p-3 text-center">
-                        <div className="text-sm text-gray-600 mb-1">單價</div>
-                        <div className="text-lg font-bold text-gray-900">NT$ {item.price.toLocaleString()}</div>
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <p className="text-sm text-gray-600">{item.description}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-sm text-gray-600">數量: {item.quantity}</span>
+                        <div className="text-right">
+                          <div className="font-medium text-gray-900">NT$ {Math.round(item.price * item.quantity).toLocaleString()}</div>
+                          <div className="text-sm text-amber-600">獲得 {(item.points_value * item.quantity).toLocaleString()} 點</div>
+                        </div>
                       </div>
                     </div>
+                    
+                    {/* 移除按鈕 */}
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="absolute top-2 right-2 w-6 h-6 bg-[rgb(255_82_82/0.71)] hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs transition-colors"
+                      title="移除商品"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" />
+                      </svg>
+                    </button>
                   </div>
-                </div>
-                
-                {/* 移除按鈕 */}
-                <button
-                  onClick={removeItem}
-                  className="absolute top-3 right-3 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-sm transition-colors shadow-lg"
-                  title="移除商品"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                ))}
               </div>
 
               {/* 總計 */}
-              <div className="border-t pt-6 mt-6 bg-gray-50 rounded-lg p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-lg text-gray-700">總金額</span>
-                  <span className="text-2xl font-bold text-gray-900">NT$ {totalAmount.toLocaleString()}</span>
+              <div className="border-t pt-4 mt-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-700">總金額</span>
+                  <span className="text-xl font-bold text-gray-900">NT$ {totalAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-lg text-gray-700">總獲得點數</span>
-                  <span className="text-2xl font-bold text-amber-600">{totalPoints.toLocaleString()} 點</span>
+                  <span className="text-gray-700">總獲得點數</span>
+                  <span className="text-xl font-bold text-amber-600">{totalPoints.toLocaleString()} 點</span>
                 </div>
               </div>
             </div>
@@ -425,20 +422,20 @@ export default function VirtualCardCheckoutPage() {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">付款方式</h2>
                 
                 <div className="space-y-3">
-                  <label className="flex items-center p-4 border-2 border-amber-200 bg-amber-50 rounded-lg cursor-pointer">
+                  <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                     <input
                       type="radio"
                       name="paymentMethod"
                       value="bank_transfer"
                       checked={paymentMethod === 'bank_transfer'}
                       onChange={(e) => setPaymentMethod(e.target.value as 'bank_transfer')}
-                      className="mr-3 text-amber-600"
+                      className="mr-3"
                     />
                     <div className="flex items-center">
-                      <div className="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-medium mr-3">
-                        銀行匯款
+                      <div className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-medium mr-3">
+                        匯款
                       </div>
-                      <span className="text-gray-700">安全可靠的付款方式</span>
+                      
                     </div>
                   </label>
                 </div>
@@ -460,10 +457,10 @@ export default function VirtualCardCheckoutPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className={`w-full py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${
+                className={`w-full py-4 px-6 rounded-lg font-medium text-lg transition-all duration-200 ${
                   submitting
                     ? 'bg-gray-400 text-white cursor-not-allowed'
-                    : 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white hover:shadow-xl transform hover:scale-105'
+                    : 'bg-amber-600 hover:bg-amber-700 text-white hover:shadow-lg transform hover:scale-105'
                 }`}
               >
                 {submitting ? (
@@ -472,29 +469,10 @@ export default function VirtualCardCheckoutPage() {
                     處理中...
                   </div>
                 ) : (
-                  `確認購買 - NT$ ${totalAmount.toLocaleString()}`
+                  `確認購買`
                 )}
               </button>
             </form>
-
-            {/* 購買摘要 */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-              <h3 className="font-medium text-blue-900 mb-2">購買摘要</h3>
-              <div className="text-blue-800 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>商品：</span>
-                  <span>{item.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>數量：</span>
-                  <span>{item.quantity} 個</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>獲得點數：</span>
-                  <span className="font-medium text-amber-600">{totalPoints.toLocaleString()} 點</span>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 

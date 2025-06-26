@@ -311,7 +311,7 @@ export default function VirtualCardCheckoutPage() {
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         {/* 頁面標題 */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">虛擬點數卡結帳</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">點數結帳</h1>
           <p className="text-gray-600">確認您的訂單資訊並完成付款</p>
           
           {/* 返回連結 */}
@@ -332,54 +332,79 @@ export default function VirtualCardCheckoutPage() {
           {/* 左側：訂單摘要 */}
           <div className="space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-                <svg className="w-6 h-6 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-                虛擬點數卡訂單
-              </h2>
+            
               
               {cart.map((item) => (
                 <div key={item.id} className="space-y-6">
-                  {/* 商品展示卡片 */}
-                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6">
-                    <div className="flex flex-col items-center text-center">
-                      {/* 點數圖示或圖片 */}
-                      <div className="w-24 h-24 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-2xl" />
-                        ) : (
-                          <div className="text-center text-white">
-                            <svg className="w-12 h-12 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                            <div className="text-2xl font-bold">{item.points_value.toLocaleString()}</div>
+                  {/* 點數卡設計 */}
+                  <div className="relative">
+                    {/* 點數卡主體 */}
+                    <div className="relative w-full max-w-sm mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 rounded-2xl shadow-2xl overflow-hidden">
+                      {/* 卡片背景紋理 */}
+                      <div className="absolute inset-0 opacity-20">
+                        <div className="absolute top-4 left-4 w-16 h-16 border-2 border-white/30 rounded-full"></div>
+                        <div className="absolute top-8 right-6 w-12 h-12 border-2 border-white/20 rounded-full"></div>
+                        <div className="absolute bottom-6 left-8 w-8 h-8 border-2 border-white/25 rounded-full"></div>
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/20"></div>
+                      </div>
+
+                      {/* 卡片內容 */}
+                      <div className="relative h-full p-6 flex flex-col justify-between text-white">
+                        {/* 頂部 - 卡片標題 */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-medium opacity-90">點數卡</div>
+                            <div className="text-xs opacity-75">POINTS CARD</div>
                           </div>
-                        )}
+                          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                            </svg>
+                          </div>
+                        </div>
+
+                        {/* 中央 - 點數值 */}
+                        <div className="text-center">
+                          <div className="text-4xl font-bold mb-1 drop-shadow-lg">
+                            {item.points_value.toLocaleString()}
+                          </div>
+                          <div className="text-lg font-medium opacity-95">POINTS</div>
+                        </div>
+
+                        {/* 底部 - 卡片信息 */}
+                        <div className="flex justify-between items-end">
+                          <div>
+                            <div className="text-xs opacity-75 mb-1">VALID THRU</div>
+                            <div className="text-sm font-medium">∞</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs opacity-75 mb-1">CARD NO.</div>
+                            <div className="text-sm font-mono">{String(item.virtual_card_id).padStart(8, '0')}</div>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* 金屬光澤效果 */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent"></div>
+                    </div>
+
+                    {/* 卡片陰影效果 */}
+                    <div className="absolute -bottom-2 -right-2 w-full h-full bg-gradient-to-br from-amber-300/20 to-amber-700/20 rounded-2xl -z-10"></div>
+                  </div>
+
+                  {/* 商品資訊卡片 */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 mt-6">
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">{item.name}</h3>
+                      <p className="text-gray-600 mb-3 text-sm">{item.description}</p>
                       
-                      {/* 商品資訊 */}
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{item.name}</h3>
-                      <p className="text-gray-600 mb-4 text-sm">{item.description}</p>
-                      
-                      {/* 購買數量 */}
-                      <div className="inline-flex items-center bg-white border border-amber-200 rounded-full px-4 py-2 mb-4">
-                        <span className="text-gray-700 text-sm">購買數量：</span>
-                        <span className="font-bold text-amber-600 ml-1">{item.quantity} 張</span>
-                      </div>
+                    
                     </div>
                   </div>
 
                   {/* 價格詳情 */}
                   <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-700">單價</span>
-                      <span className="font-medium text-gray-900">NT$ {Math.round(item.price).toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-700">數量</span>
-                      <span className="font-medium text-gray-900">{item.quantity} 張</span>
-                    </div>
+                   
                     <div className="border-t border-gray-200 pt-3">
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-lg font-medium text-gray-900">小計金額</span>
@@ -394,19 +419,7 @@ export default function VirtualCardCheckoutPage() {
                 </div>
               ))}
 
-              {/* 總計 - 突出顯示 */}
-              <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-xl p-6 mt-6 text-white">
-                <div className="text-center">
-                  <div className="text-sm opacity-90 mb-1">訂單總額</div>
-                  <div className="text-3xl font-bold mb-3">NT$ {totalAmount.toLocaleString()}</div>
-                  <div className="flex items-center justify-center">
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                    <span className="text-lg font-medium">將獲得 {totalPoints.toLocaleString()} 點數</span>
-                  </div>
-                </div>
-              </div>
+             
             </div>
           </div>
 

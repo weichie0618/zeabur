@@ -130,9 +130,11 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
                     <h4 className="font-medium text-gray-900 mr-3">
                       {purchase.virtualCardProduct?.name || '點數卡'}
                     </h4>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(purchase.paymentStatus)}`}>
-                      {getStatusText(purchase.paymentStatus)}
-                    </span>
+                    {purchase.paymentStatus !== 'failed' && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(purchase.paymentStatus)}`}>
+                        {getStatusText(purchase.paymentStatus)}
+                      </span>
+                    )}
                   </div>
                   
                   <div className="text-sm text-gray-600 space-y-1">

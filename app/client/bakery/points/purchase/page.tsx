@@ -120,8 +120,7 @@ export default function PurchasePage() {
       // 保存到 localStorage
       localStorage.setItem('bakeryCart', JSON.stringify(currentCart));
 
-      // 顯示成功訊息
-      alert(`✅ ${card.name} 已加入購物車！\n即將前往結帳頁面`);
+     
 
       // 跳轉到結帳頁面
       window.location.href = '/client/bakery/points/purchase/checkout';

@@ -384,7 +384,7 @@ export default function VirtualCardCheckoutPage() {
                       title="移除商品"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 12H6" />
                       </svg>
                     </button>
                   </div>
@@ -426,7 +426,7 @@ export default function VirtualCardCheckoutPage() {
                       <div className="bg-blue-500 text-white px-2 py-1 rounded text-sm font-medium mr-3">
                         匯款
                       </div>
-                      <span className="text-gray-700">銀行轉帳</span>
+                      
                     </div>
                   </label>
                 </div>
@@ -460,7 +460,7 @@ export default function VirtualCardCheckoutPage() {
                     處理中...
                   </div>
                 ) : (
-                  `確認購買 - NT$ ${totalAmount.toLocaleString()}`
+                  `確認購買`
                 )}
               </button>
             </form>

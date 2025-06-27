@@ -280,8 +280,8 @@ export default function PurchasePage() {
                   />
                 ) : (
                   <div className="relative">
-                    {/* 點數卡主體 - 商品展示卡片尺寸 */}
-                    <div className="relative w-48 h-32 bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-xl shadow-lg overflow-hidden">
+                    {/* 點數卡主體 - 參考結帳頁面的較大尺寸 */}
+                    <div className="relative w-full max-w-sm mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
                       
                       {/* 烘焙主題背景紋理 */}
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>
@@ -361,7 +361,7 @@ export default function PurchasePage() {
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/5 via-orange-300/10 to-amber-500/15 mix-blend-overlay"></div>
 
                       {/* 卡片內容 */}
-                      <div className="relative h-full p-3 flex flex-col justify-between text-white">
+                      <div className="relative h-full p-4 flex flex-col justify-between text-white">
                         
                         {/* 頂部區域 */}
                         <div className="flex justify-between items-start">
@@ -369,11 +369,11 @@ export default function PurchasePage() {
                             <div className="text-xs font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
                             <div className="text-xs text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
                           </div>
-                          <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
                             <img 
                               src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
                               alt="Bakery Logo" 
-                              className="w-6 h-6 object-contain"
+                              className="w-10 h-10 object-contain"
                             />
                           </div>
                         </div>
@@ -381,35 +381,26 @@ export default function PurchasePage() {
                         {/* 中央點數顯示 */}
                         <div className="flex-1 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="text-2xl font-black drop-shadow-lg tracking-tight mb-1">
+                            <div className="text-3xl font-black drop-shadow-lg tracking-tight mb-1">
                               {Math.round(card.price).toLocaleString()}
                             </div>
-                            <div className="text-lg font-semibold opacity-95 tracking-wider">點數</div>
+                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數</div>
                           </div>
                         </div>
 
-                        {/* 底部資訊 */}
-                        <div className="flex justify-between items-end text-xs">
-                          {card.pointsValue > card.price && (
-                            <div className="bg-green-400/20 backdrop-blur-sm border border-green-300/30 rounded-full px-2 py-0.5">
-                              <span className="text-green-100 font-bold text-xs">
-                                +{(card.pointsValue - card.price).toLocaleString()}贈送
-                              </span>
-                            </div>
-                          )}
-                        </div>
+                        
                       </div>
 
                       {/* 卡片邊緣高光 */}
-                      <div className="absolute inset-0 rounded-xl ring-1 ring-white/20"></div>
+                      <div className="absolute inset-0 rounded-2xl ring-1 ring-white/20"></div>
                       
                       {/* 頂部反光效果 */}
-                      <div className="absolute top-0 left-1/4 right-1/4 h-6 bg-gradient-to-b from-white/30 to-transparent rounded-t-xl"></div>
+                      <div className="absolute top-0 left-1/4 right-1/4 h-8 bg-gradient-to-b from-white/30 to-transparent rounded-t-2xl"></div>
                     </div>
 
                     {/* 卡片陰影 */}
-                    <div className="absolute -bottom-2 -right-2 w-full h-full bg-gradient-to-br from-amber-400/10 to-orange-600/20 rounded-xl blur-sm -z-10"></div>
-                    <div className="absolute -bottom-1 -right-1 w-full h-full bg-gradient-to-br from-amber-300/15 to-orange-500/25 rounded-xl -z-10"></div>
+                    <div className="absolute -bottom-3 -right-3 w-full h-full bg-gradient-to-br from-amber-400/10 to-orange-600/20 rounded-2xl blur-sm -z-10"></div>
+                    <div className="absolute -bottom-1 -right-1 w-full h-full bg-gradient-to-br from-amber-300/15 to-orange-500/25 rounded-2xl -z-10"></div>
                   </div>
                 )}
               </div>

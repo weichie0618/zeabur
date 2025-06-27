@@ -189,23 +189,14 @@ function VirtualCardConfirmationContent() {
               {
                 type: "text",
                 text: paymentMethod === 'bank_transfer' ? "訂單確認" : "購買成功",
-                size: "xxl",
+                size: "xl",
                 align: "center",
                 weight: "bold",
                 color: "#ffffff"
-              },
-              {
-                type: "text",
-                text: "🎉 恭喜您完成點數卡購買",
-                size: "md",
-                align: "center",
-                color: "#ffffff",
-                margin: "sm"
               }
             ],
-            backgroundColor: "#FF6B35",  // 活力橘色
-            paddingAll: "lg",
-            spacing: "sm"
+            backgroundColor: "#FFB800",  // 金色
+            paddingAll: "md"
           },
           body: {
             type: "box",
@@ -276,7 +267,7 @@ function VirtualCardConfirmationContent() {
                       },
                       {
                         type: "text",
-                        text: `${formatNumber(totalPoints)} 點`,
+                        text: `+${formatNumber(totalPoints)} 點`,
                         size: "xl",
                         weight: "bold",
                         color: "#FF6B35",
@@ -331,7 +322,7 @@ function VirtualCardConfirmationContent() {
                     text: paymentMethod === 'bank_transfer' 
                       ? "✨ 點數將於核帳完成後自動加入帳戶！" 
                       : "✨ 點數已自動加入您的帳戶，可立即使用！",
-                    size: "md",
+                    size: "sm",
                     color: "#38A169",
                     margin: "none",
                     wrap: true,
@@ -470,25 +461,23 @@ function VirtualCardConfirmationContent() {
                 {
                   type: "text",
                   text: "請於 3 日內完成匯款",
-                  size: "lg",
-                  color: "#2D3748",
+                  size: "md",
+                  color: "#888888",
                   align: "center",
-                  wrap: true,
-                  weight: "bold"
+                  wrap: true
                 },
                 {
                   type: "text",
                   text: "並將訊息傳送給我們",
                   size: "md",
-                  color: "#4A5568",
+                  color: "#888888",
                   align: "center",
                   wrap: true,
-                  margin: "sm"
+                  margin: "xs"
                 }
               ],
-              backgroundColor: "#FFF8E1",
-              paddingAll: "lg",
-              spacing: "sm"
+              backgroundColor: "#F8F9FA",
+              paddingAll: "md"
             }
           } : {}),
           

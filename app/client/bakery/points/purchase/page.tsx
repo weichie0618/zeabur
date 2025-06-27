@@ -270,25 +270,148 @@ export default function PurchasePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {virtualCards.map((card) => (
             <div key={card.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-              {/* 商品圖片區域 */}
-              <div className="relative h-48 bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center">
+              {/* 商品圖片區域 - 精美點數卡設計 */}
+              <div className="relative h-48 p-4 flex items-center justify-center">
                 {card.imageUrl ? (
                   <img 
                     src={card.imageUrl} 
                     alt={card.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  <div className="text-center text-white">
-                    <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                    <div className="text-3xl font-bold">{card.pointsValue.toLocaleString()}</div>
-                    <div className="text-sm opacity-90">點數</div>
+                  <div className="relative">
+                    {/* 點數卡主體 - 商品展示卡片尺寸 */}
+                    <div className="relative w-48 h-32 bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-xl shadow-lg overflow-hidden">
+                      
+                      {/* 烘焙主題背景紋理 */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>
+                      
+                      {/* 卡片背景裝飾 - 烘焙主題 */}
+                      <div className="absolute inset-0 opacity-50">
+                        {/* 小麥穗裝飾 */}
+                        <div className="absolute top-1 left-1">
+                          <svg className="w-6 h-6 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 麵包形狀裝飾 */}
+                        <div className="absolute top-2 right-2">
+                          <svg className="w-5 h-5 text-white/75" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 麵粉雲朵效果 */}
+                        <div className="absolute bottom-1 left-2">
+                          <svg className="w-8 h-5 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6.5 20c-2.76 0-5-2.24-5-5 0-2.64 2.05-4.78 4.65-4.96C6.72 8.73 8.25 8 10 8c2.21 0 4 1.79 4 4 0 .34-.05.67-.14.98.86.8 1.39 1.93 1.39 3.02 0 2.21-1.79 4-4 4H6.5z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 星星裝飾 (品質象徵) */}
+                        <div className="absolute bottom-2 right-4">
+                          <svg className="w-4 h-4 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 裝飾性小點點 (模擬麵粉) */}
+                        <div className="absolute top-5 left-6 w-1.5 h-1.5 bg-white/60 rounded-full"></div>
+                        <div className="absolute top-7 right-8 w-2 h-2 bg-white/55 rounded-full"></div>
+                        <div className="absolute bottom-6 left-8 w-1.5 h-1.5 bg-white/65 rounded-full"></div>
+                        <div className="absolute bottom-4 right-2 w-1 h-1 bg-white/70 rounded-full"></div>
+                        
+                        {/* 烘焙溫度計 */}
+                        <div className="absolute top-6 right-6">
+                          <svg className="w-3 h-3 text-white/75" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-2V5c0-.55.45-1 1-1s1 .45 1 1v6h-2z"/>
+                          </svg>
+                        </div>
+                        
+                        {/* 心形裝飾 (愛心烘焙) */}
+                        <div className="absolute top-8 left-4">
+                          <svg className="w-3 h-3 text-white/65" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                          </svg>
+                        </div>
+                      </div>
+                      
+                      {/* 溫暖烘焙色調漸層覆蓋 */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-orange-200/25 via-amber-100/15 to-yellow-200/30"></div>
+                      
+                      {/* 烘焙質感紋理 */}
+                      <div className="absolute inset-0">
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/25 via-transparent to-orange-900/20"></div>
+                        <div className="absolute inset-0 bg-gradient-to-tl from-amber-300/15 via-transparent to-white/20"></div>
+                      </div>
+                      
+                      {/* 光澤效果 (模擬新鮮出爐的光澤) */}
+                      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/25 to-transparent rounded-t-xl"></div>
+                      
+                      {/* 邊緣溫暖光暈 */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-amber-600/10 rounded-xl"></div>
+                      
+                      {/* 烘焙紋理效果 */}
+                      <div className="absolute inset-0 opacity-20">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 w-1/3 h-full animate-pulse"></div>
+                      </div>
+                      
+                      {/* 專業烘焙質感 */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/5 via-orange-300/10 to-amber-500/15 mix-blend-overlay"></div>
+
+                      {/* 卡片內容 */}
+                      <div className="relative h-full p-3 flex flex-col justify-between text-white">
+                        
+                        {/* 頂部區域 */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-xs font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
+                            <div className="text-xs text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
+                          </div>
+                          <div className="w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                            <img 
+                              src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
+                              alt="Bakery Logo" 
+                              className="w-6 h-6 object-contain"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 中央點數顯示 */}
+                        <div className="flex-1 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-2xl font-black drop-shadow-lg tracking-tight mb-1">
+                              {Math.round(card.price).toLocaleString()}
+                            </div>
+                            <div className="text-lg font-semibold opacity-95 tracking-wider">點數</div>
+                          </div>
+                        </div>
+
+                        {/* 底部資訊 */}
+                        <div className="flex justify-between items-end text-xs">
+                          {card.pointsValue > card.price && (
+                            <div className="bg-green-400/20 backdrop-blur-sm border border-green-300/30 rounded-full px-2 py-0.5">
+                              <span className="text-green-100 font-bold text-xs">
+                                +{(card.pointsValue - card.price).toLocaleString()}贈送
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 卡片邊緣高光 */}
+                      <div className="absolute inset-0 rounded-xl ring-1 ring-white/20"></div>
+                      
+                      {/* 頂部反光效果 */}
+                      <div className="absolute top-0 left-1/4 right-1/4 h-6 bg-gradient-to-b from-white/30 to-transparent rounded-t-xl"></div>
+                    </div>
+
+                    {/* 卡片陰影 */}
+                    <div className="absolute -bottom-2 -right-2 w-full h-full bg-gradient-to-br from-amber-400/10 to-orange-600/20 rounded-xl blur-sm -z-10"></div>
+                    <div className="absolute -bottom-1 -right-1 w-full h-full bg-gradient-to-br from-amber-300/15 to-orange-500/25 rounded-xl -z-10"></div>
                   </div>
                 )}
-                
-               
               </div>
 
               {/* 商品資訊 */}

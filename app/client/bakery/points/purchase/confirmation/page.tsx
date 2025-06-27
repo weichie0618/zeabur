@@ -178,8 +178,8 @@ function VirtualCardConfirmationContent() {
       }, {
         type: "flex",
         altText: paymentMethod === 'bank_transfer' 
-          ? `虛擬點數卡訂單確認 - 待匯款 ${formatNumber(totalPoints)} 點數`
-          : `虛擬點數卡購買確認 - 獲得 ${formatNumber(totalPoints)} 點數`,
+          ? `點數卡訂單確認 - 待匯款 ${formatNumber(totalPoints)} 點數`
+          : `點數卡購買確認 - 獲得 ${formatNumber(totalPoints)} 點數`,
         contents: {
           type: "bubble",
           header: {
@@ -188,30 +188,46 @@ function VirtualCardConfirmationContent() {
             contents: [
               {
                 type: "text",
-                text: "購買成功",
-                size: "xl",
+                text: paymentMethod === 'bank_transfer' ? "訂單確認" : "購買成功",
+                size: "xxl",
                 align: "center",
                 weight: "bold",
                 color: "#ffffff"
+              },
+              {
+                type: "text",
+                text: "🎉 恭喜您完成點數卡購買",
+                size: "md",
+                align: "center",
+                color: "#ffffff",
+                margin: "sm"
               }
             ],
-            backgroundColor: "#FFB800",  // 金色
-            paddingAll: "md"
+            backgroundColor: "#FF6B35",  // 活力橘色
+            paddingAll: "lg",
+            spacing: "sm"
           },
           body: {
             type: "box",
             layout: "vertical",
             contents: [
               {
-                type: "text",
-                text: "🎁 點數購買資訊",
-                size: "md",
-                weight: "bold",
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "💰 購買詳情",
+                    size: "lg",
+                    weight: "bold",
+                    color: "#2D3748",
+                    margin: "none"
+                  }
+                ],
+                backgroundColor: "#F7FAFC",
+                paddingAll: "md",
+                cornerRadius: "8px",
                 margin: "none"
-              },
-              {
-                type: "separator",
-                margin: "md"
               },
               {
                 type: "box",
@@ -224,20 +240,27 @@ function VirtualCardConfirmationContent() {
                       {
                         type: "text",
                         text: "購買金額",
-                        size: "sm",
-                        color: "#666666",
-                        flex: 2
+                        size: "md",
+                        color: "#4A5568",
+                        flex: 3,
+                        weight: "bold"
                       },
                       {
                         type: "text",
                         text: `NT$ ${formatNumber(totalAmount)}`,
-                        size: "sm",
+                        size: "lg",
                         weight: "bold",
-                        flex: 3,
+                        color: "#2D3748",
+                        flex: 4,
                         align: "end"
                       }
                     ],
-                    spacing: "sm"
+                    spacing: "md"
+                  },
+                  {
+                    type: "separator",
+                    margin: "md",
+                    color: "#E2E8F0"
                   },
                   {
                     type: "box",
@@ -246,21 +269,27 @@ function VirtualCardConfirmationContent() {
                       {
                         type: "text",
                         text: "獲得點數",
-                        size: "sm",
-                        color: "#666666",
-                        flex: 2
+                        size: "md",
+                        color: "#4A5568",
+                        flex: 3,
+                        weight: "bold"
                       },
                       {
                         type: "text",
                         text: `${formatNumber(totalPoints)} 點`,
-                        size: "sm",
+                        size: "xl",
                         weight: "bold",
-                        color: "#FFB800",
-                        flex: 3,
+                        color: "#FF6B35",
+                        flex: 4,
                         align: "end"
                       }
                     ],
-                    spacing: "sm"
+                    spacing: "md"
+                  },
+                  {
+                    type: "separator",
+                    margin: "md",
+                    color: "#E2E8F0"
                   },
                   {
                     type: "box",
@@ -269,58 +298,80 @@ function VirtualCardConfirmationContent() {
                       {
                         type: "text",
                         text: "付款方式",
-                        size: "sm",
-                        color: "#666666",
-                        flex: 2
+                        size: "md",
+                        color: "#4A5568",
+                        flex: 3,
+                        weight: "bold"
                       },
                       {
                         type: "text",
                         text: paymentMethod === 'line_pay' ? 'LINE Pay' : '銀行轉帳',
-                        size: "sm",
+                        size: "md",
                         weight: "bold",
-                        flex: 3,
+                        color: "#2D3748",
+                        flex: 4,
                         align: "end"
                       }
                     ],
-                    spacing: "sm"
+                    spacing: "md"
                   }
                 ],
-                margin: "md",
-                spacing: "sm"
+                margin: "lg",
+                spacing: "md",
+                paddingAll: "md",
+                backgroundColor: "#FFFFFF",
+                cornerRadius: "8px"
               },
               {
-                type: "separator",
-                margin: "md"
-              },
-              {
-                type: "text",
-                text: paymentMethod === 'bank_transfer' 
-                  ? "💰 點數將於核帳完成後自動加入帳戶！" 
-                  : "💰 點數已自動加入您的帳戶，可立即使用！",
-                size: "sm",
-                color: "#666666",
-                margin: "md",
-                wrap: true
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: paymentMethod === 'bank_transfer' 
+                      ? "✨ 點數將於核帳完成後自動加入帳戶！" 
+                      : "✨ 點數已自動加入您的帳戶，可立即使用！",
+                    size: "md",
+                    color: "#38A169",
+                    margin: "none",
+                    wrap: true,
+                    weight: "bold",
+                    align: "center"
+                  }
+                ],
+                margin: "lg",
+                paddingAll: "md",
+                backgroundColor: "#F0FFF4",
+                cornerRadius: "8px"
               },
               // 當付款方式為銀行轉帳時，顯示銀行資訊
               ...(paymentMethod === 'bank_transfer' ? [
                 {
-                  type: "separator",
-                  margin: "md"
-                },
-                {
-                  type: "text",
-                  text: "匯款資訊",
-                  weight: "bold",
-                  color: "#FFB800",
-                  margin: "md",
-                  size: "md"
+                  type: "box",
+                  layout: "vertical",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "🏦 匯款資訊",
+                      weight: "bold",
+                      color: "#2D3748",
+                      margin: "none",
+                      size: "lg"
+                    }
+                  ],
+                  backgroundColor: "#FFF5E6",
+                  paddingAll: "md",
+                  cornerRadius: "8px",
+                  margin: "lg"
                 },
                 {
                   type: "box",
                   layout: "vertical",
                   margin: "md",
-                  spacing: "sm",
+                  spacing: "md",
+                  paddingAll: "md",
+                  backgroundColor: "#FFFFFF",
+                  cornerRadius: "8px",
                   contents: [
                     {
                       type: "box",
@@ -329,20 +380,27 @@ function VirtualCardConfirmationContent() {
                         {
                           type: "text",
                           text: "銀行名稱",
-                          size: "sm",
-                          color: "#666666",
-                          flex: 2
+                          size: "md",
+                          color: "#4A5568",
+                          flex: 3,
+                          weight: "bold"
                         },
                         {
                           type: "text",
                           text: `${bankInfo.bankName} (${bankInfo.bankCode})`,
-                          size: "sm",
+                          size: "md",
                           weight: "bold",
-                          flex: 3,
+                          color: "#2D3748",
+                          flex: 4,
                           align: "end"
                         }
                       ],
-                      spacing: "sm"
+                      spacing: "md"
+                    },
+                    {
+                      type: "separator",
+                      margin: "md",
+                      color: "#E2E8F0"
                     },
                     {
                       type: "box",
@@ -351,20 +409,27 @@ function VirtualCardConfirmationContent() {
                         {
                           type: "text",
                           text: "戶名",
-                          size: "sm",
-                          color: "#666666",
-                          flex: 2
+                          size: "md",
+                          color: "#4A5568",
+                          flex: 3,
+                          weight: "bold"
                         },
                         {
                           type: "text",
                           text: bankInfo.accountName,
-                          size: "sm",
+                          size: "md",
                           weight: "bold",
-                          flex: 3,
+                          color: "#2D3748",
+                          flex: 4,
                           align: "end"
                         }
                       ],
-                      spacing: "sm"
+                      spacing: "md"
+                    },
+                    {
+                      type: "separator",
+                      margin: "md",
+                      color: "#E2E8F0"
                     },
                     {
                       type: "box",
@@ -373,26 +438,29 @@ function VirtualCardConfirmationContent() {
                         {
                           type: "text",
                           text: "帳號",
-                          size: "sm",
-                          color: "#666666",
-                          flex: 2
+                          size: "md",
+                          color: "#4A5568",
+                          flex: 3,
+                          weight: "bold"
                         },
                         {
                           type: "text",
                           text: bankInfo.accountNumber,
-                          size: "sm",
+                          size: "md",
                           weight: "bold",
-                          flex: 3,
+                          color: "#E53E3E",
+                          flex: 4,
                           align: "end"
                         }
                       ],
-                      spacing: "sm"
+                      spacing: "md"
                     }
                   ]
                 }
               ] : [])
             ],
-            spacing: "md"
+            spacing: "md",
+            paddingAll: "lg"
           },
           ...(paymentMethod === 'bank_transfer' ? {
             footer: {
@@ -402,23 +470,25 @@ function VirtualCardConfirmationContent() {
                 {
                   type: "text",
                   text: "請於 3 日內完成匯款",
-                  size: "md",
-                  color: "#888888",
+                  size: "lg",
+                  color: "#2D3748",
                   align: "center",
-                  wrap: true
+                  wrap: true,
+                  weight: "bold"
                 },
                 {
                   type: "text",
                   text: "並將訊息傳送給我們",
                   size: "md",
-                  color: "#888888",
+                  color: "#4A5568",
                   align: "center",
                   wrap: true,
-                  margin: "xs"
+                  margin: "sm"
                 }
               ],
-              backgroundColor: "#F8F9FA",
-              paddingAll: "md"
+              backgroundColor: "#FFF8E1",
+              paddingAll: "lg",
+              spacing: "sm"
             }
           } : {}),
           
@@ -530,7 +600,7 @@ function VirtualCardConfirmationContent() {
         <div className="space-y-4">
           {/* 自動發送狀態顯示 */}
           {shouldShowSendButton() && (
-            <div className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium text-center">
+            <div className="w-full py-3 px-4 bg-blue-200 text-white rounded-lg font-medium text-center">
               <div className="flex items-center justify-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -546,7 +616,7 @@ function VirtualCardConfirmationContent() {
 
           {/* 自動關閉狀態顯示 */}
           {messageSent && (
-            <div className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium text-center">
+            <div className="w-full py-3 px-4 bg-green-200 text-white rounded-lg font-medium text-center">
               <div className="flex items-center justify-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

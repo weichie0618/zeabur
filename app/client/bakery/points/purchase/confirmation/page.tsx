@@ -390,7 +390,7 @@ function VirtualCardConfirmationContent() {
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-green-900 mb-2">購買成功！</h1>
-            <p className="text-green-700">您的虛擬點數卡已成功購買，點數已加入您的帳戶</p>
+            <p className="text-green-700">您的虛擬點數卡已成功下訂，請等待核帳完成後點數將自動入帳</p>
           </div>
         </div>
 
@@ -409,10 +409,7 @@ function VirtualCardConfirmationContent() {
               <span className="text-xl font-bold text-amber-600">{formatNumber(totalPoints)} 點</span>
             </div>
             
-            <div className="flex justify-between items-center py-2 border-b border-gray-100">
-              <span className="text-gray-600">商品數量</span>
-              <span className="text-lg font-medium text-gray-900">{formatNumber(itemCount)} 張</span>
-            </div>
+           
             
             <div className="flex justify-between items-center py-2">
               <span className="text-gray-600">付款方式</span>
@@ -430,9 +427,9 @@ function VirtualCardConfirmationContent() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
             <div>
-              <h3 className="font-medium text-amber-900 mb-1">點數已立即生效</h3>
+              <h3 className="font-medium text-amber-900 mb-1">點數已下訂</h3>
               <p className="text-amber-800 text-sm">
-                您購買的 {formatNumber(totalPoints)} 點數已自動加入您的帳戶，可立即用於購物折抵。
+                您購買的 {formatNumber(totalPoints)} 點數已下訂，請等待核帳完成後點數將自動入帳。
                 點數無使用期限，請安心使用！
               </p>
             </div>
@@ -515,13 +512,7 @@ function VirtualCardConfirmationContent() {
             查看點數餘額
           </Link>
 
-          {/* 繼續購物按鈕 */}
-          <Link
-            href="/client/bakery/points/purchase"
-            className="block w-full py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium text-center transition-colors"
-          >
-            繼續購買點數卡
-          </Link>
+        
         </div>
 
         {/* 使用說明 */}

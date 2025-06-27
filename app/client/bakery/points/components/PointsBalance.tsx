@@ -42,7 +42,7 @@ export default function PointsBalance({ points, loading, error, onRefresh }: Poi
         </div>
         <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
           <img 
-            src="https://joinmeet.sunnyhausbakery.com.tw/sample/favicon.ico" 
+            src="/sample/favicon.ico" 
             alt="Bakery Logo" 
             className="w-10 h-10 object-contain"
           />

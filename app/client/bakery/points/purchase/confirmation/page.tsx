@@ -204,7 +204,7 @@ function VirtualCardConfirmationContent() {
             contents: [
               {
                 type: "text",
-                text: "🎁 虛擬點數卡購買完成",
+                text: "🎁 點數購買資訊",
                 size: "md",
                 weight: "bold",
                 margin: "none"
@@ -268,28 +268,6 @@ function VirtualCardConfirmationContent() {
                     contents: [
                       {
                         type: "text",
-                        text: "商品數量",
-                        size: "sm",
-                        color: "#666666",
-                        flex: 2
-                      },
-                      {
-                        type: "text",
-                        text: `${formatNumber(itemCount)} 張`,
-                        size: "sm",
-                        weight: "bold",
-                        flex: 3,
-                        align: "end"
-                      }
-                    ],
-                    spacing: "sm"
-                  },
-                  {
-                    type: "box",
-                    layout: "baseline",
-                    contents: [
-                      {
-                        type: "text",
                         text: "付款方式",
                         size: "sm",
                         color: "#666666",
@@ -317,7 +295,7 @@ function VirtualCardConfirmationContent() {
               {
                 type: "text",
                 text: paymentMethod === 'bank_transfer' 
-                  ? "💰 點數將於核帳完成後自動加入您的帳戶！" 
+                  ? "💰 點數將於核帳完成後自動加入帳戶！" 
                   : "💰 點數已自動加入您的帳戶，可立即使用！",
                 size: "sm",
                 color: "#666666",
@@ -414,7 +392,7 @@ function VirtualCardConfirmationContent() {
                 },
                 {
                   type: "text",
-                  text: "請於 3 日內完成匯款，並將收據傳送給我們",
+                  text: "請於 3 日內完成匯款，並將訊息傳送給我們",
                   size: "xs",
                   color: "#888888",
                   margin: "md",
@@ -424,22 +402,7 @@ function VirtualCardConfirmationContent() {
             ],
             spacing: "md"
           },
-          footer: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-              {
-                type: "button",
-                action: {
-                  type: "uri",
-                  label: "查看點數餘額",
-                  uri: `${window.location.origin}/client/bakery/points`
-                },
-                style: "primary",
-                color: "#FFB800"
-              }
-            ]
-          }
+          
         }
       }];
 
@@ -674,13 +637,7 @@ function VirtualCardConfirmationContent() {
             </div>
           )}
 
-          {/* 查看點數餘額按鈕 */}
-          <Link
-            href="/client/bakery/points"
-            className="block w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-center transition-colors"
-          >
-            查看點數餘額
-          </Link>
+        
 
         
         </div>

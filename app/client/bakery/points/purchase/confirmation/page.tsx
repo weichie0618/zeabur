@@ -532,25 +532,6 @@ function VirtualCardConfirmationContent() {
           </div>
         </div>
 
-        {/* 點數餘額提醒 */}
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-          <div className="flex items-start">
-            <svg className="w-6 h-6 text-amber-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-            </svg>
-            <div>
-              <h3 className="font-medium text-amber-900 mb-1">
-                {paymentMethod === 'bank_transfer' ? '點數已下訂' : '點數已下訂'}
-              </h3>
-              <p className="text-amber-800 text-sm">
-                {paymentMethod === 'bank_transfer' 
-                  ? `您購買的 ${formatNumber(totalPoints)} 點數已下訂，請於 3 日內完成匯款，核帳完成後點數將自動入帳。點數無使用期限，請安心使用！`
-                  : `您購買的 ${formatNumber(totalPoints)} 點數已下訂，請等待核帳完成後點數將自動入帳。點數無使用期限，請安心使用！`
-                }
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* 銀行轉帳資訊 (僅當付款方式為銀行轉帳時顯示) */}
         {paymentMethod === 'bank_transfer' && (
@@ -579,11 +560,7 @@ function VirtualCardConfirmationContent() {
               </div>
             </div>
             
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-800 text-sm">
-                <strong>重要提醒：</strong> 請於 3 日內完成匯款，並將匯款收據與訂單編號傳送給我們的 LINE 客服。
-              </p>
-            </div>
+            
           </div>
         )}
 

@@ -227,7 +227,7 @@ export default function UsersPointsPage() {
                             {user.displayName || user.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {user.email || user.phone}
+                            {user.lineUserId || user.phone}
                           </div>
                         </div>
                       </td>

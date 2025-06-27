@@ -47,7 +47,7 @@ export default function VirtualCardCheckoutPage() {
   // 獲取 LINE 用戶 ID
   const getLineUserId = useCallback((): string | null => {
     // 從 LIFF SDK 獲取
-    if (isLoggedIn && profile && profile.userId) {
+    if (isLoggedIn && profile && profile.lineId) {
       console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
       return profile.userId;
     }
@@ -215,7 +215,7 @@ export default function VirtualCardCheckoutPage() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              lineUserId: user.id,
+              lineUserId: user.lineId,
               virtualCardProductId: item.virtual_card_id,
               paymentMethod: paymentMethod,
               ipAddress: undefined,

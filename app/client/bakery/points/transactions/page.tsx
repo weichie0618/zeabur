@@ -122,13 +122,13 @@ export default function TransactionsPage() {
   }, [profile]);
 
   // 載入交易記錄
-  const loadTransactions = useCallback(async (lineUserId: number) => {
+  const loadTransactions = useCallback(async (lineId: string) => {
     setLoading(true);
     setError('');
 
     try {
     
-      const response = await fetch(`/api/points/transactions/${lineUserId}?limit=50`);
+      const response = await fetch(`/api/points/transactions/${lineId}?limit=50`);
      
       
       const data = await response.json();
@@ -210,7 +210,7 @@ export default function TransactionsPage() {
         if (user) {
          
           setLineUser(user);
-          await loadTransactions(user.id);
+          await loadTransactions(user.lineId);
         } else {
           console.log('❌ 未獲取到有效用戶');
         }
@@ -314,7 +314,7 @@ export default function TransactionsPage() {
                 <div className="text-red-600 text-lg mb-2">載入失敗</div>
                 <p className="text-gray-600 mb-4">{error}</p>
                 <button
-                  onClick={() => lineUser && loadTransactions(lineUser.id)}
+                  onClick={() => lineUser && loadTransactions(lineUser.lineId)}
                   className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                 >
                   重新載入

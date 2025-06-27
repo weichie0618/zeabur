@@ -78,12 +78,12 @@ export default function PointsPage() {
   }, [profile]);
 
   // 載入用戶點數餘額
-  const loadPointsBalance = useCallback(async (lineUserId: number) => {
+  const loadPointsBalance = useCallback(async (lineId: string) => {
     setPointsLoading(true);
     setPointsError('');
 
     try {
-      const response = await fetch(`/api/points/balance/${lineUserId}`);
+      const response = await fetch(`/api/points/balance/${lineId}`);
       const data = await response.json();
 
       if (data.success && data.data) {
@@ -102,12 +102,12 @@ export default function PointsPage() {
 
 
   // 載入購買記錄
-  const loadPurchaseHistory = useCallback(async (lineUserId: number) => {
+  const loadPurchaseHistory = useCallback(async (lineId: string) => {
     setPurchasesLoading(true);
     setPurchasesError('');
 
     try {
-      const response = await fetch(`/api/points/virtual-cards/purchases/${lineUserId}?limit=20`);
+      const response = await fetch(`/api/points/virtual-cards/purchases/${lineId}?limit=20`);
       const data = await response.json();
 
       if (data.success && data.data) {
@@ -181,8 +181,8 @@ export default function PointsPage() {
           
           // 並行載入所有數據
           await Promise.all([
-            loadPointsBalance(user.id),
-            loadPurchaseHistory(user.id)
+            loadPointsBalance(user.lineId),
+            loadPurchaseHistory(user.lineId)
           ]);
         }
       }
@@ -258,7 +258,7 @@ export default function PointsPage() {
             points={currentPoints}
             loading={pointsLoading}
             error={pointsError}
-            onRefresh={() => lineUser && loadPointsBalance(lineUser.id)}
+            onRefresh={() => lineUser && loadPointsBalance(lineUser.lineId)}
           />
 
           {/* 購買記錄 */}

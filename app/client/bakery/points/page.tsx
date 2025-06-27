@@ -50,7 +50,7 @@ export default function PointsPage() {
 
   // 獲取或創建 LINE 用戶
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
-    if (!profile?.lineId) return null;
+    if (!profile?.userId) return null;
 
     try {
       // 先檢查用戶是否存在
@@ -60,7 +60,7 @@ export default function PointsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineId: profile.lineId
+          lineId: profile.userId
         }),
       });
 
@@ -174,7 +174,7 @@ export default function PointsPage() {
       const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
       const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
       
-      if (!liffLoading && currentIsLoggedIn && currentProfile?.lineId) {
+      if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
         const user = await getOrCreateLineUser();
         if (user) {
           setLineUser(user);

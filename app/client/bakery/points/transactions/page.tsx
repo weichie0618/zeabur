@@ -83,7 +83,7 @@ export default function TransactionsPage() {
   const getOrCreateLineUser = useCallback(async (): Promise<LineUser | null> => {
 
     
-    if (!profile?.lineId) {
+    if (!profile?.userId) {
 
       return null;
     }
@@ -97,7 +97,7 @@ export default function TransactionsPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          lineId: profile.lineId,
+          lineId: profile.userId,
           displayName: profile.displayName,
           name: profile.displayName
         }),
@@ -203,7 +203,7 @@ export default function TransactionsPage() {
       
      
       
-      if (!liffLoading && currentIsLoggedIn && currentProfile?.lineId) {
+      if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
        
         const user = await getOrCreateLineUser();
        

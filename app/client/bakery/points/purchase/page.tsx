@@ -221,9 +221,9 @@ export default function PurchasePage() {
             <div className="mt-4 p-3 bg-gray-100 rounded-lg text-sm text-left max-w-md mx-auto">
               <div><strong>調試資訊:</strong></div>
               <div>LIFF已登入: {String(currentIsLoggedIn)}</div>
-              <div>用戶ID: {profile?.lineId || 'N/A'}</div>
+              <div>用戶ID: {profile?.userId || 'N/A'}</div>
               <div>用戶名稱: {profile?.displayName || 'N/A'}</div>
-              <div>LINE用戶ID: {profile?.lineId || '未獲取'}</div>
+              <div>LINE用戶ID: {profile?.userId || '未獲取'}</div>
               <div>手動LIFF: {manualLiff ? '已初始化' : '未初始化'}</div>
             </div>
           )}

@@ -271,7 +271,7 @@ export default function PurchasePage() {
           {virtualCards.map((card) => (
             <div key={card.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
               {/* 商品圖片區域 - 精美點數卡設計 */}
-              <div className="relative p-6 flex items-center justify-center">
+              <div className="relative h-64 p-6 flex items-center justify-center">
                 {card.imageUrl ? (
                   <img 
                     src={card.imageUrl} 
@@ -280,85 +280,58 @@ export default function PurchasePage() {
                   />
                 ) : (
                   <div className="relative">
-                    {/* 點數卡主體 - 使用更大尺寸 */}
+                    {/* 點數卡主體 - 參考結帳頁面的較大尺寸 */}
                     <div className="relative w-full max-w-md mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
                       
                       {/* 烘焙主題背景紋理 */}
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>
                       
-                      {/* 測試背景 - 確保背景可見 */}
-                      <div className="absolute top-1 left-1 w-4 h-4 bg-white/60 rounded-full border border-white/80"></div>
-                      <div className="absolute top-1 right-1 w-3 h-3 bg-orange-300/80 rounded-full"></div>
-                      
                       {/* 卡片背景裝飾 - 烘焙主題 */}
-                      <div className="absolute inset-0 opacity-40">
+                      <div className="absolute inset-0 opacity-50">
                         {/* 小麥穗裝飾 */}
-                        <div className="absolute top-2 left-2">
-                          <svg className="w-8 h-8 text-white/80" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14zm0 6l-1 2.5v1.5l1-2.5 1 2.5v-1.5L12 20zm-3-16l-.5 2v2.5l.5-2 .5 2V6l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V6l-.5-2zM9 8l-.5 2v2.5l.5-2 .5 2V10l-.5-2zm6 0l-.5 2v2.5l.5-2 .5 2V10l-.5-2z"/>
+                        <div className="absolute top-1 left-1">
+                          <svg className="w-6 h-6 text-white/80" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2l-1 2.5v3l1-2.5 1 2.5v-3L12 2zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 8zm0 6l-1 2.5v3l1-2.5 1 2.5v-3L12 14z"/>
                           </svg>
                         </div>
                         
                         {/* 麵包形狀裝飾 */}
-                        <div className="absolute top-4 right-3">
-                          <svg className="w-6 h-6 text-white/75" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5zm4-5c1.93 0 3.5 1.57 3.5 3.5S16.93 14 15 14s-3.5-1.57-3.5-3.5S13.07 7 15 7z"/>
+                        <div className="absolute top-2 right-2">
+                          <svg className="w-5 h-5 text-white/75" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M18.5 12c0 1.93-1.57 3.5-3.5 3.5s-3.5-1.57-3.5-3.5 1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5zm-8 0c0 1.93-1.57 3.5-3.5 3.5S3.5 13.93 3.5 12 5.07 8.5 7 8.5s3.5 1.57 3.5 3.5z"/>
                           </svg>
                         </div>
                         
                         {/* 麵粉雲朵效果 */}
-                        <div className="absolute bottom-3 left-4">
-                          <svg className="w-10 h-6 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute bottom-1 left-2">
+                          <svg className="w-8 h-5 text-white/70" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M6.5 20c-2.76 0-5-2.24-5-5 0-2.64 2.05-4.78 4.65-4.96C6.72 8.73 8.25 8 10 8c2.21 0 4 1.79 4 4 0 .34-.05.67-.14.98.86.8 1.39 1.93 1.39 3.02 0 2.21-1.79 4-4 4H6.5z"/>
                           </svg>
                         </div>
                         
-                        {/* 麵包裝飾 */}
-                        <div className="absolute bottom-5 right-6">
-                          <svg className="w-5 h-5 text-white/75" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M18 9c0-1.1-.9-2-2-2s-2 .9-2 2c0 .74.4 1.38 1 1.72V19c0 .55.45 1 1 1s1-.45 1-1v-8.28c.6-.34 1-.98 1-1.72zm-8 0c0-1.1-.9-2-2-2s-2 .9-2 2c0 .74.4 1.38 1 1.72V19c0 .55.45 1 1 1s1-.45 1-1v-8.28c.6-.34 1-.98 1-1.72zm4-5c-2.21 0-4 1.79-4 4 0 1.1.45 2.1 1.17 2.83L12 17l.83-6.17C13.55 10.1 14 9.1 14 8c0-2.21-1.79-4-4-4z"/>
-                          </svg>
-                        </div>
-                        
-                        {/* 裝飾性小點點 (模擬麵粉) */}
-                        <div className="absolute top-8 left-8 w-2 h-2 bg-white/60 rounded-full"></div>
-                        <div className="absolute top-12 right-12 w-2.5 h-2.5 bg-white/55 rounded-full"></div>
-                        <div className="absolute bottom-12 left-12 w-2 h-2 bg-white/65 rounded-full"></div>
-                        <div className="absolute bottom-6 right-3 w-1.5 h-1.5 bg-white/70 rounded-full"></div>
-                        <div className="absolute top-16 left-16 w-1 h-1 bg-white/80 rounded-full"></div>
-                        
-                        {/* 額外的烘焙元素 */}
-                        {/* 麵包師帽 */}
-                        <div className="absolute top-6 left-14">
-                          <svg className="w-5 h-5 text-white/65" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C8.69 2 6 4.69 6 8c0 2.5 1.5 4.61 3.64 5.64C9.87 15.78 10.4 18 12 18s2.13-2.22 2.36-4.36C16.5 12.61 18 10.5 18 8c0-3.31-2.69-6-6-6zm0 14c-.83 0-1.5-.67-1.5-1.5S11.17 13 12 13s1.5.67 1.5 1.5S12.83 16 12 16z"/>
-                          </svg>
-                        </div>
-                        
-                        {/* 烘焙刷子 */}
-                        <div className="absolute bottom-8 left-8 rotate-45">
-                          <svg className="w-4 h-4 text-white/70" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3 17h2v2H3v-2zm2-2h2v2H5v-2zm2-2h2v2H7v-2zm2-2h2v2H9v-2zm2-2h2v2h-2V9zm2-2h2v2h-2V7zm2-2h2v2h-2V5zm2-2h2v2h-2V3z"/>
-                          </svg>
-                        </div>
-                        
-                        {/* 烘焙溫度計 */}
-                        <div className="absolute top-10 right-8">
-                          <svg className="w-4 h-4 text-white/75" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-2V5c0-.55.45-1 1-1s1 .45 1 1v6h-2z"/>
-                          </svg>
-                        </div>
-                        
                         {/* 星星裝飾 (品質象徵) */}
-                        <div className="absolute bottom-10 right-4">
+                        <div className="absolute bottom-2 right-4">
                           <svg className="w-4 h-4 text-white/80" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                           </svg>
                         </div>
                         
+                        {/* 裝飾性小點點 (模擬麵粉) */}
+                        <div className="absolute top-5 left-6 w-1.5 h-1.5 bg-white/60 rounded-full"></div>
+                        <div className="absolute top-7 right-8 w-2 h-2 bg-white/55 rounded-full"></div>
+                        <div className="absolute bottom-6 left-8 w-1.5 h-1.5 bg-white/65 rounded-full"></div>
+                        <div className="absolute bottom-4 right-2 w-1 h-1 bg-white/70 rounded-full"></div>
+                        
+                        {/* 烘焙溫度計 */}
+                        <div className="absolute top-6 right-6">
+                          <svg className="w-3 h-3 text-white/75" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-2V5c0-.55.45-1 1-1s1 .45 1 1v6h-2z"/>
+                          </svg>
+                        </div>
+                        
                         {/* 心形裝飾 (愛心烘焙) */}
-                        <div className="absolute top-14 left-6">
-                          <svg className="w-3.5 h-3.5 text-white/65" fill="currentColor" viewBox="0 0 24 24">
+                        <div className="absolute top-8 left-4">
+                          <svg className="w-3 h-3 text-white/65" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                           </svg>
                         </div>
@@ -387,33 +360,33 @@ export default function PurchasePage() {
                       {/* 專業烘焙質感 */}
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/5 via-orange-300/10 to-amber-500/15 mix-blend-overlay"></div>
 
-                      {/* 卡片內容 */}
-                      <div className="relative h-full p-4 flex flex-col justify-between text-white">
-                        
-                        {/* 頂部區域 */}
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="text-xs font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
-                            <div className="text-xs text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
-                          </div>
-                          <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden absolute right-3">
-                            <img 
-                              src="/sample/favicon.ico" 
-                              alt="Bakery Logo" 
-                              className="w-10 h-10 object-contain"
-                            />
-                          </div>
-                        </div>
-
-                        {/* 中央點數顯示 */}
-                        <div className="flex-1 flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="text-3xl font-black drop-shadow-lg tracking-tight mb-1">
-                              {Math.round(card.price).toLocaleString()}
+                                              {/* 卡片內容 */}
+                        <div className="relative h-full p-5 flex flex-col justify-between text-white">
+                          
+                          {/* 頂部區域 */}
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="text-sm font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
+                              <div className="text-sm text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
                             </div>
-                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數</div>
+                            <div className="w-14 h-14 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                              <img 
+                                src="/sample/favicon.ico" 
+                                alt="Bakery Logo" 
+                                className="w-12 h-12 object-contain"
+                              />
+                            </div>
                           </div>
-                        </div>
+
+                          {/* 中央點數顯示 */}
+                          <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-4xl font-black drop-shadow-lg tracking-tight mb-1">
+                                {Math.round(card.price).toLocaleString()}
+                              </div>
+                              <div className="text-2xl font-semibold opacity-95 tracking-wider">點數</div>
+                            </div>
+                          </div>
 
                         
                       </div>

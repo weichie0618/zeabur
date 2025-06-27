@@ -48,22 +48,24 @@ export default function PointsBalance({ points, loading, error, onRefresh }: Poi
           />
         </div>
       </div>
-      <div className="mt-4 flex justify-between items-center">
-        <div className="text-sm opacity-80">
+      <div className="mt-4">
+        <div className="text-sm opacity-80 mb-3">
           <p>點數可用於購物時折抵現金，1點 = 1元</p>
         </div>
-        <Link
-          href="/client/bakery/points/purchase"
-          className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors mr-2"
-        >
-          購買點數卡
-        </Link>
-        <Link
-          href="/client/bakery/points/transactions"
-          className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-        >
-          交易記錄
-        </Link>
+        <div className="flex gap-2 flex-wrap">
+          <Link
+            href="/client/bakery/points/purchase"
+            className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors flex-1 text-center min-w-[120px]"
+          >
+            購買點數卡
+          </Link>
+          <Link
+            href="/client/bakery/points/transactions"
+            className="text-white bg-white bg-opacity-20 hover:bg-opacity-30 px-3 py-1 rounded-md text-sm font-medium transition-colors flex-1 text-center min-w-[120px]"
+          >
+            交易記錄
+          </Link>
+        </div>
       </div>
     </div>
   );

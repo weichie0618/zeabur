@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Script from 'next/script';
+import Link from 'next/link';
 import { useLiff } from '@/lib/LiffProvider';
 import PointsBalance from './components/PointsBalance';
 import PurchaseHistory from './components/PurchaseHistory';
@@ -260,6 +261,22 @@ export default function PointsPage() {
             error={pointsError}
             onRefresh={() => lineUser && loadPointsBalance(lineUser.lineId)}
           />
+
+          {/* 按鈕區 */}
+          <div className="flex gap-4 flex-wrap">
+            <Link
+              href="/client/bakery/points/purchase"
+              className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors flex-1 text-center min-w-[140px] shadow-md hover:shadow-lg"
+            >
+              購買點數卡
+            </Link>
+            <Link
+              href="/client/bakery/points/transactions"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors flex-1 text-center min-w-[140px] shadow-md hover:shadow-lg"
+            >
+              交易記錄
+            </Link>
+          </div>
 
           {/* 購買記錄 */}
           <PurchaseHistory

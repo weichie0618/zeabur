@@ -19,6 +19,9 @@ const nextConfig: NextConfig = {
   },
   // 路由重寫配置
   async rewrites() {
+    const isDev = process.env.NODE_ENV === 'development';
+    const backendUrl = isDev ? 'http://localhost:4000' : 'https://joinmeet.sunnyhausbakery.com.tw';
+    
     return [
       {
         source: "/api/upload",
@@ -34,7 +37,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/api/:path*",
-        destination: "https://joinmeet.sunnyhausbakery.com.tw/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

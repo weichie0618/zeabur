@@ -1455,7 +1455,7 @@ export default function CheckoutPage() {
             </button>
 
             {/* 點數折抵區域 */}
-            {isLoggedIn && (
+            
               <div className="border-t pt-4 mt-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-700">
@@ -1500,7 +1500,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-            )}
+            
           </div>
 
           {/* 顧客資料表單 */}

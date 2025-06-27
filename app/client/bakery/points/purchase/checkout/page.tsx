@@ -475,10 +475,10 @@ export default function VirtualCardCheckoutPage() {
                         {/* 中央點數顯示 */}
                         <div className="flex-1 flex items-center justify-center">
                           <div className="text-center">
-                            <div className="text-3xl font-black drop-shadow-lg tracking-tight mb-1">
+                            <div className="text-4xl font-black drop-shadow-lg tracking-tight mb-1">
                               {Math.round(item.price).toLocaleString()}
                             </div>
-                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數</div>
+                            <div className="text-2xl font-semibold opacity-95 tracking-wider">點數</div>
                           </div>
                         </div>
 

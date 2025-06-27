@@ -369,7 +369,7 @@ export default function PurchasePage() {
                               <div className="text-sm font-bold text-black/50 tracking-wide opacity-90">BAKERY</div>
                               <div className="text-sm text-black/50 opacity-80 mt-0.5">POINTS CARD</div>
                             </div>
-                            <div className="w-14 h-14 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden">
+                            <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20 overflow-hidden absolute top-3 right-3">
                               <img 
                                 src="/sample/favicon.ico" 
                                 alt="Bakery Logo" 

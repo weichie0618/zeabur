@@ -389,19 +389,38 @@ function VirtualCardConfirmationContent() {
                       spacing: "sm"
                     }
                   ]
-                },
-                {
-                  type: "text",
-                  text: "請於 3 日內完成匯款，並將訊息傳送給我們",
-                  size: "xs",
-                  color: "#888888",
-                  margin: "md",
-                  wrap: true
                 }
               ] : [])
             ],
             spacing: "md"
           },
+          ...(paymentMethod === 'bank_transfer' ? [{
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "請於 3 日內完成匯款",
+                  size: "md",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true
+                },
+                {
+                  type: "text",
+                  text: "並將訊息傳送給我們",
+                  size: "md",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true,
+                  margin: "xs"
+                }
+              ],
+              backgroundColor: "#F8F9FA",
+              paddingAll: "md"
+            }
+          }] : [{}]),
           
         }
       }];

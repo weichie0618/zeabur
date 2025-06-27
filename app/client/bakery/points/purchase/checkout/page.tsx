@@ -344,7 +344,7 @@ export default function VirtualCardCheckoutPage() {
                   {/* 真實點數卡設計 */}
                   <div className="relative">
                     {/* 點數卡主體 - 適合手機的尺寸 */}
-                    <div className="relative w-full max-w-xs mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
+                    <div className="relative h-40 w-70 max-w-xs mx-auto aspect-[1.6/1] bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-500 rounded-2xl shadow-xl overflow-hidden">
                       
                       {/* 烘焙主題背景紋理 */}
                       <div className="absolute inset-0 bg-gradient-to-br from-yellow-300/30 via-amber-400/25 to-orange-600/35"></div>

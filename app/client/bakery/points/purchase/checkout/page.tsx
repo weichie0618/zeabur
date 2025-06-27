@@ -47,12 +47,13 @@ export default function VirtualCardCheckoutPage() {
   // 獲取 LINE 用戶 ID
   const getLineUserId = useCallback((): string | null => {
     // 從 LIFF SDK 獲取
-    if (isLoggedIn && profile && profile.lineId) {
+    if (isLoggedIn && profile && profile.userId) {
       console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
       return profile.userId;
     }
     
     console.warn('無法獲取 LINE 用戶 ID');
+    console.log('Debug - isLoggedIn:', isLoggedIn, 'profile:', profile);
     return null;
   }, [isLoggedIn, profile]);
 
@@ -480,7 +481,6 @@ export default function VirtualCardCheckoutPage() {
                         {/* 底部資訊 */}
                         <div className="flex justify-between items-end text-xs">
                           
-                         
                         </div>
                       </div>
 
@@ -511,10 +511,6 @@ export default function VirtualCardCheckoutPage() {
                           )}
                       <p className="text-gray-600 mb-3 text-sm">{item.description}</p>
                       
-                      
-                      
-                    
-                    
                     </div>
                   </div>
 
@@ -536,7 +532,6 @@ export default function VirtualCardCheckoutPage() {
                 </div>
               ))}
 
-             
             </div>
           </div>
 

@@ -70,12 +70,17 @@ export default function BakeryLayout({
                 <HeaderPointsDisplay />
               </div>
 
-              {/* 漢堡選單按鈕 - 只在 md 以下螢幕顯示 */}
-              <button
-                onClick={toggleMobileMenu}
-                className="md:hidden p-2 rounded-lg hover:bg-amber-700 focus:outline-none transition-colors duration-200 touch-manipulation"
-                aria-label="切換選單"
-              >
+              {/* 手機版右側區域 - 包含點數顯示和漢堡選單 */}
+              <div className="md:hidden flex items-center">
+                {/* 手機版點數顯示 */}
+                <HeaderPointsDisplay isMobile={true} />
+                
+                {/* 漢堡選單按鈕 */}
+                <button
+                  onClick={toggleMobileMenu}
+                  className="p-2 rounded-lg hover:bg-amber-700 focus:outline-none transition-colors duration-200 touch-manipulation"
+                  aria-label="切換選單"
+                >
                 <div className="w-6 h-6 flex flex-col justify-center items-center">
                   <span 
                     className={`bg-white block h-0.5 w-6 rounded-sm transition-all duration-300 ${
@@ -95,15 +100,13 @@ export default function BakeryLayout({
                 </div>
               </button>
             </div>
+            </div>
 
             {/* 手機版下拉選單 - 只在 md 以下螢幕顯示 */}
             <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
               isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
             }`}>
               <nav className="pt-4 pb-2 border-t border-amber-500 mt-4 relative z-50">
-                {/* 手機版點數顯示 */}
-                <HeaderPointsDisplay isMobile={true} />
-                
                 <div className="flex flex-col space-y-2">
                   <Link 
                     href="/client/bakery/points" 

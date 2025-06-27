@@ -18,19 +18,27 @@ function VirtualCardConfirmationContent() {
   const totalPoints = searchParams.get('totalPoints');
   const itemCount = searchParams.get('itemCount');
   const paymentMethod = searchParams.get('paymentMethod');
+  const orderNumber = searchParams.get('orderNumber');
   
   // 狀態管理
   const [messageSent, setMessageSent] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [sendCountdown, setSendCountdown] = useState(3); // 發送訊息的倒計時
   const [liffError, setLiffError] = useState<string | null>(null);
   const [isLineApp, setIsLineApp] = useState<boolean | null>(null);
-  const [autoClosing, setAutoClosing] = useState(false);
-  const [closeCountdown, setCloseCountdown] = useState(3);
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [manualLiff, setManualLiff] = useState<any>(null);
   const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
   
   const isDevEnvironment = process.env.NODE_ENV === 'development';
+
+  // 銀行帳戶資訊
+  const bankInfo = {
+    bankName: '玉山銀行',
+    accountName: '屹澧股份有限公司',
+    accountNumber: '1322-940-012648',
+    bankCode: '808'
+  };
 
   // 格式化數字顯示
   const formatNumber = (num: string | null): string => {
@@ -97,6 +105,21 @@ function VirtualCardConfirmationContent() {
     }
   }, [liff, isLiffScriptLoaded, debugInfo]);
 
+  // 自動開始倒計時和發送訊息
+  useEffect(() => {
+    const activeLiff = liff || manualLiff;
+    
+    // 檢查 LIFF 是否就緒且在 LINE 應用中
+    if (activeLiff && activeLiff.isInClient && activeLiff.isInClient() && 
+        activeLiff.isLoggedIn && activeLiff.isLoggedIn() && !messageSent && !sendingMessage) {
+      
+      // 自動開始發送流程
+      setTimeout(() => {
+        sendLineMessage();
+      }, 1000); // 1秒後自動開始
+    }
+  }, [liff, manualLiff, messageSent, sendingMessage]);
+
   // 發送 LINE 訊息
   const sendLineMessage = async () => {
     const activeLiff = liff || manualLiff;
@@ -118,14 +141,45 @@ function VirtualCardConfirmationContent() {
 
     setSendingMessage(true);
     
+    // 啟動倒計時
+    const countdownInterval = setInterval(() => {
+      setSendCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    // 3秒後發送訊息
+    setTimeout(async () => {
+      try {
+        await sendMessagesWithDelay();
+      } catch (error: any) {
+        console.error('發送訊息失敗:', error);
+        setLiffError(`發送訊息失敗: ${error.message}`);
+      } finally {
+        setSendingMessage(false);
+        setSendCountdown(3); // 重置倒計時
+      }
+    }, 3000);
+  };
+
+  // 實際發送訊息的函數
+  const sendMessagesWithDelay = async () => {
+    const activeLiff = liff || manualLiff;
+    
     try {
       // 構建 FLEX 訊息
       const flexMessage = [{
         type: 'text',
-        text: `🎉 虛擬點數卡購買成功！`
+        text: `points-#${orderNumber}`
       }, {
         type: "flex",
-        altText: `虛擬點數卡購買確認 - 獲得 ${formatNumber(totalPoints)} 點數`,
+        altText: paymentMethod === 'bank_transfer' 
+          ? `虛擬點數卡訂單確認 - 待匯款 ${formatNumber(totalPoints)} 點數`
+          : `虛擬點數卡購買確認 - 獲得 ${formatNumber(totalPoints)} 點數`,
         contents: {
           type: "bubble",
           header: {
@@ -262,12 +316,111 @@ function VirtualCardConfirmationContent() {
               },
               {
                 type: "text",
-                text: "💰 點數已自動加入您的帳戶，可立即使用！",
+                text: paymentMethod === 'bank_transfer' 
+                  ? "💰 點數將於核帳完成後自動加入您的帳戶！" 
+                  : "💰 點數已自動加入您的帳戶，可立即使用！",
                 size: "sm",
                 color: "#666666",
                 margin: "md",
                 wrap: true
-              }
+              },
+              // 當付款方式為銀行轉帳時，顯示銀行資訊
+              ...(paymentMethod === 'bank_transfer' ? [
+                {
+                  type: "separator",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "匯款資訊",
+                  weight: "bold",
+                  color: "#FFB800",
+                  margin: "md",
+                  size: "md"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  margin: "md",
+                  spacing: "sm",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "baseline",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "銀行名稱",
+                          size: "sm",
+                          color: "#666666",
+                          flex: 2
+                        },
+                        {
+                          type: "text",
+                          text: `${bankInfo.bankName} (${bankInfo.bankCode})`,
+                          size: "sm",
+                          weight: "bold",
+                          flex: 3,
+                          align: "end"
+                        }
+                      ],
+                      spacing: "sm"
+                    },
+                    {
+                      type: "box",
+                      layout: "baseline",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "戶名",
+                          size: "sm",
+                          color: "#666666",
+                          flex: 2
+                        },
+                        {
+                          type: "text",
+                          text: bankInfo.accountName,
+                          size: "sm",
+                          weight: "bold",
+                          flex: 3,
+                          align: "end"
+                        }
+                      ],
+                      spacing: "sm"
+                    },
+                    {
+                      type: "box",
+                      layout: "baseline",
+                      contents: [
+                        {
+                          type: "text",
+                          text: "帳號",
+                          size: "sm",
+                          color: "#666666",
+                          flex: 2
+                        },
+                        {
+                          type: "text",
+                          text: bankInfo.accountNumber,
+                          size: "sm",
+                          weight: "bold",
+                          flex: 3,
+                          align: "end"
+                        }
+                      ],
+                      spacing: "sm"
+                    }
+                  ]
+                },
+                {
+                  type: "text",
+                  text: "請於 3 日內完成匯款，並將收據傳送給我們",
+                  size: "xs",
+                  color: "#888888",
+                  margin: "md",
+                  wrap: true
+                }
+              ] : [])
             ],
             spacing: "md"
           },
@@ -293,26 +446,15 @@ function VirtualCardConfirmationContent() {
       await activeLiff.sendMessages(flexMessage);
       setMessageSent(true);
       
-      // 3秒後自動關閉 LIFF
+      // 訊息發送成功後立即關閉 LIFF
       setTimeout(() => {
-        setAutoClosing(true);
-        const countdown = setInterval(() => {
-          setCloseCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdown);
-              handleCloseLiff();
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }, 2000);
+        handleCloseLiff();
+      }, 1000); // 1秒後關閉
       
     } catch (error: any) {
       console.error('發送訊息失敗:', error);
       setLiffError(`發送訊息失敗: ${error.message}`);
-    } finally {
-      setSendingMessage(false);
+      throw error; // 重新拋出錯誤給上層處理
     }
   };
 
@@ -389,8 +531,15 @@ function VirtualCardConfirmationContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-green-900 mb-2">購買成功！</h1>
-            <p className="text-green-700">您的虛擬點數卡已成功下訂，請等待核帳完成後點數將自動入帳</p>
+            <h1 className="text-2xl font-bold text-green-900 mb-2">
+              {paymentMethod === 'bank_transfer' ? '訂單確認！' : '購買成功！'}
+            </h1>
+            <p className="text-green-700">
+              {paymentMethod === 'bank_transfer' 
+                ? '您的虛擬點數卡訂單已確認，請於 3 日內完成匯款，核帳完成後點數將自動入帳'
+                : '您的虛擬點數卡已成功下訂，請等待核帳完成後點數將自動入帳'
+              }
+            </p>
           </div>
         </div>
 
@@ -427,14 +576,53 @@ function VirtualCardConfirmationContent() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
             </svg>
             <div>
-              <h3 className="font-medium text-amber-900 mb-1">點數已下訂</h3>
+              <h3 className="font-medium text-amber-900 mb-1">
+                {paymentMethod === 'bank_transfer' ? '點數已下訂' : '點數已下訂'}
+              </h3>
               <p className="text-amber-800 text-sm">
-                您購買的 {formatNumber(totalPoints)} 點數已下訂，請等待核帳完成後點數將自動入帳。
-                點數無使用期限，請安心使用！
+                {paymentMethod === 'bank_transfer' 
+                  ? `您購買的 ${formatNumber(totalPoints)} 點數已下訂，請於 3 日內完成匯款，核帳完成後點數將自動入帳。點數無使用期限，請安心使用！`
+                  : `您購買的 ${formatNumber(totalPoints)} 點數已下訂，請等待核帳完成後點數將自動入帳。點數無使用期限，請安心使用！`
+                }
               </p>
             </div>
           </div>
         </div>
+
+        {/* 銀行轉帳資訊 (僅當付款方式為銀行轉帳時顯示) */}
+        {paymentMethod === 'bank_transfer' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-blue-900 mb-4 flex items-center">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              匯款資訊
+            </h3>
+            
+            <div className="bg-white rounded-lg p-4 space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-gray-600">銀行名稱</span>
+                <span className="font-medium text-gray-900">{bankInfo.bankName} ({bankInfo.bankCode})</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-gray-600">戶名</span>
+                <span className="font-medium text-gray-900">{bankInfo.accountName}</span>
+              </div>
+              
+              <div className="flex justify-between items-center py-2">
+                <span className="text-gray-600">帳號</span>
+                <span className="font-medium text-gray-900 font-mono">{bankInfo.accountNumber}</span>
+              </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800 text-sm">
+                <strong>重要提醒：</strong> 請於 3 日內完成匯款，並將匯款收據與訂單編號傳送給我們的 LINE 客服。
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 調試資訊 (僅開發環境) */}
         {isDevEnvironment && debugInfo && (
@@ -458,50 +646,32 @@ function VirtualCardConfirmationContent() {
 
         {/* 操作按鈕 */}
         <div className="space-y-4">
-          {/* 發送 LINE 訊息按鈕 */}
+          {/* 自動發送狀態顯示 */}
           {shouldShowSendButton() && (
-            <button
-              onClick={sendLineMessage}
-              disabled={sendingMessage}
-              className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
-                sendingMessage
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
-              }`}
-            >
-              {sendingMessage ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  發送中...
-                </div>
-              ) : (
-                <div className="flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-3.582 8-8 8a8.955 8.955 0 01-4.126-.98L3 20l1.98-5.874A8.955 8.955 0 013 12a8 8 0 018-8c4.418 0 8 3.582 8 8z" />
-                  </svg>
-                  傳送至 LINE 聊天室
-                </div>
-              )}
-            </button>
+            <div className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium text-center">
+              <div className="flex items-center justify-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {sendingMessage ? (
+                  sendCountdown > 0 ? `${sendCountdown}秒後將資訊傳到 LINE` : '正在傳送到 LINE...'
+                ) : (
+                  '準備自動傳送到 LINE...'
+                )}
+              </div>
+            </div>
           )}
 
-          {/* 關閉按鈕 (訊息發送後顯示) */}
-          {shouldShowCloseButton() && (
-            <button
-              onClick={handleCloseLiff}
-              disabled={autoClosing}
-              className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${
-                autoClosing
-                  ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-blue-500 hover:bg-blue-600 text-white hover:shadow-lg'
-              }`}
-            >
-              {autoClosing ? (
-                `自動關閉中... (${closeCountdown}s)`
-              ) : (
-                '關閉視窗'
-              )}
-            </button>
+          {/* 自動關閉狀態顯示 */}
+          {messageSent && (
+            <div className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium text-center">
+              <div className="flex items-center justify-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                訊息已傳送，即將自動關閉...
+              </div>
+            </div>
           )}
 
           {/* 查看點數餘額按鈕 */}

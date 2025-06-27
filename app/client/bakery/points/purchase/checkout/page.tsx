@@ -208,7 +208,8 @@ export default function VirtualCardCheckoutPage() {
       }
 
       // 處理每個虛擬點數卡的購買
-      const purchasePromises = cart.map(async (item) => {
+      const purchaseResults = [];
+      for (const item of cart) {
         for (let i = 0; i < item.quantity; i++) {
           const response = await fetch('/api/points/virtual-cards/purchase', {
             method: 'POST',
@@ -230,10 +231,11 @@ export default function VirtualCardCheckoutPage() {
           if (!data.success) {
             throw new Error(`購買 ${item.name} 失敗：${data.message}`);
           }
+          
+          // 儲存購買結果
+          purchaseResults.push(data.data);
         }
-      });
-
-      await Promise.all(purchasePromises);
+      }
 
       // 購買成功
       setPaymentStatus('success');
@@ -247,7 +249,9 @@ export default function VirtualCardCheckoutPage() {
         totalAmount: totalAmount.toString(),
         totalPoints: totalPoints.toString(),
         itemCount: cart.reduce((sum, item) => sum + item.quantity, 0).toString(),
-        paymentMethod: paymentMethod
+        paymentMethod: paymentMethod,
+        // 傳遞第一個購買記錄的 ID 作為訂單編號
+        orderNumber: purchaseResults.length > 0 ? purchaseResults[0].id.toString() : ''
       });
 
       router.push(`/client/bakery/points/purchase/confirmation?${confirmationParams.toString()}`);

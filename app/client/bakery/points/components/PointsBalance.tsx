@@ -85,9 +85,7 @@ export default function PointsBalance({ points, loading, error, onRefresh }: Poi
                 <p className="text-white/80 text-xs sm:text-sm font-light">
                   可用餘額
                 </p>
-                <p className="text-white/70 text-xs font-light">
-                  1點 = 1元
-                </p>
+                
               </div>
               
               {/* 品牌 Logo 區域 */}

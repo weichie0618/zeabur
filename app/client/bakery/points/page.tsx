@@ -277,7 +277,7 @@ export default function PointsPage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <span>購買點數卡</span>
+                <span>購買點數</span>
               </div>
               <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 to-emerald-500/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
             </Link>

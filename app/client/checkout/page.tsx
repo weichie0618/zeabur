@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
+import { useUserPoints } from '../bakery/hooks/useUserPoints';
 
 // 表單驗證狀態接口
 interface FormValidation {
@@ -31,6 +32,7 @@ interface OrderData {
   shipping_method: string;
   payment_method: string;
   salesperson_code?: string;
+  points_used?: number; // 新增使用的點數
 }
 
 // 配送方式類型
@@ -54,11 +56,13 @@ interface CustomerData {
 export default function CheckoutPage() {
   const router = useRouter();
   const { liff, profile, isLoggedIn, isLoading: liffLoading, customerData, updateCustomerData } = useLiff();
+  const { points: userPoints, loading: pointsLoading, refreshPoints } = useUserPoints(); // 使用點數hook
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('takkyubin_payment');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cod' | 'line_pay'>('line_pay');
+  const [pointsToUse, setPointsToUse] = useState<number>(0); // 新增點數使用數量
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
@@ -298,17 +302,25 @@ export default function CheckoutPage() {
     }
   }, [discountValidation, subtotal]);
 
-  // 計算總金額
+  // 計算點數折抵金額
+  const pointsDiscount = useMemo(() => {
+    // 點數1:1抵扣，但不能超過總金額（不含點數折抵前）
+    const maxDiscount = subtotal - discountAmount + shippingFee;
+    return Math.min(pointsToUse, maxDiscount);
+  }, [pointsToUse, subtotal, discountAmount, shippingFee]);
+
+  // 計算總金額（含點數折抵）
   const total = useMemo(() => {
-    const calculatedTotal = subtotal - discountAmount + shippingFee;
+    const calculatedTotal = subtotal - discountAmount + shippingFee - pointsDiscount;
     console.log('訂單金額計算:', {
       subtotal,
       discountAmount,
       shippingFee,
+      pointsDiscount,
       total: calculatedTotal
     });
-    return calculatedTotal;
-  }, [subtotal, discountAmount, shippingFee]);
+    return Math.max(0, calculatedTotal); // 確保總金額不為負數
+  }, [subtotal, discountAmount, shippingFee, pointsDiscount]);
 
   // LIFF 腳本載入完成處理
   const handleLiffScriptLoad = () => {
@@ -519,6 +531,23 @@ export default function CheckoutPage() {
       .join('、');
   };
 
+  // 處理點數輸入變化
+  const handlePointsChange = (value: number) => {
+    // 計算可折抵的最大金額（小計 - 優惠碼折扣 + 運費）
+    const maxDiscountAmount = subtotal - discountAmount + shippingFee;
+    const maxPoints = Math.min(userPoints, maxDiscountAmount);
+    const validPoints = Math.max(0, Math.min(value, maxPoints));
+    setPointsToUse(validPoints);
+  };
+
+  // 使用全部可用點數
+  const useAllPoints = () => {
+    // 計算可折抵的最大金額（小計 - 優惠碼折扣 + 運費）
+    const maxDiscountAmount = subtotal - discountAmount + shippingFee;
+    const maxPoints = Math.min(userPoints, maxDiscountAmount);
+    setPointsToUse(maxPoints);
+  };
+
   // 新增驗證優惠碼的函數
   const validateDiscountCode = async () => {
     // 清除之前的驗證結果
@@ -705,7 +734,8 @@ export default function CheckoutPage() {
       carrier: formData.carrier,
       pickupDateTime: formData.pickupDateTime,
       invoiceType: formData.invoiceType,
-      discountCode: formData.discountCode // 保存優惠碼
+      discountCode: formData.discountCode, // 保存優惠碼
+      points_used: pointsToUse // 新增點數使用數量
     };
     
     // 使用 LiffProvider 提供的方法更新客戶資料
@@ -772,7 +802,8 @@ export default function CheckoutPage() {
       taxId: formData.invoiceType === 'taxId' ? formData.taxId : '',
       carrier: formData.invoiceType === 'carrier' ? formData.carrier : '',
       // 新增優惠碼
-      discount_code: formData.discountCode || ''
+      discount_code: formData.discountCode || '',
+      points_used: pointsToUse // 新增點數使用數量
     };
 
     // LINE 用戶資訊記錄（用於調試）
@@ -1377,6 +1408,18 @@ export default function CheckoutPage() {
                   <span>- ${discountAmount.toFixed(0)}</span>
                 </div>
               )}
+
+              {pointsDiscount > 0 && (
+                <div className="flex justify-between items-center mt-2 text-blue-600">
+                  <span className="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                    點數折抵
+                  </span>
+                  <span>- ${pointsDiscount.toFixed(0)}</span>
+                </div>
+              )}
               
               <div className="flex justify-between items-center mt-2">
                 <span className="text-gray-600 font-medium">運費</span>
@@ -1410,6 +1453,54 @@ export default function CheckoutPage() {
               </svg>
               輸入優惠折扣碼
             </button>
+
+            {/* 點數折抵區域 */}
+            {isLoggedIn && (
+              <div className="border-t pt-4 mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    可用點數：{pointsLoading ? '載入中...' : userPoints}
+                  </span>
+                  {userPoints > 0 && (
+                    <button
+                      type="button"
+                      onClick={useAllPoints}
+                      className="text-xs text-amber-600 hover:text-amber-700 underline"
+                    >
+                      全部使用
+                    </button>
+                  )}
+                </div>
+                
+                {userPoints > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={pointsToUse}
+                        onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
+                        min="0"
+                        max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        placeholder="輸入使用點數"
+                      />
+                      <span className="text-sm text-gray-500">點</span>
+                    </div>
+                    {pointsToUse > 0 && (
+                      <div className="text-xs text-green-600">
+                        將折抵 ${pointsToUse} 元
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {userPoints === 0 && !pointsLoading && (
+                  <div className="text-xs text-gray-500">
+                    目前沒有可用點數
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 顧客資料表單 */}

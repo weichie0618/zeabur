@@ -525,6 +525,42 @@ function VirtualCardConfirmationContent() {
           </div>
         </div>
 
+
+        {/* 操作按鈕 */}
+        <div className="space-y-4">
+          {/* 自動發送狀態顯示 */}
+          {shouldShowSendButton() && (
+            <div className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium text-center">
+              <div className="flex items-center justify-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {sendingMessage ? (
+                  sendCountdown > 0 ? `${sendCountdown}秒後將資訊傳到 LINE` : '正在傳送到 LINE...'
+                ) : (
+                  '準備自動傳送到 LINE...'
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 自動關閉狀態顯示 */}
+          {messageSent && (
+            <div className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium text-center">
+              <div className="flex items-center justify-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                訊息已傳送，即將自動關閉...
+              </div>
+            </div>
+          )}
+
+        
+
+        
+        </div>
+
         {/* 購買詳情 */}
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">購買詳情</h2>
@@ -603,40 +639,7 @@ function VirtualCardConfirmationContent() {
           </div>
         )}
 
-        {/* 操作按鈕 */}
-        <div className="space-y-4">
-          {/* 自動發送狀態顯示 */}
-          {shouldShowSendButton() && (
-            <div className="w-full py-3 px-4 bg-blue-500 text-white rounded-lg font-medium text-center">
-              <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {sendingMessage ? (
-                  sendCountdown > 0 ? `${sendCountdown}秒後將資訊傳到 LINE` : '正在傳送到 LINE...'
-                ) : (
-                  '準備自動傳送到 LINE...'
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* 自動關閉狀態顯示 */}
-          {messageSent && (
-            <div className="w-full py-3 px-4 bg-green-500 text-white rounded-lg font-medium text-center">
-              <div className="flex items-center justify-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                訊息已傳送，即將自動關閉...
-              </div>
-            </div>
-          )}
-
         
-
-        
-        </div>
 
         {/* 使用說明 */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">

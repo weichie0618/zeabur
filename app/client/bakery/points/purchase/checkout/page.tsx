@@ -47,9 +47,9 @@ export default function VirtualCardCheckoutPage() {
   // 獲取 LINE 用戶 ID
   const getLineUserId = useCallback((): string | null => {
     // 從 LIFF SDK 獲取
-    if (isLoggedIn && profile && profile.userId) {
-      console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.userId);
-      return profile.userId;
+    if (isLoggedIn && profile && profile.lineId) {
+      console.log('從 LIFF SDK 成功獲取 LINE 用戶 ID:', profile.lineId);
+      return profile.lineId;
     }
     
     console.warn('無法獲取 LINE 用戶 ID');
@@ -473,7 +473,7 @@ export default function VirtualCardCheckoutPage() {
                             <div className="text-3xl font-black drop-shadow-lg tracking-tight mb-1">
                               {Math.round(item.price).toLocaleString()}
                             </div>
-                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數儲值</div>
+                            <div className="text-xl font-semibold opacity-95 tracking-wider">點數</div>
                           </div>
                         </div>
 

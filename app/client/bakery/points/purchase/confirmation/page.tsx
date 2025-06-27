@@ -394,7 +394,7 @@ function VirtualCardConfirmationContent() {
             ],
             spacing: "md"
           },
-          ...(paymentMethod === 'bank_transfer' ? [{
+          ...(paymentMethod === 'bank_transfer' ? {
             footer: {
               type: "box",
               layout: "vertical",
@@ -420,7 +420,7 @@ function VirtualCardConfirmationContent() {
               backgroundColor: "#F8F9FA",
               paddingAll: "md"
             }
-          }] : [{}]),
+          } : {}),
           
         }
       }];
@@ -518,8 +518,8 @@ function VirtualCardConfirmationContent() {
             </h1>
             <p className="text-green-700">
               {paymentMethod === 'bank_transfer' 
-                ? '您的虛擬點數卡訂單已確認，請於 3 日內完成匯款，核帳完成後點數將自動入帳'
-                : '您的虛擬點數卡已成功下訂，請等待核帳完成後點數將自動入帳'
+                ? '您的點數卡訂單已確認，請於 3 日內完成匯款，核帳完成後點數將自動入帳'
+                : '您的點數卡已成功下訂，請等待核帳完成後點數將自動入帳'
               }
             </p>
           </div>

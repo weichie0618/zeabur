@@ -347,10 +347,10 @@ export default function PurchasePage() {
                       </div>
                       
                       {/* 光澤效果 (模擬新鮮出爐的光澤) */}
-                      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/25 to-transparent rounded-t-xl"></div>
+                      <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/25 to-transparent rounded-t-2xl"></div>
                       
                       {/* 邊緣溫暖光暈 */}
-                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-amber-600/10 rounded-xl"></div>
+                      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-amber-600/10 rounded-2xl"></div>
                       
                       {/* 烘焙紋理效果 */}
                       <div className="absolute inset-0 opacity-20">

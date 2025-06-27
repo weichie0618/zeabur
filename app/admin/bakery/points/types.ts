@@ -48,8 +48,9 @@ export interface PointTransaction {
 export enum TransactionType {
   EARN_PURCHASE = 'earn_purchase',
   USE_PAYMENT = 'use_payment',
-  CARD_REDEEM = 'card_redeem',
+  VIRTUAL_CARD_REDEEM = 'virtual_card_redeem',
   ADMIN_ADJUST = 'admin_adjust'
+
 }
 
 // 交易狀態

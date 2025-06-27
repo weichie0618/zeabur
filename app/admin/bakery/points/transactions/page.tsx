@@ -110,7 +110,7 @@ export default function TransactionsPage() {
         return '購買獲得';
       case TransactionType.USE_PAYMENT:
         return '使用抵扣';
-      case TransactionType.CARD_REDEEM:
+      case TransactionType.VIRTUAL_CARD_REDEEM:
         return '點數卡兌換';
       case TransactionType.ADMIN_ADJUST:
         return '管理員調整';
@@ -231,7 +231,7 @@ export default function TransactionsPage() {
               <option value="">全部類型</option>
               <option value={TransactionType.EARN_PURCHASE}>購買獲得</option>
               <option value={TransactionType.USE_PAYMENT}>使用抵扣</option>
-              <option value={TransactionType.CARD_REDEEM}>點數卡兌換</option>
+              <option value={TransactionType.VIRTUAL_CARD_REDEEM}>點數卡兌換</option>
               <option value={TransactionType.ADMIN_ADJUST}>管理員調整</option>
             </select>
           </div>

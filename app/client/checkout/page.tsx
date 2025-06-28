@@ -805,6 +805,46 @@ export default function CheckoutPage() {
 
       // 處理LINE Pay支付
       if (paymentMethod === 'line_pay') {
+        // 檢查是否需要跳過支付（例如：使用點數完全折抵）
+        if (data.skip_payment) {
+          console.log('使用點數完全折抵，跳過支付流程');
+          
+          // 跳轉到確認頁面，不進行支付流程
+          // 導向訂單確認頁面
+          const orderItems = data.order.items.map((item: any) => ({
+            id: item.id,
+            product_id: item.product_id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.subtotal,
+            order_item_notes: item.order_item_notes || ''
+          }));
+          
+          // 將訂單數據編碼為 URL 安全的字符串
+          const encodedItems = encodeURIComponent(JSON.stringify(orderItems));
+          
+          // 清空購物車
+          localStorage.removeItem('bakeryCart');
+          setPaymentStatus('success');
+          
+          // 獲取API返回的運費（如果有）
+          const shippingFeeFromAPI = data.order.shipping_fee || shippingFee;
+          
+          // 添加自取日期時間參數
+          const pickupDateTimeParam = shippingMethod === 'pickup' ? `&pickupDateTime=${encodeURIComponent(formData.pickupDateTime)}` : '';
+          
+          // 添加折扣金額參數
+          const discountParam = discountAmount > 0 ? `&discount=${discountAmount}` : '';
+          
+          // 添加 skip_payment 參數，標識這是零付款情況
+          const skipPaymentParam = '&skip_payment=true&payment_status=completed';
+          
+          router.push(`/client/checkout/confirmation?orderNumber=${data.order.order_number}&orderId=${data.order.id}&totalAmount=${data.order.total_amount}&items=${encodedItems}&shippingMethod=${shippingMethod}&paymentMethod=${paymentMethod}&shippingFee=${shippingFeeFromAPI}${pickupDateTimeParam}${discountParam}${skipPaymentParam}`);
+          return;
+        }
+        
+        // 正常的 LINE Pay 支付流程
         // 發送 LINE FLEX 訊息（如果在 LINE App 中）
         const activeLiff = liff;
         if (activeLiff && activeLiff.isInClient && activeLiff.isInClient() && activeLiff.sendMessages) {
@@ -1455,11 +1495,11 @@ export default function CheckoutPage() {
                       {/* 點數輸入 */}
                       <div className="relative">
                         <div className="relative flex items-center">
-                          <div className="absolute left-3 flex items-center pointer-events-none">
+                          {/* <div className="absolute left-3 flex items-center pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                             </svg>
-                          </div>
+                          </div> */}
                           <input
                             type="number"
                             value={pointsToUse}

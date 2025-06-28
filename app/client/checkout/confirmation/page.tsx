@@ -53,6 +53,12 @@ function OrderConfirmationContent() {
   const paymentMethod = searchParams.get('paymentMethod') || 'bank_transfer';
   // 獲取自取日期時間
   const pickupDateTime = searchParams.get('pickupDateTime') || '';
+  // 獲取是否跳過支付的標誌
+  const skipPayment = searchParams.get('skip_payment') === 'true';
+  // 獲取支付狀態
+  const paymentStatus = searchParams.get('payment_status') || '';
+  // 獲取折扣金額
+  const discount = searchParams.get('discount') || '0';
   
   // 格式化日期時間顯示
   const formatPickupDateTime = (dateTimeStr: string) => {
@@ -455,7 +461,24 @@ function OrderConfirmationContent() {
       // 根據配送方式和付款方式組合，提供對應的訊息
       if (shippingMethod === 'pickup') {
         // 自取訊息
-        if (paymentMethod === 'linepay') {
+        if (skipPayment && paymentStatus === 'completed') {
+          // 零付款 - 點數完全折抵
+          textMessage = {
+            type: 'text',
+            text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+您已使用點數完全折抵，無需額外付款
+請至桃園市蘆竹區油管路一段696號自取商品
+
+📍 自取地址：
+桃園市蘆竹區油管路一段696號
+
+⏰ 預計自取時間：
+${formatPickupDateTime(pickupDateTime)}
+
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+          };
+        } else if (paymentMethod === 'line_pay') {
           textMessage = {
             type: 'text',
             text: `🎂 感謝您的訂購！
@@ -488,7 +511,22 @@ ${formatPickupDateTime(pickupDateTime)}
 若有任何問題，請透過LINE與我們聯繫\n謝謝！`
           };
         }
-      } else if (paymentMethod === 'linepay') {
+      } else if (skipPayment && paymentStatus === 'completed') {
+        // 零付款 - 黑貓宅配 + 點數完全折抵
+        textMessage = {
+          type: 'text',
+          text: `🎂 感謝您的訂購！
+訂單編號：${orderNumber}
+您已使用點數完全折抵，無需額外付款
+我們將盡快安排宅配
+
+📦 宅配說明：
+商品會以黑貓宅急便低溫冷凍配送
+${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
+
+若有任何問題，請透過LINE與我們聯繫\n謝謝！`
+        };
+      } else if (paymentMethod === 'line_pay') {
         // 黑貓宅配 + LINE Pay
         textMessage = {
           type: 'text',
@@ -559,7 +597,9 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
           text: orderNumber // 添加普通文字訊息
         },{
           type: "flex",
-          altText: paymentMethod === 'linepay' 
+          altText: skipPayment && paymentStatus === 'completed'
+            ? `${orderNumber} 建立成功，請至店面自取商品，已用點數完全折抵`
+            : paymentMethod === 'line_pay' 
             ? `${orderNumber} 建立成功，請至店面自取商品，已用LINE Pay付款` 
             : `${orderNumber} 建立成功，請至店面自取並現場付款`,
           contents: {
@@ -577,7 +617,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   color: "#ffffff"
                 }
               ],
-              backgroundColor: paymentMethod === 'linepay' ? "#673AB7" : "#673AB7", // LINE Pay為綠色，取貨時付款為紫色
+              backgroundColor: (skipPayment && paymentStatus === 'completed') ? "#06C755" : (paymentMethod === 'line_pay' ? "#673AB7" : "#673AB7"),
               paddingAll: "md"
             },
             body: {
@@ -588,19 +628,21 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                 {
                   type: "box",
                   layout: "vertical",
-                  backgroundColor: paymentMethod === 'linepay' ? "#E6F7ED" : "#EDE7F6",
+                  backgroundColor: (skipPayment && paymentStatus === 'completed') ? "#E6F7ED" : (paymentMethod === 'line_pay' ? "#E6F7ED" : "#EDE7F6"),
                   paddingAll: "md",
                   cornerRadius: "md",
                   contents: [
                     {
                       type: "text",
-                      text: paymentMethod === 'linepay' 
+                      text: (skipPayment && paymentStatus === 'completed')
+                        ? "點數完全折抵"
+                        : paymentMethod === 'line_pay' 
                         ? "LINE Pay 付款已完成" 
                         : "請於取貨時現場付款",
                       size: "md",
                       weight: "bold",
                       align: "center",
-                      color: paymentMethod === 'linepay' ? "#06C755" : "#512DA8",
+                      color: (skipPayment && paymentStatus === 'completed') ? "#06C755" : (paymentMethod === 'line_pay' ? "#06C755" : "#512DA8"),
                       wrap: true
                     }
                   ]
@@ -1013,7 +1055,222 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
             }
           }
         }];
-      } else if (paymentMethod === 'linepay') {
+      } else if (skipPayment && paymentStatus === 'completed') {
+        // 零付款 - 點數完全折抵的 Flex Message (宅配)
+        flexMessage = [{
+          type: 'text',
+          text: orderNumber // 添加普通文字訊息
+        },{
+          type: "flex",
+          altText: `訂單編號 ${orderNumber} 建立成功，點數完全折抵`,
+          contents: {
+            type: "bubble",
+            header: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "訂單已建立",
+                  size: "xl",
+                  align: "center",
+                  weight: "bold",
+                  color: "#ffffff"
+                }
+              ],
+              backgroundColor: "#06C755",  // 綠色表示完成
+              paddingAll: "md"
+            },
+            body: {
+              type: "box",
+              layout: "vertical",
+              spacing: "md",
+              contents: [
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#E6F7ED",  // 淺綠色背景
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "點數完全折抵",
+                      size: "md",
+                      weight: "bold",
+                      align: "center",
+                      color: "#06C755",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "separator",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: `訂單編號：${orderNumber || "未提供"}`,
+                  size: "sm",
+                  color: "#333333",
+                  margin: "md"
+                },
+                {
+                  type: "text",
+                  text: "訂單明細",
+                  weight: "bold",
+                  color: "#06C755",
+                  margin: "lg",
+                  size: "md"
+                },
+                ...(orderItems.length > 0 ? orderItems.map((item: OrderItem) => ({
+                  type: "box",
+                  layout: "vertical",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "box",
+                      layout: "horizontal",
+                      contents: [
+                        {
+                          type: "text",
+                          text: `${item.product_name.replace(/\r\n/g, '')} x${item.quantity}`,
+                          size: "sm",
+                          color: "#555555",
+                          flex: 5,
+                          margin: "sm"
+                        },
+                        {
+                          type: "text",
+                          text: `$${item.subtotal}`,
+                          size: "sm",
+                          align: "end",
+                          color: "#111111",
+                          flex: 2
+                        }
+                      ]
+                    },
+                    // 添加口味備註的顯示
+                    ...(item.order_item_notes ? [{
+                      type: "text",
+                      text: `[口味: ${item.order_item_notes}]`,
+                      size: "xs",
+                      color: "#888888",
+                      margin: "sm",
+                      wrap: true
+                    }] : [])
+                  ]
+                })) : [{
+                  type: "text",
+                  text: "無法獲取訂單明細",
+                  size: "sm",
+                  color: "#555555",
+                  align: "center"
+                }]),
+                
+                // 運費顯示（如果有運費）
+                ...(shippingFee > 0 ? [{
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "運費",
+                      size: "sm",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${shippingFee}`,
+                      size: "sm",
+                      align: "end",
+                      color: "#111111"
+                    }
+                  ]
+                }] : []),
+                
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "md",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "總計",
+                      size: "sm",
+                      weight: "bold",
+                      color: "#333333"
+                    },
+                    {
+                      type: "text",
+                      text: `$${totalAmount}`,
+                      size: "sm",
+                      align: "end",
+                      weight: "bold",
+                      color: "#111111"
+                    }
+                  ]
+                },
+                
+                {
+                  type: "separator",
+                  margin: "lg"
+                },
+                {
+                  type: "box",
+                  layout: "vertical",
+                  backgroundColor: "#E6F7ED",
+                  paddingAll: "md",
+                  cornerRadius: "md",
+                  margin: "lg",
+                  contents: [
+                    {
+                      type: "text",
+                      text: "配送資訊",
+                      weight: "bold",
+                      color: "#06C755",
+                      size: "md",
+                      align: "center"
+                    },
+                    {
+                      type: "text",
+                      text: "商品將以黑貓宅急便低溫冷凍配送",
+                      size: "sm",
+                      color: "#444444",
+                      align: "center",
+                      margin: "sm",
+                      wrap: true
+                    }
+                  ]
+                },
+                {
+                  type: "text",
+                  text: "點數已成功折抵，無需額外付款\n若有任何問題，請透過LINE與我們聯繫",
+                  size: "xs",
+                  color: "#888888",
+                  align: "center",
+                  wrap: true,
+                  margin: "md"
+                }
+              ]
+            },
+            footer: {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "感謝您的訂購",
+                  size: "sm",
+                  align: "center",
+                  color: "#aaaaaa"
+                }
+              ]
+            }
+          }
+        }];
+      } else if (paymentMethod === 'line_pay') {
         // LINE Pay 的 Flex Message
         flexMessage = [{
           type: 'text',

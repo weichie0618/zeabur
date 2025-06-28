@@ -243,44 +243,11 @@ export default function OrdersPage() {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">還沒有訂單紀錄</h2>
             <p className="text-gray-600 max-w-md mx-auto mb-6">
-              看起來您還沒有在我們這裡購買過任何商品。<br />
-              不如現在就來探索我們精心製作的美味烘焙商品吧！
+              來探索我們精心製作的美味烘焙商品吧！
             </p>
           </div>
           
-          <div className="space-y-4 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
-                <div className="text-amber-600 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-800 text-sm">新鮮烘焙</h3>
-                <p className="text-xs text-gray-600">每日新鮮出爐</p>
-              </div>
-              
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
-                <div className="text-amber-600 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-800 text-sm">精心製作</h3>
-                <p className="text-xs text-gray-600">用心製作每一份</p>
-              </div>
-              
-              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
-                <div className="text-amber-600 mb-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-gray-800 text-sm">快速配送</h3>
-                <p className="text-xs text-gray-600">迅速送達您手中</p>
-              </div>
-            </div>
-          </div>
+         
           
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             <Link href="/client/bakery" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2">

@@ -1430,8 +1430,8 @@ export default function CheckoutPage() {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">${(item.price * item.quantity)}</p>
-                    <p className="text-sm text-gray-500">${item.price.toFixed(0)} x {item.quantity}</p>
+                    <p className="font-medium">${Math.floor(item.price * item.quantity)}</p>
+                    <p className="text-sm text-gray-500">${Math.floor(Number(item.price))} x {item.quantity}</p>
                   </div>
                 </div>
               ))}

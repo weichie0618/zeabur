@@ -80,8 +80,9 @@ export default function TransactionsPage() {
   
   const [lineUser, setLineUser] = useState<LineUser | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>('');
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
   // 手動 LIFF 初始化狀態
   const [manualLiff, setManualLiff] = useState<any>(null);
@@ -204,38 +205,42 @@ export default function TransactionsPage() {
   // 初始化
   useEffect(() => {
     const initializeUser = async () => {
-      
-      const currentLiff = liff || manualLiff;
-      const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
-      const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
-      
-     
-      
-      if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
-       
-        const user = await getOrCreateLineUser();
-       
-        if (user) {
-         
-          setLineUser(user);
-          await loadTransactions(user.lineId);
+      if (!isInitialized) {
+        const currentLiff = liff || manualLiff;
+        const currentProfile = profile || (manualLiff?.getProfile ? await manualLiff.getProfile() : null);
+        const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
+        
+        if (!liffLoading && currentIsLoggedIn && currentProfile?.userId) {
+          try {
+            const user = await getOrCreateLineUser();
+            if (user) {
+              setLineUser(user);
+              await loadTransactions(user.lineId);
+            } else {
+              console.log('❌ 未獲取到有效用戶');
+              setError('未獲取到有效用戶');
+            }
+          } catch (error) {
+            console.error('初始化失敗:', error);
+            setError('初始化失敗');
+          }
         } else {
-          console.log('❌ 未獲取到有效用戶');
+          console.log('❌ 條件未通過，無法載入交易記錄');
+          setLoading(false);
         }
-      } else {
-        console.log('❌ 條件未通過，無法載入交易記錄');
+        
+        setIsInitialized(true);
       }
     };
 
-    
     initializeUser();
-  }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadTransactions]);
+  }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadTransactions, isInitialized]);
 
   // 檢查 LIFF 狀態
   const currentLiff = liff || manualLiff;
   const currentIsLoggedIn = isLoggedIn || (manualLiff?.isLoggedIn ? manualLiff.isLoggedIn() : false);
 
-  if (liffLoading && !manualLiff) {
+  if (loading && !currentIsLoggedIn) {
     return (
       <div className="max-w-4xl mx-auto py-6 px-4">
         <div className="text-center py-12 bg-amber-50 rounded-lg">
@@ -290,17 +295,14 @@ export default function TransactionsPage() {
               <h1 className="text-2xl font-bold text-gray-900">點數交易記錄</h1>
               <p className="text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
             </div>
-            <Link
-              href="/client/bakery/points"
-              className="group relative overflow-hidden bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 text-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 w-full sm:w-auto"
+             <Link 
+              href="/client/bakery/points" 
+              className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium"
             >
-              <div className="relative z-10 flex items-center justify-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                </svg>
-                <span>返回點數商城</span>
-              </div>
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-amber-600/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              回到點數商城
             </Link>
           </div>
 

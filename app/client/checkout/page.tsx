@@ -98,9 +98,7 @@ export default function CheckoutPage() {
   const [modalStatus, setModalStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [modalMessage, setModalMessage] = useState('');
 
-  // 手動 LIFF 初始化狀態
-  const [manualLiff, setManualLiff] = useState<any>(null);
-  const [isLiffScriptLoaded, setIsLiffScriptLoaded] = useState(false);
+
 
   // 新增錯誤追蹤狀態
   const [debugErrors, setDebugErrors] = useState<string[]>([]);
@@ -322,49 +320,7 @@ export default function CheckoutPage() {
     return Math.max(0, calculatedTotal); // 確保總金額不為負數
   }, [subtotal, discountAmount, shippingFee, pointsDiscount]);
 
-  // LIFF 腳本載入完成處理
-  const handleLiffScriptLoad = () => {
-    console.log('LIFF 腳本載入完成');
-    setIsLiffScriptLoaded(true);
-  };
 
-  // 手動初始化 LIFF
-  const initializeLiffManually = async () => {
-    if (!window.liff) {
-      console.error('LIFF SDK 未載入');
-      return;
-    }
-
-    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
-    if (!liffId) {
-      console.error('LIFF ID 未設定');
-      return;
-    }
-
-    try {
-      console.log('開始手動初始化 LIFF...');
-      await window.liff.init({ liffId });
-      console.log('LIFF 手動初始化成功');
-      setManualLiff(window.liff);
-      
-      if (window.liff.isLoggedIn()) {
-        console.log('用戶已登入');
-      } else if (window.liff.isInClient()) {
-        console.log('在 LINE 中但未登入，自動登入...');
-        window.liff.login();
-      }
-    } catch (error) {
-      console.error('LIFF 手動初始化失敗:', error);
-    }
-  };
-
-  // 當 LIFF 腳本載入完成且沒有從 LiffProvider 獲取到 LIFF 時，嘗試手動初始化
-  useEffect(() => {
-    if (isLiffScriptLoaded && !liff && !manualLiff) {
-      console.log('嘗試手動初始化 LIFF...');
-      initializeLiffManually();
-    }
-  }, [isLiffScriptLoaded, liff, manualLiff]);
 
   // 計算預設自取日期時間（D+3，不含週六，固定15:00）
   const calculateDefaultPickupDateTime = (): string => {
@@ -831,7 +787,7 @@ export default function CheckoutPage() {
       // 處理LINE Pay支付
       if (paymentMethod === 'line_pay') {
         // 發送 LINE FLEX 訊息（如果在 LINE App 中）
-        const activeLiff = liff || manualLiff;
+        const activeLiff = liff;
         if (activeLiff && activeLiff.isInClient && activeLiff.isInClient() && activeLiff.sendMessages) {
           try {
             // 構建 FLEX 訊息
@@ -1211,11 +1167,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* 載入 LIFF SDK */}
-      <Script 
-        src="https://static.line-scdn.net/liff/edge/2/sdk.js"
-        onLoad={handleLiffScriptLoad}
-      />
+
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold mb-2">結帳</h1>
         <div className="h-1 w-20 bg-amber-400 rounded-full"></div>
@@ -1781,8 +1733,8 @@ export default function CheckoutPage() {
                     </button>
                     <button 
                       type="button"
-                      onClick={async () => {
-                        await initializeLiffManually();
+                      onClick={() => {
+                        console.log('LIFF已由LiffProvider管理');
                       }}
                       className="text-orange-600 hover:text-orange-800"
                     >

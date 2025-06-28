@@ -504,6 +504,25 @@ export default function CheckoutPage() {
     setPointsToUse(maxPoints);
   };
 
+  // 監控總計變化，自動調整點數使用量
+  useEffect(() => {
+    if (pointsToUse > 0) {
+      // 計算當前可折抵的最大金額
+      const maxDiscountAmount = subtotal - discountAmount + shippingFee;
+      const maxPoints = Math.min(userPoints, maxDiscountAmount);
+      
+      // 如果當前使用的點數超過最大可用點數，自動調整
+      if (pointsToUse > maxPoints) {
+        setPointsToUse(maxPoints);
+        console.log('自動調整點數使用量:', {
+          original: pointsToUse,
+          adjusted: maxPoints,
+          reason: '總計金額變更導致可用點數減少'
+        });
+      }
+    }
+  }, [subtotal, discountAmount, shippingFee, userPoints, pointsToUse]);
+
   // 新增驗證優惠碼的函數
   const validateDiscountCode = async () => {
     // 清除之前的驗證結果
@@ -1412,40 +1431,40 @@ export default function CheckoutPage() {
               <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
                 {/* 簡化標題 */}
                 <div className="px-4 py-3 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-gray-900">使用點數 <span className="text-sm text-gray-500">(1點 = 1元)</span></h3>
-                    {userPoints > 0 && (
-                      <button
-                        type="button"
-                        onClick={useAllPoints}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        全部使用
-                      </button>
-                    )}
-                  </div>
+                  <h3 className="font-medium text-gray-900">使用點數</h3>
                 </div>
 
                 <div className="p-4">
                   {userPoints > 0 ? (
                     <div className="space-y-3">
-                      {/* 可用點數與輸入 */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <div className="text-sm text-gray-600 mb-1">可用: {pointsLoading ? '載入中...' : `${userPoints.toLocaleString()} 點`}</div>
-                          <input
-                            type="number"
-                            value={pointsToUse}
-                            onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
-                            min="0"
-                            max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="輸入使用點數"
-                          />
+                      {/* 可用點數與全部使用按鈕同行 */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-600">
+                          可用: {pointsLoading ? '載入中...' : `${userPoints.toLocaleString()} 點`}
                         </div>
+                        <button
+                          type="button"
+                          onClick={useAllPoints}
+                          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                        >
+                          全部使用
+                        </button>
                       </div>
                       
-                      {/* 簡化的折抵預覽 */}
+                      {/* 點數輸入 */}
+                      <div>
+                        <input
+                          type="number"
+                          value={pointsToUse}
+                          onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
+                          min="0"
+                          max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="輸入使用點數"
+                        />
+                      </div>
+                      
+                      {/* 折抵預覽 */}
                       {pointsToUse > 0 && (
                         <div className="bg-green-50 border border-green-200 rounded-md p-3">
                           <div className="flex justify-between items-center">

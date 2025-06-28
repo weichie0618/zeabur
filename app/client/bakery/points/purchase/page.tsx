@@ -456,33 +456,37 @@ export default function PurchasePage() {
         </div>
       )}
 
-      {/* 購買須知 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-blue-900 mb-3 flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          購買須知
-        </h3>
-        <ul className="text-blue-800 space-y-2 text-sm">
-          <li className="flex items-start">
-            <span className="text-blue-600 mr-2">•</span>
-            點數卡購買後，點數會立即加入您的帳戶
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-600 mr-2">•</span>
-            點數可用於購物時折抵現金，1點 = 1元
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-600 mr-2">•</span>
-            點數無使用期限，請安心購買
-          </li>
-          <li className="flex items-start">
-            <span className="text-blue-600 mr-2">•</span>
-            如有任何問題，請聯繫客服人員
-          </li>
-        </ul>
-      </div>
+       {/* 購買須知 */}
+       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-blue-900 mb-3 flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            購買須知
+          </h3>
+          <ul className="text-blue-800 space-y-2 text-sm">
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              點數卡購買後，會由總部核帳完成，將點數卡加入您的帳戶
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              點數可用於購物時折抵現金，1點 = 1元
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              點數無使用期限，請安心購買
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              本商品由本公司自行擔保，若出現無法使用錯誤等情形，請於 7 日內聯繫客服，我們將協助處理
+            </li>
+            <li className="flex items-start">
+              <span className="text-blue-600 mr-2">•</span>
+              如有任何問題，請聯繫客服人員
+            </li>
+          </ul>
+        </div>
     </div>
     </>
   );

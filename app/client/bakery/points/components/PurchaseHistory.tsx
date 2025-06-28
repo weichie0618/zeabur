@@ -135,7 +135,7 @@ export default function PurchaseHistory({ purchases, loading, error }: PurchaseH
             </svg>
           </div>
           <h4 className="text-gray-700 font-semibold mb-2 text-base sm:text-lg">暫無購買記錄</h4>
-          <p className="text-gray-500 text-sm sm:text-base max-w-sm mx-auto">您還沒有購買過虛擬點數卡，快去選購您的第一張點數卡吧！</p>
+          <p className="text-gray-500 text-sm sm:text-base max-w-sm mx-auto">快去充值點數吧！</p>
         </div>
       ) : (
         <div className="space-y-4 sm:space-y-6">

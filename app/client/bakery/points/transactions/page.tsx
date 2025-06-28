@@ -285,17 +285,22 @@ export default function TransactionsPage() {
       <div className="max-w-4xl mx-auto py-6 px-4">
         <div className="space-y-6">
           {/* 頁面標題和導航 */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">點數交易記錄</h1>
-              <p className="text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+            <div className="text-center sm:text-left">
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">點數交易記錄</h1>
+              <p className="text-sm sm:text-base text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
             </div>
-            <Link
-              href="/client/bakery/points"
-              className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              返回點數商城
-            </Link>
+            <div className="flex justify-center sm:justify-end">
+              <Link
+                href="/client/bakery/points"
+                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                </svg>
+                <span>返回點數商城</span>
+              </Link>
+            </div>
           </div>
 
           {/* 交易記錄 */}

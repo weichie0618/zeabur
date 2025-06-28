@@ -230,7 +230,7 @@ export default function PointsPage() {
           {/* 頁面標題 */}
           <div className="text-center px-4 sm:px-0">
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3">點數商城</h1>
-            <p className="text-gray-600 text-sm sm:text-base">購買虛擬點數卡，享受更多購物優惠</p>
+            <p className="text-gray-600 text-sm sm:text-base">購買點數卡，享受更多購物優惠</p>
           </div>
 
           {/* 點數餘額 */}

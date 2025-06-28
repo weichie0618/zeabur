@@ -1431,7 +1431,7 @@ export default function CheckoutPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium">${(item.price * item.quantity)}</p>
-                    <p className="text-sm text-gray-500">${item.price} x {item.quantity}</p>
+                    <p className="text-sm text-gray-500">${item.price.toFixed(0)} x {item.quantity}</p>
                   </div>
                 </div>
               ))}
@@ -1562,7 +1562,7 @@ export default function CheckoutPage() {
                           </div>
                         ) : (
                           <div className="text-xs text-gray-500">
-                            最多可使用 {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()} 點
+                            最多使用 {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()} 點
                           </div>
                         )}
                       </div>

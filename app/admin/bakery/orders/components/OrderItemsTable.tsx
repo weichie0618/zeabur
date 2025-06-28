@@ -51,15 +51,38 @@ const OrderItemsTable: React.FC<OrderItemsTableProps> = ({
         <tbody className="bg-white divide-y divide-gray-200">
           {items && items.length > 0 ? (
             items.map((item, index) => {
-              // 計算小計
+              // 修復價格處理邏輯，支持字符串格式
               const quantity = typeof item.quantity === 'number' ? item.quantity : 0;
-              const price = typeof item.price === 'number' ? item.price : 0;
-              const subtotal = quantity * price;
+              
+              // 價格處理：優先處理字符串格式，然後是數字格式
+              let price = 0;
+              if (typeof item.price === 'string' && item.price !== '') {
+                price = parseFloat(item.price);
+              } else if (typeof item.price === 'number') {
+                price = item.price;
+              }
+              
+              // 小計處理：優先使用API返回的subtotal，如果沒有則計算
+              let subtotal = 0;
+              if (item.subtotal !== undefined) {
+                if (typeof item.subtotal === 'string' && item.subtotal !== '') {
+                  subtotal = parseFloat(item.subtotal);
+                } else if (typeof item.subtotal === 'number') {
+                  subtotal = item.subtotal;
+                }
+              } else {
+                subtotal = quantity * price;
+              }
               
               return (
                 <tr key={item.id || index}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.product?.name || item.product_name}
+                    <div>
+                      <div className="font-medium">{item.product?.name || item.product_name}</div>
+                      {item.product_specification && (
+                        <div className="text-xs text-gray-500">{item.product_specification}</div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {quantity}

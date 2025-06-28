@@ -126,11 +126,20 @@ export default function OrderDetail() {
   // 開啟編輯商品模態視窗
   const handleOpenEditItem = (item: OrderItem) => {
     setCurrentItem(item);
+    
+    // 修復價格處理：支持字符串格式的價格
+    let itemPrice = 0;
+    if (typeof item.price === 'string' && item.price !== '') {
+      itemPrice = parseFloat(item.price);
+    } else if (typeof item.price === 'number') {
+      itemPrice = item.price;
+    }
+    
     setEditItemForm({
       id: item.id,
       product_id: item.product_id,
       quantity: item.quantity,
-      price: item.price || 0
+      price: itemPrice
     });
     setShowEditItem(true);
     // 確保商品列表已載入

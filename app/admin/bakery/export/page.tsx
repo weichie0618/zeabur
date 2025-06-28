@@ -54,8 +54,8 @@ interface OrderItem {
   product_name: string;
   product_image: string;
   quantity: number;
-  price: number;
-  subtotal: number;
+  price: number | string; // 支持字符串和數字格式
+  subtotal: number | string; // 支持字符串和數字格式
   product_unit_code: string;
 }
 
@@ -494,7 +494,7 @@ export default function OrderExportPage() {
       '01',                                                 // 庫別 ODDT010
       '總倉',                                               // 庫別名稱 STRG002
       item ? item.quantity.toString() || '0' : '0',         // 數量 ODDTA01IQTY
-      item ? item.price.toString() || '0' : '0',            // 單價 ODDTA1FPRIC
+      item ? (typeof item.price === 'string' ? item.price : item.price.toString()) || '0' : '0',            // 單價 ODDTA1FPRIC
       '',                                                  // 折扣率 ODDTA01IRAT
       ''                                                    // 明細備註 ODDT026
     ];

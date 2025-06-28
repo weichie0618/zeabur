@@ -58,8 +58,17 @@ export interface OrderItem {
   product_id: string;
   product_name: string;
   quantity: number;
-  price: number;
+  price: number | string;
   unit_price?: number;
+  subtotal?: number | string;
+  product_description?: string;
+  product_image?: string;
+  product_specification?: string;
+  product_status?: string;
+  product_unit_code?: string;
+  unit_code?: string;
+  order_item_notes?: string;
+  product_short_description?: string;
   product?: Product;
 }
 

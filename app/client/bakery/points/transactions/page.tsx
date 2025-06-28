@@ -16,7 +16,15 @@ interface Transaction {
   createdAt: string;
   order?: {
     id: number;
-    orderNumber: string;
+    order_number: string;
+    customer_name?: string;
+    total_amount?: string;
+    payment_method?: string;
+    payment_status?: string;
+    shipping_method?: string;
+    shipping_status?: string;
+    created_at?: string;
+    updated_at?: string;
   };
 }
 
@@ -363,7 +371,7 @@ export default function TransactionsPage() {
                           </div>
                           {transaction.order && (
                             <div>
-                              相關訂單: {transaction.order.orderNumber}
+                              相關訂單: {transaction.order?.order_number}
                             </div>
                           )}
                         </div>

@@ -1445,39 +1445,86 @@ export default function CheckoutPage() {
                         <button
                           type="button"
                           onClick={useAllPoints}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-medium rounded-md shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 active:scale-95"
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
                           全部使用
                         </button>
                       </div>
                       
                       {/* 點數輸入 */}
-                      <div>
-                        <input
-                          type="number"
-                          value={pointsToUse}
-                          onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
-                          min="0"
-                          max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="輸入使用點數"
-                        />
-                      </div>
-                      
-                      {/* 折抵預覽 */}
-                      {pointsToUse > 0 && (
-                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-green-700">折抵金額</span>
-                            <span className="font-medium text-green-700">- ${pointsToUse.toLocaleString()}</span>
+                      <div className="relative">
+                        <div className="relative flex items-center">
+                          <div className="absolute left-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                          </div>
+                          <input
+                            type="number"
+                            value={pointsToUse}
+                            onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
+                            min="0"
+                            max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
+                            className="w-full pl-11 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:from-white focus:to-blue-50 transition-all duration-200 placeholder-gray-400"
+                            placeholder="0"
+                          />
+                          <div className="absolute right-3 flex items-center">
+                            <span className="text-blue-600 font-semibold text-sm bg-blue-100 px-2 py-1 rounded-full">
+                              點
+                            </span>
                           </div>
                         </div>
-                      )}
+                        <div className="flex justify-between text-xs text-gray-500 mt-2">
+                          <span>最小: 0</span>
+                          <span>最大: {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()}</span>
+                        </div>
+                      </div>
+                      
+                     
                     </div>
                   ) : (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 text-sm">目前沒有可用點數</p>
-                      <p className="text-gray-400 text-xs mt-1">完成購買後可獲得 10% 點數回饋</p>
+                    <div className="space-y-3">
+                      {/* 可用點數顯示 */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-sm text-gray-600">
+                          可用: {pointsLoading ? '載入中...' : '0 點'}
+                        </div>
+                      </div>
+                      
+                      {/* 點數輸入框 - 禁用狀態 */}
+                      <div className="relative">
+                        <div className="relative flex items-center">
+                          <div className="absolute left-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                            </svg>
+                          </div>
+                          <input
+                            type="number"
+                            value={0}
+                            disabled
+                            className="w-full pl-11 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gray-100 rounded-lg cursor-not-allowed text-gray-500"
+                            placeholder="0"
+                          />
+                          <div className="absolute right-3 flex items-center">
+                            <span className="text-gray-500 font-semibold text-sm bg-gray-200 px-2 py-1 rounded-full">
+                              點
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-2">
+                          <span>最小: 0</span>
+                          <span>最大: 0</span>
+                        </div>
+                      </div>
+                      
+                      {/* 點數回饋提示 */}
+                      <div className="text-center py-2">
+                        <p className="text-gray-400 text-xs">完成購買後可獲得 10% 點數回饋</p>
+                      </div>
                     </div>
                   )}
                 </div>

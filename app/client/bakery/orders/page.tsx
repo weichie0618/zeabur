@@ -3,13 +3,14 @@
 import React, { useEffect, useCallback } from 'react';
 import OrderList from './components/OrderList';
 import { useLiff } from '@/lib/LiffProvider';
+import Link from 'next/link';
 
 export default function OrdersPage() {
   const { liff, profile, isLoggedIn, isLoading: liffLoading, customerData } = useLiff();
   const [orders, setOrders] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
-  const [hasNoOrders, setHasNoOrders] = React.useState(false);
+  const [isEmptyOrders, setIsEmptyOrders] = React.useState(false);
   const [searchPerformed, setSearchPerformed] = React.useState(false);
   const [queryInfo, setQueryInfo] = React.useState({ email: '', phone: '' });
 
@@ -23,7 +24,7 @@ export default function OrdersPage() {
 
     setLoading(true);
     setError('');
-    setHasNoOrders(false);
+    setIsEmptyOrders(false);
     
     try {
       const response = await fetch('/api/orders/query', {
@@ -53,9 +54,7 @@ export default function OrdersPage() {
       setOrders(receivedOrders);
       
       if (receivedOrders.length === 0) {
-        setHasNoOrders(true);
-      } else {
-        setHasNoOrders(false);
+        setIsEmptyOrders(true);
       }
       
       setSearchPerformed(true);
@@ -63,7 +62,7 @@ export default function OrdersPage() {
       console.error('訂單查詢錯誤:', err);
       setError(err instanceof Error ? err.message : '查詢訂單時發生錯誤');
       setOrders([]);
-      setHasNoOrders(false);
+      setIsEmptyOrders(false);
     } finally {
       setLoading(false);
     }
@@ -153,21 +152,6 @@ export default function OrdersPage() {
     }
   }, [queryInfo, handleSearch]);
 
-  // 新增：導航到商品頁面的函數
-  const handleGoToProducts = useCallback(() => {
-    // 在 LIFF 環境中導航到商品頁面
-    if (typeof window !== 'undefined') {
-      window.location.href = '/client/bakery';
-    }
-  }, []);
-
-  // 新增：導航到點數商城的函數
-  const handleGoToPoints = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/client/bakery/points';
-    }
-  }, []);
-
   return (
     <div className="max-w-6xl mx-auto py-6 px-4">
       <div className="bg-white rounded-lg shadow-md p-6 mb-6 border border-amber-100">
@@ -225,87 +209,97 @@ export default function OrdersPage() {
         ) : null}
       </div>
 
-      {/* 新增：沒有訂單時的溫馨提示頁面 */}
-      {searchPerformed && hasNoOrders && !error && (
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-lg p-8 text-center border border-amber-100 mb-6">
-          {/* 溫馨的麵包圖標 */}
+      {searchPerformed && isEmptyOrders && !error && (
+        <div className="text-center bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-lg p-8 mb-6 border border-amber-200">
           <div className="mb-6">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-amber-100 rounded-full mb-4">
+            <div className="mx-auto w-24 h-24 bg-gradient-to-br from-amber-200 to-orange-200 rounded-full flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-          </div>
-
-          {/* 主要標題 */}
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">還沒有訂單紀錄</h2>
-          
-          {/* 溫馨描述 */}
-          <p className="text-gray-600 mb-2 max-w-md mx-auto">
-            歡迎來到我們的烘焙坊！您還沒有購買過任何商品
-          </p>
-          <p className="text-gray-500 text-sm mb-8 max-w-lg mx-auto">
-            我們有各式各樣的新鮮烘焙商品等著您來品嚐，從經典麵包到精緻糕點，每一樣都是用心製作 🥖✨
-          </p>
-
-          {/* 引導按鈕區域 */}
-          <div className="space-y-4 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center sm:items-center">
-            {/* 主要按鈕：瀏覽商品 */}
-            <button
-              onClick={handleGoToProducts}
-              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white font-medium px-8 py-3 rounded-lg transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-amber-300"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              開始購物
-            </button>
-
-            {/* 次要按鈕：點數商城 */}
-            <button
-              onClick={handleGoToPoints}
-              className="w-full sm:w-auto bg-white hover:bg-gray-50 text-amber-600 font-medium px-6 py-3 rounded-lg border-2 border-amber-200 hover:border-amber-300 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-amber-100"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">還沒有訂單紀錄</h2>
+            <p className="text-gray-600 max-w-md mx-auto mb-6">
+              看起來您還沒有在我們這裡購買過任何商品。<br />
+              不如現在就來探索我們精心製作的美味烘焙商品吧！
+            </p>
+          </div>
+          
+          <div className="space-y-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
+                <div className="text-amber-600 mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">新鮮烘焙</h3>
+                <p className="text-xs text-gray-600">每日新鮮出爐</p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
+                <div className="text-amber-600 mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">精心製作</h3>
+                <p className="text-xs text-gray-600">用心製作每一份</p>
+              </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-amber-100">
+                <div className="text-amber-600 mb-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-gray-800 text-sm">快速配送</h3>
+                <p className="text-xs text-gray-600">迅速送達您手中</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <Link href="/client/bakery" className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <span>開始購物</span>
+            </Link>
+            
+            <Link href="/client/bakery/points" className="bg-white border-2 border-amber-300 text-amber-600 hover:bg-amber-50 px-6 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
-              點數商城
-            </button>
+              <span>查看點數</span>
+            </Link>
           </div>
-
-          {/* 額外資訊 */}
-          <div className="mt-8 pt-6 border-t border-amber-200">
-            <p className="text-gray-500 text-sm">
-              💡 小提示：完成首次購買後，您就可以在這裡查看訂單狀態和歷史記錄囉！
-            </p>
+          
+          <div className="mt-6 text-sm text-gray-500">
+            <p>💡 購買後即可在此查看所有訂單記錄</p>
           </div>
         </div>
       )}
 
-      {/* 原有的成功狀態顯示 */}
-      {searchPerformed && !hasNoOrders && !error && orders.length > 0 && (
+      {searchPerformed && !error && !isEmptyOrders && orders.length > 0 && (
         <div className="mb-4 bg-amber-50 p-4 rounded-lg border border-amber-100 text-center">
           <p className="text-gray-700">已找到 <span className="font-bold text-amber-600">{orders.length}</span> 筆訂單紀錄</p>
           <p className="text-sm text-gray-500 mt-1">以下是您的訂單詳情</p>
         </div>
       )}
 
-      {/* 訂單列表 */}
-      {searchPerformed && !hasNoOrders && (
+      {searchPerformed && !isEmptyOrders && (
         <OrderList orders={orders} loading={loading} />
       )}
       
-      {/* 修改：只有真正的錯誤才顯示錯誤狀態 */}
-      {searchPerformed && error && !hasNoOrders && (
+      {searchPerformed && error && !isEmptyOrders && (
         <div className="mt-4 text-center bg-white rounded-lg shadow-md p-6 border border-amber-100">
-          <div className="text-red-500 text-5xl mb-4">
+          <div className="text-amber-600 text-5xl mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <p className="text-lg font-medium mb-2 text-red-600">查詢發生錯誤</p>
-          <p className="text-gray-600 mb-2">{error}</p>
-          <p className="text-gray-500 mb-4 text-sm">如果問題持續發生，請聯繫我們的客服</p>
+          <p className="text-lg font-medium mb-2">{error}</p>
+          <p className="text-gray-600 mb-4">如需協助，請聯繫我們的客服</p>
           <button 
             onClick={handleRetry}
             className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-md transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-amber-300"

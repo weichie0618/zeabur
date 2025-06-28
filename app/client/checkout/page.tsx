@@ -11,7 +11,6 @@ import { useUserPoints } from '../../contexts/PointsContext';
 // 表單驗證狀態接口
 interface FormValidation {
   name: boolean;
-  email: boolean;
   phone: boolean;
   address: boolean;
   pickupDateTime?: boolean; // 新增自取日期時間驗證
@@ -77,7 +76,6 @@ export default function CheckoutPage() {
   });
   const [validation, setValidation] = useState<FormValidation>({
     name: true,
-    email: true,
     phone: true,
     address: true
   });
@@ -466,7 +464,6 @@ export default function CheckoutPage() {
   const validateForm = (): boolean => {
     const newValidation = {
       name: !!formData.customerName,
-      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email),
       phone: /^09\d{8}$/.test(formData.phone),
       // 如果是自取，則驗證自取日期時間而非地址
       address: shippingMethod === 'pickup' ? true : !!formData.address,
@@ -789,7 +786,7 @@ export default function CheckoutPage() {
       })),
       customer_info: {
         name: formData.customerName,
-        email: formData.email,
+        email: formData.email || '123@example.com',
         phone: formData.phone
       },
       shipping_address: {
@@ -1636,18 +1633,16 @@ export default function CheckoutPage() {
               </div>
               
               <div>
-                <label htmlFor="email" className="block text-gray-700 mb-1">電子郵件 *</label>
+                <label htmlFor="email" className="block text-gray-700 mb-1">電子郵件</label>
                 <input
                   type="email"
                   id="email"
                   name="email"
-                  value={formData.email}
+                  value={formData.email || '123@example.com'}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-md ${!validation.email ? 'border-red-500' : 'border-gray-300'}`}
-                  placeholder="example@email.com"
-                  required
+                  className="w-full px-3 py-2 border rounded-md border-gray-300"
+                  placeholder="123@example.com"
                 />
-                {!validation.email && <p className="text-red-500 text-sm mt-1">請輸入有效的電子郵件</p>}
               </div>
             </div>
 

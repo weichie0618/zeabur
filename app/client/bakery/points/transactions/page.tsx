@@ -290,7 +290,7 @@ export default function TransactionsPage() {
       <div className="max-w-4xl mx-auto py-6 px-4">
         <div className="space-y-6">
           {/* 頁面標題和導航 */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+          <div className="text-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">點數交易記錄</h1>
               <p className="text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>

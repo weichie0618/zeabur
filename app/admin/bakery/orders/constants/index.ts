@@ -10,6 +10,7 @@ export const paymentMethodOptions = [
   { value: 'cash', label: '現金' },
   { value: 'credit_card', label: '信用卡' },
   { value: 'bank_transfer', label: '銀行轉帳' },
+  { value: 'remittance', label: '匯款' },
   { value: 'line_pay', label: 'Line Pay' }
 ];
 

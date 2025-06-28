@@ -1,11 +1,7 @@
-// 伺服器端組件 - 不需要 'use client' 聲明
-import { Metadata } from 'next';
+'use client';
 
-// 設置頁面的 metadata
-export const metadata: Metadata = {
-  title: '晴朗家烘焙 - 結帳頁面',
-  description: '完成您的訂單並選擇付款方式'
-};
+import React from 'react';
+import { LiffLayout } from '../LiffLayout';
 
 export default function CheckoutLayout({
   children,
@@ -13,8 +9,8 @@ export default function CheckoutLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <LiffLayout>
       {children}
-    </>
+    </LiffLayout>
   );
 } 

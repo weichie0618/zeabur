@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Script from 'next/script';
 import Link from 'next/link';
 import { useLiff } from '@/lib/LiffProvider';
+import { usePoints } from '../../../contexts/PointsContext';
 import PointsBalance from './components/PointsBalance';
 import PurchaseHistory from './components/PurchaseHistory';
 
@@ -31,18 +32,16 @@ interface LineUser {
 
 export default function PointsPage() {
   const { liff, profile, isLoggedIn, isLoading: liffLoading } = useLiff();
+  const { points: currentPoints, loading: pointsLoading, error: pointsError, refreshPoints } = usePoints();
   
   // 狀態管理
   const [lineUser, setLineUser] = useState<LineUser | null>(null);
-  const [currentPoints, setCurrentPoints] = useState<number>(0);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   
   // 載入狀態
-  const [pointsLoading, setPointsLoading] = useState<boolean>(false);
   const [purchasesLoading, setPurchasesLoading] = useState<boolean>(false);
   
   // 錯誤狀態
-  const [pointsError, setPointsError] = useState<string>('');
   const [purchasesError, setPurchasesError] = useState<string>('');
 
   // 手動 LIFF 初始化狀態
@@ -78,27 +77,7 @@ export default function PointsPage() {
     }
   }, [profile]);
 
-  // 載入用戶點數餘額
-  const loadPointsBalance = useCallback(async (lineId: string) => {
-    setPointsLoading(true);
-    setPointsError('');
-
-    try {
-      const response = await fetch(`/api/points/balance/${lineId}`);
-      const data = await response.json();
-
-      if (data.success && data.data) {
-        setCurrentPoints(data.data.availablePoints || 0);
-      } else {
-        setCurrentPoints(0);
-      }
-    } catch (error) {
-      console.error('載入點數餘額失敗:', error);
-      setPointsError('載入點數餘額失敗');
-    } finally {
-      setPointsLoading(false);
-    }
-  }, []);
+  // 載入用戶點數餘額 - 現在使用共享的Context，所以不再需要這個函數
 
 
 
@@ -180,17 +159,14 @@ export default function PointsPage() {
         if (user) {
           setLineUser(user);
           
-          // 並行載入所有數據
-          await Promise.all([
-            loadPointsBalance(user.lineId),
-            loadPurchaseHistory(user.lineId)
-          ]);
+          // 載入購買記錄 (點數餘額由Context管理)
+          await loadPurchaseHistory(user.lineId);
         }
       }
     };
 
     initializeUser();
-  }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadPointsBalance, loadPurchaseHistory]);
+  }, [liffLoading, isLoggedIn, profile, manualLiff, getOrCreateLineUser, loadPurchaseHistory]);
 
   // 檢查 LIFF 狀態
   const currentLiff = liff || manualLiff;
@@ -263,7 +239,7 @@ export default function PointsPage() {
               points={currentPoints}
               loading={pointsLoading}
               error={pointsError}
-              onRefresh={() => lineUser && loadPointsBalance(lineUser.lineId)}
+              onRefresh={refreshPoints}
             />
           </div>
 

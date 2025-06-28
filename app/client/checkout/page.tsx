@@ -6,7 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useLiff } from '@/lib/LiffProvider';
-import { useUserPoints } from '../bakery/hooks/useUserPoints';
+import { useUserPoints } from '../../contexts/PointsContext';
 
 // 表單驗證狀態接口
 interface FormValidation {
@@ -183,18 +183,8 @@ export default function CheckoutPage() {
         customerName: profile.displayName || prev.customerName,
         email: profile.email || prev.email,
       }));
-      
-      // 登入成功後刷新點數
-      refreshPoints();
     }
-  }, [isLoggedIn, profile, liffLoading, refreshPoints]);
-
-  // 監聽登入狀態變化，確保頁面正確重新渲染
-  useEffect(() => {
-    if (isLoggedIn && !liffLoading) {
-      console.log('用戶已成功登入 LINE');
-    }
-  }, [isLoggedIn, liffLoading]);
+  }, [isLoggedIn, profile, liffLoading]);
 
   // 如果有客戶資料，自動填充表單
   useEffect(() => {
@@ -1211,58 +1201,10 @@ export default function CheckoutPage() {
     }
   }, [shippingMethod, formData.pickupDateTime]);
 
-  // 登入狀態檢查 - 如果LIFF載入完成但用戶未登入，顯示登入提示
-  if (!liffLoading && !isLoggedIn) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full mx-4">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">需要登入</h2>
-            <p className="text-gray-600 mb-6">
-              請先登入 LINE 帳號才能進行結帳
-            </p>
-            <button
-              onClick={() => {
-                if (liff) {
-                  liff.login();
-                } else if (manualLiff) {
-                  manualLiff.login();
-                } else {
-                  // 如果LIFF還沒載入，嘗試重新初始化
-                  initializeLiffManually();
-                }
-              }}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-3 px-4 rounded-md transition-colors"
-            >
-              LINE 登入
-            </button>
-            <button
-              onClick={() => router.push('/client/bakery')}
-              className="w-full mt-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 px-4 rounded-md transition-colors"
-            >
-              返回商品頁面
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // LIFF載入中
-  if (liffLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {liffLoading ? '正在初始化 LINE 登入...' : '載入中...'}
-          </p>
-        </div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600"></div>
       </div>
     );
   }
@@ -1513,63 +1455,52 @@ export default function CheckoutPage() {
             </button>
 
             {/* 點數折抵區域 */}
-            <div className="border-t pt-4 mt-4">
-              {isLoggedIn ? (
-                <>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      可用點數：{pointsLoading ? '載入中...' : userPoints}
-                    </span>
-                    {userPoints > 0 && (
-                      <button
-                        type="button"
-                        onClick={useAllPoints}
-                        className="text-xs text-amber-600 hover:text-amber-700 underline"
-                      >
-                        全部使用
-                      </button>
+            {isLoggedIn && (
+              <div className="border-t pt-4 mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    可用點數：{pointsLoading ? '載入中...' : userPoints}
+                  </span>
+                  {userPoints > 0 && (
+                    <button
+                      type="button"
+                      onClick={useAllPoints}
+                      className="text-xs text-amber-600 hover:text-amber-700 underline"
+                    >
+                      全部使用
+                    </button>
+                  )}
+                </div>
+                
+                {userPoints > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={pointsToUse}
+                        onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
+                        min="0"
+                        max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        placeholder="輸入使用點數"
+                      />
+                      <span className="text-sm text-gray-500">點</span>
+                    </div>
+                    {pointsToUse > 0 && (
+                      <div className="text-xs text-green-600">
+                        將折抵 ${pointsToUse} 元
+                      </div>
                     )}
                   </div>
-                  
-                  {userPoints > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={pointsToUse}
-                          onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
-                          min="0"
-                          max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                          placeholder="輸入使用點數"
-                        />
-                        <span className="text-sm text-gray-500">點</span>
-                      </div>
-                      {pointsToUse > 0 && (
-                        <div className="text-xs text-green-600">
-                          將折抵 ${pointsToUse} 元
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {userPoints === 0 && !pointsLoading && (
-                    <div className="text-xs text-gray-500">
-                      目前沒有可用點數
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <div className="text-sm text-gray-500 mb-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mx-auto mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                    請先登入以使用點數折抵
+                )}
+                
+                {userPoints === 0 && !pointsLoading && (
+                  <div className="text-xs text-gray-500">
+                    目前沒有可用點數
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* 顧客資料表單 */}

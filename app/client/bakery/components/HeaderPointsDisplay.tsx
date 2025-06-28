@@ -1,5 +1,5 @@
 import React from 'react';
-import { useUserPoints } from '../hooks/useUserPoints';
+import { useUserPoints } from '../../../contexts/PointsContext';
 import { useLiff } from '@/lib/LiffProvider';
 
 interface HeaderPointsDisplayProps {

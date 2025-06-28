@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from 'react';
 import { LiffProvider } from '@/lib/LiffProvider';
+import { PointsProvider } from '../contexts/PointsContext';
 import { getLiffId } from '@/lib/env';
 
 interface LiffLayoutProps {
@@ -13,7 +14,9 @@ export function LiffLayout({ children }: LiffLayoutProps) {
 
   return (
     <LiffProvider liffId={liffId}>
-      {children}
+      <PointsProvider>
+        {children}
+      </PointsProvider>
     </LiffProvider>
   );
 } 

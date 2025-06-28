@@ -1447,9 +1447,7 @@ export default function CheckoutPage() {
                           onClick={useAllPoints}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-medium rounded-md shadow-sm hover:shadow-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 active:scale-95"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
+                         
                           全部使用
                         </button>
                       </div>
@@ -1477,10 +1475,7 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-2">
-                          <span>最小: 0</span>
-                          <span>最大: {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()}</span>
-                        </div>
+
                       </div>
                       
                      
@@ -1515,10 +1510,7 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-2">
-                          <span>最小: 0</span>
-                          <span>最大: 0</span>
-                        </div>
+
                       </div>
                       
                       {/* 點數回饋提示 */}

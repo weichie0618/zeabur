@@ -44,6 +44,18 @@ export default function OrdersPage() {
       const data = await response.json();
       
       if (!response.ok) {
+        // 檢查是否為"找不到訂單"的情況，將其視為正常狀態而非錯誤
+        if (data.message && (
+          data.message.includes('找不到符合條件的訂單') || 
+          data.message.includes('沒有找到符合條件的訂單') ||
+          data.message.includes('No orders found')
+        )) {
+          // 視為無訂單狀態，不是錯誤
+          setOrders([]);
+          setIsEmptyOrders(true);
+          setSearchPerformed(true);
+          return;
+        }
         throw new Error(data.message || '查詢訂單時發生錯誤');
       }
 
@@ -60,9 +72,21 @@ export default function OrdersPage() {
       setSearchPerformed(true);
     } catch (err) {
       console.error('訂單查詢錯誤:', err);
-      setError(err instanceof Error ? err.message : '查詢訂單時發生錯誤');
-      setOrders([]);
-      setIsEmptyOrders(false);
+      const errorMessage = err instanceof Error ? err.message : '查詢訂單時發生錯誤';
+      
+      // 再次檢查錯誤訊息，確保"找不到訂單"的情況被正確處理
+      if (errorMessage.includes('找不到符合條件的訂單') || 
+          errorMessage.includes('沒有找到符合條件的訂單') ||
+          errorMessage.includes('No orders found')) {
+        setOrders([]);
+        setIsEmptyOrders(true);
+        setSearchPerformed(true);
+        setError('');
+      } else {
+        setError(errorMessage);
+        setOrders([]);
+        setIsEmptyOrders(false);
+      }
     } finally {
       setLoading(false);
     }

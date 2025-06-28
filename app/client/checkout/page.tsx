@@ -1409,122 +1409,56 @@ export default function CheckoutPage() {
 
             {/* 點數折抵區域 */}
             {isLoggedIn && (
-              <div className="mt-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100 overflow-hidden">
-                {/* 標題區域 */}
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-4 py-3">
+              <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
+                {/* 簡化標題 */}
+                <div className="px-4 py-3 border-b border-gray-200">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="bg-white/20 rounded-lg p-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                      </div>
-                      <h3 className="text-white font-semibold text-lg">點數折抵</h3>
-                    </div>
-                    <div className="text-white text-sm font-medium bg-white/20 px-3 py-1 rounded-full">
-                      1點 = 1元
-                    </div>
-                  </div>
-                </div>
-
-                {/* 內容區域 */}
-                <div className="p-4 space-y-4">
-                  {/* 可用點數顯示 */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600">可用點數</span>
-                        <div className="text-xl font-bold text-gray-900">
-                          {pointsLoading ? (
-                            <div className="flex items-center space-x-2">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                              <span className="text-sm text-gray-500">載入中...</span>
-                            </div>
-                          ) : (
-                            <span className="text-blue-600">{userPoints.toLocaleString()}</span>
-                          )}
-                          <span className="text-base text-gray-500 ml-1">點</span>
-                        </div>
-                      </div>
-                    </div>
-                    
+                    <h3 className="font-medium text-gray-900">使用點數 <span className="text-sm text-gray-500">(1點 = 1元)</span></h3>
                     {userPoints > 0 && (
                       <button
                         type="button"
                         onClick={useAllPoints}
-                        className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300 active:scale-95"
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                       >
                         全部使用
                       </button>
                     )}
                   </div>
-                  
+                </div>
+
+                <div className="p-4">
                   {userPoints > 0 ? (
                     <div className="space-y-3">
-                      {/* 點數輸入區域 */}
-                      <div className="relative">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">使用點數</label>
-                        <div className="relative flex items-center">
-                          <div className="absolute left-3 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                          </div>
+                      {/* 可用點數與輸入 */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <div className="text-sm text-gray-600 mb-1">可用: {pointsLoading ? '載入中...' : `${userPoints.toLocaleString()} 點`}</div>
                           <input
                             type="number"
                             value={pointsToUse}
                             onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
                             min="0"
                             max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
-                            className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-lg font-medium"
-                            placeholder="0"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="輸入使用點數"
                           />
-                          <div className="absolute right-3 text-gray-500 font-medium">點</div>
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                          <span>最少: 0 點</span>
-                          <span>最多: {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()} 點</span>
                         </div>
                       </div>
                       
-                      {/* 折抵預覽 */}
+                      {/* 簡化的折抵預覽 */}
                       {pointsToUse > 0 && (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                              <span className="text-sm font-medium text-green-800">預計折抵</span>
-                            </div>
-                            <div className="text-lg font-bold text-green-600">
-                              - ${pointsToUse.toLocaleString()}
-                            </div>
-                          </div>
-                          <div className="text-xs text-green-600 mt-1">
-                            使用 {pointsToUse.toLocaleString()} 點，節省 ${pointsToUse.toLocaleString()} 元
+                        <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-green-700">折抵金額</span>
+                            <span className="font-medium text-green-700">- ${pointsToUse.toLocaleString()}</span>
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-center py-6">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                        </svg>
-                      </div>
-                      <div className="text-gray-500 text-sm">
-                        <p className="font-medium">目前沒有可用點數</p>
-                        <p className="text-xs mt-1">完成購買後可獲得 10% 點數回饋</p>
-                      </div>
+                    <div className="text-center py-4">
+                      <p className="text-gray-500 text-sm">目前沒有可用點數</p>
+                      <p className="text-gray-400 text-xs mt-1">完成購買後可獲得 10% 點數回饋</p>
                     </div>
                   )}
                 </div>
@@ -1744,7 +1678,7 @@ export default function CheckoutPage() {
                       type="button"
                       onClick={async () => {
                         // 測試發送 LIFF 訊息
-                        const activeLiff = liff || manualLiff;
+                        const activeLiff = liff;
                         if (!activeLiff) {
                           const error = 'LIFF 物件不存在，請確保 LIFF 已正確初始化';
                           console.error(error);
@@ -1889,20 +1823,11 @@ export default function CheckoutPage() {
                     return localCustomerData?.lineId || '未獲取';
                   })()}</div>
                   <div>LIFF 物件 (Provider): {liff ? '存在' : '不存在'}</div>
-                  <div>LIFF 物件 (手動): {manualLiff ? '存在' : '不存在'}</div>
-                  <div>LIFF 腳本: {isLiffScriptLoaded ? '已載入' : '未載入'}</div>
                   <div>在 LINE App 中: {(() => {
-                    const activeLiff = liff || manualLiff;
-                    return activeLiff && activeLiff.isInClient ? (activeLiff.isInClient() ? '是' : '否') : '未知';
+                    return liff && liff.isInClient ? (liff.isInClient() ? '是' : '否') : '未知';
                   })()}</div>
-                  <div>sendMessages 可用: {(() => {
-                    const activeLiff = liff || manualLiff;
-                    return activeLiff && activeLiff.sendMessages ? '是' : '否';
-                  })()}</div>
-                  <div>openWindow 可用: {(() => {
-                    const activeLiff = liff || manualLiff;
-                    return activeLiff && activeLiff.openWindow ? '是' : '否';
-                  })()}</div>
+                  <div>sendMessages 可用: {liff && liff.sendMessages ? '是' : '否'}</div>
+                  <div>openWindow 可用: {liff && liff.openWindow ? '是' : '否'}</div>
                 </div>
                 
                 {/* 錯誤訊息顯示 */}

@@ -286,21 +286,22 @@ export default function TransactionsPage() {
         <div className="space-y-6">
           {/* 頁面標題和導航 */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-            <div className="text-center sm:text-left">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">點數交易記錄</h1>
-              <p className="text-sm sm:text-base text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">點數交易記錄</h1>
+              <p className="text-gray-600 mt-1">查看您的點數獲得和使用記錄</p>
             </div>
-            <div className="flex justify-center sm:justify-end">
-              <Link
-                href="/client/bakery/points"
-                className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            <Link
+              href="/client/bakery/points"
+              className="group relative overflow-hidden bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 text-center shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:translate-y-0 w-full sm:w-auto"
+            >
+              <div className="relative z-10 flex items-center justify-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                 </svg>
                 <span>返回點數商城</span>
-              </Link>
-            </div>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/20 to-amber-600/20 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
+            </Link>
           </div>
 
           {/* 交易記錄 */}

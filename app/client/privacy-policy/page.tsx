@@ -101,8 +101,8 @@ export default function PrivacyPolicy() {
           <h2 className="text-xl font-semibold mb-3">聯絡資訊</h2>
           <p>若您對於我們的隱私權政策有任何疑問，或希望行使您的權利，請透過以下方式聯絡我們：</p>
           <ul className="list-none mt-2">
-            <li><strong>Email：</strong> service@bakery.com.tw</li>
-            <li><strong>客服電話：</strong> 03-1234-5678</li>
+            <li><strong>Email：</strong> service@cityburger.com.tw</li>
+            <li><strong>客服電話：</strong> 03-3363620</li>
             <li><strong>地址：</strong> 桃園市蘆竹區油管路一段696號</li>
           </ul>
         </div>

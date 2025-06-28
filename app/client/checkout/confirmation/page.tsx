@@ -455,124 +455,6 @@ function OrderConfirmationContent() {
       setLiffError(null);
       debug += '開始構建 Flex Message...\n';
       
-      // 建立簡單文字訊息（作為備用）
-      let textMessage;
-      
-      // 根據配送方式和付款方式組合，提供對應的訊息
-      if (shippingMethod === 'pickup') {
-        // 自取訊息
-        if (skipPayment && paymentStatus === 'completed') {
-          // 零付款 - 點數完全折抵
-          textMessage = {
-            type: 'text',
-            text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-您已使用點數完全折抵，無需額外付款
-請至桃園市蘆竹區油管路一段696號自取商品
-
-📍 自取地址：
-桃園市蘆竹區油管路一段696號
-
-⏰ 預計自取時間：
-${formatPickupDateTime(pickupDateTime)}
-
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-          };
-        } else if (paymentMethod === 'line_pay') {
-          textMessage = {
-            type: 'text',
-            text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-您已使用LINE Pay完成付款
-請至桃園市蘆竹區油管路一段696號自取商品
-
-📍 自取地址：
-桃園市蘆竹區油管路一段696號
-
-⏰ 預計自取時間：
-${formatPickupDateTime(pickupDateTime)}
-
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-          };
-        } else {
-          // 取貨時付款
-          textMessage = {
-            type: 'text',
-            text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-請至桃園市蘆竹區油管路一段696號自取商品並現場付款
-
-📍 自取地址：
-桃園市蘆竹區油管路一段696號
-
-⏰ 預計自取時間：
-${formatPickupDateTime(pickupDateTime)}
-
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-          };
-        }
-      } else if (skipPayment && paymentStatus === 'completed') {
-        // 零付款 - 黑貓宅配 + 點數完全折抵
-        textMessage = {
-          type: 'text',
-          text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-您已使用點數完全折抵，無需額外付款
-我們將盡快安排宅配
-
-📦 宅配說明：
-商品會以黑貓宅急便低溫冷凍配送
-${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
-
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-        };
-      } else if (paymentMethod === 'line_pay') {
-        // 黑貓宅配 + LINE Pay
-        textMessage = {
-          type: 'text',
-          text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-您已使用LINE Pay完成付款
-我們將盡快安排宅配
-
-📦 宅配說明：
-商品會以黑貓宅急便低溫冷凍配送
-${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
-
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-        };
-      } else if (paymentMethod === 'cod') {
-        // 黑貓宅配 + 貨到付款
-        textMessage = {
-          type: 'text',
-          text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-我們將盡快安排宅配，收貨時付款即可
-
-📦 宅配說明：
-商品會以黑貓宅急便低溫冷凍配送
-${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}` : '免運費'}
-若有任何問題，請透過LINE與我們聯繫\n謝謝！`
-        };
-      } else {
-        // 黑貓宅配 + 匯款
-        textMessage = {
-          type: 'text',
-          text: `🎂 感謝您的訂購！
-訂單編號：${orderNumber}
-請於3日內完成匯款
-
-🏦 匯款資訊：
-銀行：${bankInfo.bankName}（${bankInfo.bankCode}）
-戶名：${bankInfo.accountName}
-帳號：${bankInfo.accountNumber}
-金額：$${orderData?.total_amount || '0'}
-${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData.shipping_fee}（已含在金額中）` : '免運費'}
-
-完成匯款後，請將匯款收據與訂單編號透過LINE傳送給我們，謝謝！`
-        };
-      }
-      
       // 使用從URL參數獲取的訂單項目
       const orderItems = orderData?.items || [];
       
@@ -598,7 +480,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
         },{
           type: "flex",
           altText: skipPayment && paymentStatus === 'completed'
-            ? `${orderNumber} 建立成功，請至店面自取商品，已用點數完全折抵`
+            ? `${orderNumber} 建立成功，請至店面自取商品，已用點數付款`
             : paymentMethod === 'line_pay' 
             ? `${orderNumber} 建立成功，請至店面自取商品，已用LINE Pay付款` 
             : `${orderNumber} 建立成功，請至店面自取並現場付款`,
@@ -635,7 +517,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                     {
                       type: "text",
                       text: (skipPayment && paymentStatus === 'completed')
-                        ? "點數完全折抵"
+                        ? "點數付款"
                         : paymentMethod === 'line_pay' 
                         ? "LINE Pay 付款已完成" 
                         : "請於取貨時現場付款",
@@ -1062,7 +944,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
           text: orderNumber // 添加普通文字訊息
         },{
           type: "flex",
-          altText: `訂單編號 ${orderNumber} 建立成功，點數完全折抵`,
+          altText: `訂單編號 ${orderNumber} 建立成功，點數付款`,
           contents: {
             type: "bubble",
             header: {
@@ -1095,7 +977,7 @@ ${orderData?.shipping_fee && orderData.shipping_fee > 0 ? `運費：$${orderData
                   contents: [
                     {
                       type: "text",
-                      text: "點數完全折抵",
+                      text: "點數付款",
                       size: "md",
                       weight: "bold",
                       align: "center",

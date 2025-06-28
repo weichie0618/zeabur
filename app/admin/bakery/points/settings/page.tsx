@@ -129,6 +129,7 @@ export default function SettingsPage() {
     const displayNames: {[key: string]: string} = {
       // 基本功能開關
       'points_system_enabled': '啟用點數系統',
+      'purchase_reward_enabled': '啟用購買回饋',
       'virtual_card_enabled': '啟用虛擬點數卡',
       'point_usage_enabled': '啟用點數使用',
       'point_card_enabled': '啟用點數卡販售',
@@ -157,6 +158,7 @@ export default function SettingsPage() {
     const descriptions: {[key: string]: string} = {
       // 基本功能開關
       'points_system_enabled': '控制整個點數系統的開關，關閉後用戶無法獲得或使用點數',
+      'purchase_reward_enabled': '是否啟用購買商品後的點數回饋功能，關閉後用戶購買商品不會獲得點數',
       'virtual_card_enabled': '是否啟用虛擬點數卡功能，允許販售和購買點數卡',
       'point_usage_enabled': '是否允許用戶使用點數抵扣訂單金額',
       'point_card_enabled': '是否啟用點數卡商品的販售功能',
@@ -210,6 +212,7 @@ export default function SettingsPage() {
                 {(setting.settingKey === 'VIRTUAL_CARD_ENABLED' || 
                   setting.settingKey === 'virtual_card_enabled' ||
                   setting.settingKey === 'points_system_enabled' ||
+                  setting.settingKey === 'purchase_reward_enabled' ||
                   setting.settingKey === 'point_usage_enabled' ||
                   setting.settingKey === 'point_card_enabled') ? (
                   <select
@@ -334,7 +337,7 @@ export default function SettingsPage() {
                   {renderSettingsGroup(
                     "功能開關設定",
                     "控制各項功能的啟用與停用",
-                    ['points_system_enabled', 'virtual_card_enabled', 'point_usage_enabled', 'point_card_enabled']
+                    ['points_system_enabled', 'purchase_reward_enabled', 'virtual_card_enabled', 'point_usage_enabled', 'point_card_enabled']
                   )}
                   
                   {/* 回饋設定 */}

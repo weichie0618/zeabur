@@ -15,7 +15,7 @@ export const getStatusClass = authServiceGetStatusClass;
 export const canCancelOrder = (status: string): boolean => {
   if (!status) return false;
   const upperStatus = status.toUpperCase();
-  return upperStatus === 'PENDING' || upperStatus === 'PROCESSING';
+  return upperStatus === 'pending' || upperStatus === 'processing';
 };
 
 /**
@@ -38,18 +38,18 @@ export const getAvailableStatusTransitions = (currentStatus: string): string[] =
   const upperStatus = currentStatus?.toUpperCase() || '';
   
   switch (upperStatus) {
-    case 'PENDING':
-      return ['PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
-    case 'PROCESSING':
-      return ['SHIPPED', 'DELIVERED', 'CANCELLED'];
-    case 'SHIPPED':
-      return ['DELIVERED', 'CANCELLED'];
-    case 'DELIVERED':
-      return ['DELIVERED'];
-    case 'CANCELLED':
-      return ['CANCELLED'];
+    case 'pending':
+      return ['processing', 'shipped', 'delivered', 'cancelled'];
+    case 'processing':
+      return ['shipped', 'delivered', 'cancelled'];
+    case 'shipped':
+      return ['delivered', 'cancelled'];
+    case 'delivered':
+      return ['delivered'];
+    case 'cancelled':
+      return ['cancelled'];
     default:
-      return ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+      return ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
   }
 };
 
@@ -59,10 +59,10 @@ export const getAvailableStatusTransitions = (currentStatus: string): string[] =
  */
 export const getStatusOptions = () => {
   return [
-    { value: 'PENDING', label: statusMap['PENDING'] },
-    { value: 'PROCESSING', label: statusMap['PROCESSING'] },
-    { value: 'SHIPPED', label: statusMap['SHIPPED'] },
-    { value: 'DELIVERED', label: statusMap['DELIVERED'] },
+    { value: 'pending', label: statusMap['pending'] },
+    { value: 'processing', label: statusMap['processing'] },
+    { value: 'shipped', label: statusMap['shipped'] },
+    { value: 'delivered', label: statusMap['delivered'] },
     { value: 'CANCELLED', label: statusMap['CANCELLED'] }
   ];
 }; 

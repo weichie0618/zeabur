@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 // 包含 useSearchParams 的組件
 function PaymentRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [error, setError] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
     // 從URL參數獲取LINE Pay付款URL
@@ -36,10 +38,39 @@ function PaymentRedirectContent() {
         }
       }, 1000);
     } else {
-      // 如果沒有找到付款URL，導回結帳頁面
-      router.push('/client/checkout');
+      // 如果沒有找到付款URL，顯示錯誤並倒數計時
+      setError(true);
+      
+      // 倒數計時器
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            router.push('/client/bakery');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
     }
   }, [router, searchParams]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full text-center">
+          <div className="text-red-600 text-4xl mb-4">⚠️</div>
+          <h1 className="text-xl font-semibold text-red-800 mb-2">付款異常</h1>
+          <p className="text-red-600 mb-4">未找到有效的付款連結</p>
+          <p className="text-gray-600 text-sm">
+            系統將在 <span className="font-bold text-red-600">{countdown}</span> 秒後自動返回商城首頁
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">

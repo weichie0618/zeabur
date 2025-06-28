@@ -63,6 +63,7 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('takkyubin_payment');
   const [paymentMethod, setPaymentMethod] = useState<'bank_transfer' | 'cod' | 'line_pay'>('line_pay');
   const [pointsToUse, setPointsToUse] = useState<number>(0); // 新增點數使用數量
+  const [pointsInputWarning, setPointsInputWarning] = useState<string>(''); // 點數輸入警告
   const [formData, setFormData] = useState({
     customerName: '',
     email: '',
@@ -488,12 +489,47 @@ export default function CheckoutPage() {
   };
 
   // 處理點數輸入變化
-  const handlePointsChange = (value: number) => {
+  const handlePointsChange = (inputValue: string) => {
+    // 清除之前的警告
+    setPointsInputWarning('');
+    
+    // 移除非數字字符，但保留空字符串以允許清空輸入
+    const cleanValue = inputValue.replace(/[^\d]/g, '');
+    
+    // 如果是空字符串，設為0
+    if (cleanValue === '') {
+      setPointsToUse(0);
+      return;
+    }
+    
+    // 移除開頭的0（除非只有一個0）
+    const normalizedValue = cleanValue.replace(/^0+/, '') || '0';
+    
+    // 轉換為數字
+    const numValue = parseInt(normalizedValue, 10);
+    
+    // 如果轉換失敗，設為0
+    if (isNaN(numValue) || numValue < 0) {
+      setPointsToUse(0);
+      return;
+    }
+    
     // 計算可折抵的最大金額（小計 - 優惠碼折扣 + 運費）
     const maxDiscountAmount = subtotal - discountAmount + shippingFee;
     const maxPoints = Math.min(userPoints, maxDiscountAmount);
-    const validPoints = Math.max(0, Math.min(value, maxPoints));
-    setPointsToUse(validPoints);
+    
+    // 檢查是否超過最大可用點數
+    if (numValue > maxPoints) {
+      setPointsInputWarning(`已自動調整為最大可用點數 ${maxPoints.toLocaleString()} 點`);
+      setPointsToUse(maxPoints);
+      
+      // 3秒後清除警告
+      setTimeout(() => {
+        setPointsInputWarning('');
+      }, 3000);
+    } else {
+      setPointsToUse(numValue);
+    }
   };
 
   // 使用全部可用點數
@@ -1501,12 +1537,12 @@ export default function CheckoutPage() {
                             </svg>
                           </div> */}
                           <input
-                            type="number"
-                            value={pointsToUse}
-                            onChange={(e) => handlePointsChange(parseInt(e.target.value) || 0)}
-                            min="0"
-                            max={Math.min(userPoints, subtotal - discountAmount + shippingFee)}
-                            className="w-full pl-11 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:from-white focus:to-blue-50 transition-all duration-200 placeholder-gray-400"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={pointsToUse.toString()}
+                            onChange={(e) => handlePointsChange(e.target.value)}
+                            className="w-full pl-4 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:from-white focus:to-blue-50 transition-all duration-200 placeholder-gray-400 text-center"
                             placeholder="0"
                           />
                           <div className="absolute right-3 flex items-center">
@@ -1518,6 +1554,18 @@ export default function CheckoutPage() {
 
                       </div>
                       
+                      {/* 輸入提示和警告 */}
+                      <div className="mt-2 text-center">
+                        {pointsInputWarning ? (
+                          <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full inline-block">
+                            {pointsInputWarning}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500">
+                            最多可使用 {Math.min(userPoints, subtotal - discountAmount + shippingFee).toLocaleString()} 點
+                          </div>
+                        )}
+                      </div>
                      
                     </div>
                   ) : (
@@ -1532,16 +1580,13 @@ export default function CheckoutPage() {
                       {/* 點數輸入框 - 禁用狀態 */}
                       <div className="relative">
                         <div className="relative flex items-center">
-                          <div className="absolute left-3 flex items-center pointer-events-none">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                          </div>
                           <input
-                            type="number"
-                            value={0}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value="0"
                             disabled
-                            className="w-full pl-11 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gray-100 rounded-lg cursor-not-allowed text-gray-500"
+                            className="w-full pl-4 pr-16 py-3 text-lg font-medium border-2 border-gray-200 bg-gray-100 rounded-lg cursor-not-allowed text-gray-500 text-center"
                             placeholder="0"
                           />
                           <div className="absolute right-3 flex items-center">

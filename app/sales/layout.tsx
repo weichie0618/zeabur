@@ -243,7 +243,7 @@ export default function SalesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const liffId = process.env.NEXT_PUBLIC_LINE_LIFF_ID || process.env.NEXT_PUBLIC_LIFF_ID;
+  const liffId = process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID ;
 
   return (
     <>

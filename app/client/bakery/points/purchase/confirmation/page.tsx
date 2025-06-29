@@ -188,7 +188,7 @@ function VirtualCardConfirmationContent() {
             contents: [
               {
                 type: "text",
-                text: paymentMethod === 'bank_transfer' ? "訂單確認" : "購買成功",
+                text: "購買點數",
                 size: "xl",
                 align: "center",
                 weight: "bold",

@@ -4,6 +4,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { salespersonApi } from '../services/apiService';
 
+// 聲明 LIFF 類型
+declare global {
+  interface Window {
+    liff: any;
+  }
+}
+
 // 定義分潤專案介面
 interface CommissionPlan {
   id: number;
@@ -40,6 +47,11 @@ interface SalespersonContextType {
   login: (salespersonId: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
+  // LIFF 相關功能
+  isLiffReady: boolean;
+  liffError: string | null;
+  getLiffProfile: () => Promise<any | null>;
+  isInLiffEnvironment: () => boolean;
 }
 
 // 創建 Context
@@ -50,6 +62,8 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   const [salesperson, setSalesperson] = useState<SalespersonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLiffReady, setIsLiffReady] = useState(false);
+  const [liffError, setLiffError] = useState<string | null>(null);
   const router = useRouter();
 
   // 檢查是否已登入
@@ -114,6 +128,43 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     router.push('/city-sales/login');
   };
 
+  // LIFF 相關功能
+  const getLiffProfile = async (): Promise<any | null> => {
+    try {
+      if (typeof window !== 'undefined' && window.liff && window.liff.isLoggedIn()) {
+        const profile = await window.liff.getProfile();
+        return profile;
+      }
+      return null;
+    } catch (error) {
+      console.error('獲取 LIFF Profile 失敗:', error);
+      return null;
+    }
+  };
+
+  const isInLiffEnvironment = (): boolean => {
+    if (typeof window === 'undefined') return false;
+    return !!(window.liff);
+  };
+
+  // 檢查 URL 參數中的 storeId（從 LIFF URL 傳遞）
+  useEffect(() => {
+    const checkUrlParams = () => {
+      if (typeof window === 'undefined') return;
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const storeIdFromUrl = urlParams.get('storeId');
+      
+      // 如果 URL 中有 storeId 且用戶還未登入，嘗試自動登入
+      if (storeIdFromUrl && !salesperson) {
+        console.log('從 URL 參數取得 storeId:', storeIdFromUrl);
+        login(storeIdFromUrl);
+      }
+    };
+
+    checkUrlParams();
+  }, [salesperson]);
+
   const contextValue: SalespersonContextType = {
     salesperson,
     storeId: salesperson?.id || null,
@@ -122,6 +173,11 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated: !!salesperson,
+    // LIFF 相關
+    isLiffReady,
+    liffError,
+    getLiffProfile,
+    isInLiffEnvironment,
   };
 
   return (

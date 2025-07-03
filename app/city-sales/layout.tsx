@@ -1,9 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSalesperson, SalespersonProvider } from './context/SalespersonContext';
+
+// 聲明 LIFF 類型
+declare global {
+  interface Window {
+    liff: any;
+  }
+}
 
 // 自定義側邊欄連結元件
 interface SidebarLinkProps {
@@ -29,6 +36,63 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ href, active, children, onCli
   );
 };
 
+// LIFF 初始化 Hook
+function useLiffInit() {
+  const [isLiffReady, setIsLiffReady] = useState(false);
+  const [liffError, setLiffError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initializeLiff = async () => {
+      try {
+        // 檢查是否在瀏覽器環境
+        if (typeof window === 'undefined') return;
+
+        // 檢查是否已經載入 LIFF SDK
+        if (window.liff) {
+          console.log('LIFF SDK 已載入，開始初始化');
+          await window.liff.init({
+            liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
+          });
+          setIsLiffReady(true);
+          console.log('LIFF 初始化完成');
+          return;
+        }
+
+        // 載入 LIFF SDK
+        console.log('載入 LIFF SDK');
+        const script = document.createElement('script');
+        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+        script.onload = async () => {
+          try {
+            if (window.liff) {
+              await window.liff.init({
+                liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
+              });
+              setIsLiffReady(true);
+              console.log('LIFF 初始化完成');
+            }
+          } catch (error) {
+            console.error('LIFF 初始化失敗:', error);
+            setLiffError('LIFF 初始化失敗');
+          }
+        };
+        script.onerror = () => {
+          console.error('LIFF SDK 載入失敗');
+          setLiffError('LIFF SDK 載入失敗');
+        };
+        document.head.appendChild(script);
+      } catch (error) {
+        console.error('LIFF 設置失敗:', error);
+        setLiffError('LIFF 設置失敗');
+      }
+    };
+
+    initializeLiff();
+  }, []);
+
+  return { isLiffReady, liffError };
+}
+
 // 內部佈局組件，使用 Context
 function CitySalesLayoutInner({
   children,
@@ -38,6 +102,7 @@ function CitySalesLayoutInner({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { salesperson, storeId, logout } = useSalesperson();
+  const { isLiffReady, liffError } = useLiffInit();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -64,6 +129,19 @@ function CitySalesLayoutInner({
           </Link>
           {storeId && (
             <p className="text-sm text-gray-300 mt-2">代號：{storeId}</p>
+          )}
+          {/* LIFF 狀態指示器 */}
+          {isLiffReady && (
+            <div className="flex items-center mt-1">
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+              <span className="text-xs text-green-300">LINE 已連接</span>
+            </div>
+          )}
+          {liffError && (
+            <div className="flex items-center mt-1">
+              <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+              <span className="text-xs text-yellow-300">LINE 離線模式</span>
+            </div>
           )}
         </div>
         
@@ -100,9 +178,9 @@ function CitySalesLayoutInner({
           <SidebarLink href="/city-sales/qrcode" active={pathname === '/city-sales/qrcode'} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 16a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM16 3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V3zM11 5h2M9 7h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m6-4h2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 16a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM16 3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V3zM11 5h2M9 7h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m6-4h2" />
               </svg>
-              專屬 QR Code
+              推廣行銷QR Code
             </span>
           </SidebarLink>
           

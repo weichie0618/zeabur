@@ -95,10 +95,10 @@ export const handleRelogin = (returnUrl?: string): void => {
   document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
   
   // 記錄當前URL，以便登錄後返回
-  const redirectUrl = returnUrl || encodeURIComponent(window.location.pathname);
+  const redirectUrl = returnUrl || window.location.pathname;
   alert("已超過使用期間，請重新登入");
-  // 跳轉到登入頁面
-  window.location.href = `/login`;
+  // 跳轉到登入頁面，並帶上重定向參數
+  window.location.href = `/login?redirect=${encodeURIComponent(redirectUrl)}`;
 };
 
 /**

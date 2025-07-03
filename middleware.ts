@@ -204,6 +204,8 @@ export async function middleware(request: NextRequest) {
       
       // 創建一個基於原始請求URL的新URL對象，然後設置路徑為'/login'
       const url = new URL('/login', request.url);
+      // 添加重定向參數，保存原始路徑
+      url.searchParams.set('redirect', path);
       return NextResponse.redirect(url);
     }
     

@@ -207,7 +207,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       setUser(null);
-      router.push('/login');
+      
+      // 保存當前頁面路徑，登入後可以返回
+      const currentPath = window.location.pathname;
+      // 只有在admin頁面登出時才保存重定向路徑
+      if (currentPath.startsWith('/admin')) {
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      } else {
+        router.push('/login');
+      }
     }
   };
 

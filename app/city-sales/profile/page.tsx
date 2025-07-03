@@ -28,16 +28,12 @@ export default function ProfilePage() {
 
     try {
       const response = await salespersonApi.getCommissionRules(storeId);
-      
-      if (response.success && response.data) {
-        setCommissionRules(response.data.data?.rules || []);
-        setContractInfo(response.data.data?.salesperson || {
+      if (response.data) {
+        setCommissionRules(response.data.rules || []);
+        setContractInfo(response.data.salesperson || {
           contract_start_date: null,
           contract_end_date: null
         });
-      } else {
-        setError(response.error || '獲取分潤規則失敗');
-        setCommissionRules([]);
       }
     } catch (err) {
       setError('獲取分潤規則時發生錯誤');

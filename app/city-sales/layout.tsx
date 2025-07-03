@@ -130,19 +130,6 @@ function CitySalesLayoutInner({
           {storeId && (
             <p className="text-sm text-gray-300 mt-2">代號：{storeId}</p>
           )}
-          {/* LIFF 狀態指示器 */}
-          {isLiffReady && (
-            <div className="flex items-center mt-1">
-              <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-              <span className="text-xs text-green-300">LINE 已連接</span>
-            </div>
-          )}
-          {liffError && (
-            <div className="flex items-center mt-1">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
-              <span className="text-xs text-yellow-300">LINE 離線模式</span>
-            </div>
-          )}
         </div>
         
         <nav className="mt-6">

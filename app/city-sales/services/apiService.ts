@@ -255,34 +255,18 @@ citySalesApi.interceptors.response.use(
 // 通用的 API 請求包裝函數
 async function makeApiRequest<T>(
   requestFn: () => Promise<AxiosResponse<T>>
-): Promise<ApiResponse<T>> {
+): Promise<T> {
   try {
     const response = await requestFn();
-    
-    // 假設後端返回的格式已經是 ApiResponse 格式
-    if (response.data && typeof response.data === 'object' && 'success' in response.data) {
-      return response.data as ApiResponse<T>;
-    }
-    
-    // 如果不是，包裝成標準格式
-    return {
-      success: true,
-      data: response.data,
-    };
+    return response.data;
   } catch (error) {
     if (isDev) console.error('[City-Sales API] Request failed:', error);
     
     if (error instanceof Error) {
-      return {
-        success: false,
-        error: error.message,
-      };
+      throw new Error(error.message);
     }
     
-    return {
-      success: false,
-      error: '請求失敗',
-    };
+    throw new Error('請求失敗');
   }
 }
 
@@ -342,7 +326,7 @@ export const salespersonApi = {
   },
 
   // 獲取業務員分潤規則
-  getCommissionRules: async (storeId: string): Promise<ApiResponse<CommissionRulesResponse>> => {
+  getCommissionRules: async (storeId: string): Promise<CommissionRulesResponse> => {
     return makeApiRequest(() => 
       citySalesApi.get(`/api/salesperson/commission-rules`, {
         headers: { 'X-Salesperson-ID': storeId }

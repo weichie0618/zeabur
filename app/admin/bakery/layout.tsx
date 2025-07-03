@@ -35,6 +35,11 @@ export default function AdminLayout({
     if (pathname.startsWith('/admin/bakery/points')) {
       return 'points';
     }
+    if (pathname.startsWith('/admin/bakery/sales') ||
+        pathname.startsWith('/admin/bakery/commissions') ||
+        pathname.startsWith('/admin/bakery/commission-plans')) {
+      return 'sales';
+    }
     if (pathname.startsWith('/admin/bakery/coupons')) {
       return 'other';
     }
@@ -326,6 +331,53 @@ export default function AdminLayout({
                     </Link>
                     <Link href="/admin/bakery/points/settings" className={getSubNavItemClass('/admin/bakery/points/settings')}>
                       系統設定
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 業務管理 - 手風琴 */}
+            <div className="mt-4">
+              <div 
+                className={getGroupHeaderClass(expandedGroup === 'sales')}
+                onClick={() => toggleGroup('sales')}
+              >
+                <span className="flex items-center">
+                  <GroupIcon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                    </svg>
+                  </GroupIcon>
+                  業務管理
+                </span>
+                <CollapseIcon isExpanded={expandedGroup === 'sales'} />
+              </div>
+              
+              {expandedGroup === 'sales' && (
+                <div className="transition-all duration-300 ease-in-out pb-2">
+                  <Link href="/admin/bakery/commissions/sales" className={getNavItemClass('/admin/bakery/commissions/sales')}>
+                    <span className="flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                      </svg>
+                      業務員管理
+                    </span>
+                  </Link>
+                  
+                  {/* 業務管理子選單 */}
+                  <div className="ml-4 mt-2 pb-1 border-l-2 border-gray-600">
+                    <Link href="/admin/bakery/commissions/plans" className={getSubNavItemClass('/admin/bakery/commissions/plans')}>
+                      佣金專案管理
+                    </Link>
+                    <Link href="/admin/bakery/commissions/assignments" className={getSubNavItemClass('/admin/bakery/commissions/assignments')}>
+                      業務分配管理
+                    </Link>
+                    <Link href="/admin/bakery/commissions/stats" className={getSubNavItemClass('/admin/bakery/commissions/stats')}>
+                      佣金統計
+                    </Link>
+                    <Link href="/admin/bakery/commissions/history" className={getSubNavItemClass('/admin/bakery/commissions/history')}>
+                      佣金紀錄
                     </Link>
                   </div>
                 </div>

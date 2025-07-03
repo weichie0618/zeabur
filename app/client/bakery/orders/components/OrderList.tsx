@@ -250,14 +250,6 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                           </tr>
                         )}
                         {/* 總計行 */}
-                        <tr className="bg-gray-50">
-                          <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
-                            總計
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
-                            NT$ {formatPrice(order.total_amount)}
-                          </td>
-                        </tr>
                         {/* 添加運費顯示行 */}
                         {order.shipping_fee !== null && order.shipping_fee !== undefined && order.shipping_fee > 0 ? (
                           <tr className="bg-gray-50">
@@ -269,6 +261,15 @@ export default function OrderList({ orders = [], loading }: OrderListProps) {
                             </td>
                           </tr>
                         ) : null}
+                        <tr className="bg-gray-50">
+                          <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
+                            總計
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold">
+                            NT$ {formatPrice(order.total_amount)}
+                          </td>
+                        </tr>
+                        
                       </tbody>
                     </table>
                   </div>

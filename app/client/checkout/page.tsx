@@ -2182,9 +2182,9 @@ export default function CheckoutPage() {
               )}
             </button>
             
-            <p className="text-center text-sm text-gray-500 mt-4">
+            {/* <p className="text-center text-sm text-gray-500 mt-4">
               完成訂單即表示您同意我們的條款和條件
-            </p>
+            </p> */}
 
             {/* 返回購物按鈕 */}
             <Link 

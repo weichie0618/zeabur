@@ -38,6 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       setIsLoading(true);
       try {
+        // 檢查當前路徑是否為管理後台
+        const isAdminPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+        
+        // 如果不是管理後台路徑，不需要檢查認證
+        if (!isAdminPath) {
+          setUser(null);
+          setIsLoading(false);
+          return;
+        }
+
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
           setUser(null);
@@ -49,16 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (response.data.success) {
           setUser(response.data.data);
         } else {
-          // 如果API返回失敗，清除用戶狀態
           setUser(null);
-          // 清除本地存儲的token
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
         }
       } catch (error) {
         if (isDev) console.error('身份驗證檢查錯誤:', error);
         setUser(null);
-        // 清除本地存儲的token
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
       } finally {

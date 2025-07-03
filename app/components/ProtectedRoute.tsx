@@ -14,6 +14,14 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   const router = useRouter();
 
   useEffect(() => {
+    // 檢查當前路徑是否為管理後台
+    const isAdminPath = window.location.pathname.startsWith('/admin');
+    
+    // 如果不是管理後台路徑，直接返回，不做權限檢查
+    if (!isAdminPath) {
+      return;
+    }
+
     // 如果用戶數據已加載完成但未認證，則重定向到登入頁面
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
@@ -37,6 +45,14 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       router.push('/login');
     }
   }, [isLoading, isAuthenticated, requiredRole, user, router]);
+
+  // 檢查是否為管理後台路徑
+  const isAdminPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+
+  // 如果不是管理後台路徑，直接渲染內容
+  if (!isAdminPath) {
+    return <>{children}</>;
+  }
 
   // 如果正在載入，顯示載入狀態
   if (isLoading) {

@@ -443,6 +443,16 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
+// 格式化分潤金額（顯示到小數點後2位）
+export const formatCommissionAmount = (amount: number): string => {
+  return new Intl.NumberFormat('zh-TW', {
+    style: 'currency',
+    currency: 'TWD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
 // 格式化日期
 export const formatDate = (dateString: string): string => {
   const date = new Date(dateString);

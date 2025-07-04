@@ -6,7 +6,8 @@ import {
   salespersonApi, 
   Commission, 
   CommissionsResponse,
-  formatCurrency, 
+  formatCurrency,
+  formatCommissionAmount,
   formatDateTime,
   commissionStatusMap,
   CommissionPlan
@@ -235,7 +236,7 @@ export default function CommissionsPage() {
 
                     <div className="text-right ml-3">
                       <div className="text-lg sm:text-2xl font-bold text-green-600">
-                        {formatCurrency(commission.amount)}
+                        {formatCommissionAmount(commission.amount)}
                       </div>
                     </div>
                   </div>

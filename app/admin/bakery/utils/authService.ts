@@ -122,6 +122,7 @@ export const initializeAuth = (
   if (token) {
     console.log('成功獲取令牌，長度:', token.length);
     setAccessToken(token);
+    setLoading(false);
   } else {
     setError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
     if (setShowAuthWarning) {
@@ -133,38 +134,6 @@ export const initializeAuth = (
       handleRelogin();
     }
     setLoading(false);
-    return;
-  }
-  
-  // 添加重試機制
-  let retryCount = 0;
-  const maxRetries = 3;
-  
-  const retryFetchToken = () => {
-    if (retryCount >= maxRetries) {
-      // 重試失敗，直接重定向到登入頁面
-      if (redirectOnFailure) {
-        handleRelogin();
-      }
-      return;
-    }
-    
-    console.log(`嘗試重新獲取令牌 (第 ${retryCount + 1} 次)`);
-    const newToken = getToken();
-    
-    if (newToken) {
-      console.log('重試獲取令牌成功');
-      setAccessToken(newToken);
-    } else {
-      retryCount++;
-      // 延遲重試
-      setTimeout(retryFetchToken, 1000);
-    }
-  };
-  
-  // 如果沒有token，嘗試重新獲取
-  if (!token) {
-    setTimeout(retryFetchToken, 1000);
   }
 };
 

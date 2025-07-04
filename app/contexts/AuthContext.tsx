@@ -38,16 +38,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       setIsLoading(true);
       try {
-        // 檢查當前路徑是否為管理後台
-        const isAdminPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
-        
-        // 如果不是管理後台路徑，不需要檢查認證
-        if (!isAdminPath) {
-          setUser(null);
-          setIsLoading(false);
-          return;
-        }
-
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
           setUser(null);
@@ -55,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // 驗證token有效性
         const response = await apiService.getCurrentUser();
         if (response.data.success) {
           setUser(response.data.data);
@@ -62,12 +53,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
+          // 清除cookie
+          document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+          document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
         }
       } catch (error) {
         if (isDev) console.error('身份驗證檢查錯誤:', error);
         setUser(null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        // 清除cookie
+        document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+        document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
       } finally {
         setIsLoading(false);
       }

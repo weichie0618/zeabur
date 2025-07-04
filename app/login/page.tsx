@@ -94,40 +94,12 @@ export default function LoginPage() {
     }
   }, [clearAuth]);
 
-  // 已移除：頁面初次加載時的 token 檢查邏輯，因為它會干擾正常的登入跳轉流程
-
-  // 監聽認證狀態變更，根據角色進行導航
-  useEffect(() => {
-    // 如果檢測到令牌過期，不要觸發導航邏輯
-    if (isExpired) {
-      addDebugInfo('令牌已過期，跳過導航邏輯');
-      return;
-    }
-    
-    // 僅在開發環境執行 cookie 檢查
+  // 統一添加調試信息的函數
+  const addDebugInfo = (info: string) => {
     if (isDev) {
-      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-        const [name, value] = cookie.trim().split('=');
-        if (name && value) acc[name] = value;
-        return acc;
-      }, {} as Record<string, string>);
-      
-      setDebugInfo(prev => `${prev ? prev + '\n\n' : ''}Cookie狀態檢查:\n`+
-        `- accessToken: ${cookies.accessToken ? '存在' : '不存在'}\n`+
-        `- localStorage token: ${localStorage.getItem('accessToken') ? '存在' : '不存在'}`
-      );
-      
-      if (isAuthenticated && user) {
-        addDebugInfo(`認證狀態變更: isAuthenticated=${isAuthenticated}, 用戶=${JSON.stringify(user)}`);
-        addDebugInfo(`準備根據角色跳轉...`);
-      }
+      setDebugInfo(prev => prev ? `${prev}\n${info}` : info);
     }
-    
-    // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況，且不是令牌過期的情況
-    if (isAuthenticated && user && !loginAttempted && !isExpired) {
-      navigateBasedOnRole(user);
-    }
-  }, [isAuthenticated, user, router, isDev, loginAttempted, isExpired, clearAuth]);
+  };
 
   // 統一處理基於角色的導航邏輯
   const navigateBasedOnRole = useCallback((userData: any) => {
@@ -163,12 +135,40 @@ export default function LoginPage() {
     }
   }, [router, isDev, redirectPath]);
 
-  // 統一添加調試信息的函數
-  const addDebugInfo = (info: string) => {
-    if (isDev) {
-      setDebugInfo(prev => prev ? `${prev}\n${info}` : info);
+  // 已移除：頁面初次加載時的 token 檢查邏輯，因為它會干擾正常的登入跳轉流程
+
+  // 監聽認證狀態變更，根據角色進行導航
+  useEffect(() => {
+    // 如果檢測到令牌過期，不要觸發導航邏輯
+    if (isExpired) {
+      addDebugInfo('令牌已過期，跳過導航邏輯');
+      return;
     }
-  };
+    
+    // 僅在開發環境執行 cookie 檢查
+    if (isDev) {
+      const cookies = document.cookie.split(';').reduce((acc, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) acc[name] = value;
+        return acc;
+      }, {} as Record<string, string>);
+      
+      setDebugInfo(prev => `${prev ? prev + '\n\n' : ''}Cookie狀態檢查:\n`+
+        `- accessToken: ${cookies.accessToken ? '存在' : '不存在'}\n`+
+        `- localStorage token: ${localStorage.getItem('accessToken') ? '存在' : '不存在'}`
+      );
+      
+      if (isAuthenticated && user) {
+        addDebugInfo(`認證狀態變更: isAuthenticated=${isAuthenticated}, 用戶=${JSON.stringify(user)}`);
+        addDebugInfo(`準備根據角色跳轉...`);
+      }
+    }
+    
+    // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況，且不是令牌過期的情況
+    if (isAuthenticated && user && !loginAttempted && !isExpired) {
+      navigateBasedOnRole(user);
+    }
+  }, [isAuthenticated, user, router, isDev, loginAttempted, isExpired, clearAuth, navigateBasedOnRole]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -237,10 +237,11 @@ export default function LoginPage() {
           }
         }
         
-        // 登入成功後，觸發導航 (因為 useEffect 監聽 isAuthenticated 和 user 變化)
+        // 登入成功後，讓 useEffect 監聽 isAuthenticated 和 user 變化來處理導航
         if (result.userData) {
           setLoginAttempted(false); // 重置登入嘗試狀態
-          navigateBasedOnRole(result.userData);
+          // 不在這裡直接調用導航，讓 useEffect 來處理
+          addDebugInfo('等待 AuthContext 更新用戶狀態，由 useEffect 處理導航');
         }
       }
     } catch (error: any) {

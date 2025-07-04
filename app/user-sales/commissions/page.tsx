@@ -119,47 +119,24 @@ export default function CommissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-green-50 to-emerald-50 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* 頁面標題 */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 rounded-2xl shadow-2xl shadow-emerald-500/20 p-6 sm:p-8 text-white">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-teal-600/20">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
-                  分潤記錄
-                </h1>
-              </div>
-              
-              <button
-                onClick={fetchCommissions}
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-xl transition-all duration-300 flex items-center justify-center border border-white/20 text-sm sm:text-base shadow-lg"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                重新整理
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+      {/* 頁面標題 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">分潤記錄</h1>
+        <button
+          onClick={fetchCommissions}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 rounded-lg transition-colors flex items-center justify-center text-sm sm:text-base"
+        >
+          <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          重新整理
+        </button>
+      </div>
 
-        {/* 篩選器 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-200/50 border border-white/20 p-6 sm:p-8">
-          <div className="flex items-center mb-6">
-            <div className="w-2 h-8 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full mr-4"></div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">篩選條件</h2>
-          </div>
+      {/* 篩選器 */}
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">篩選條件</h2>
         
         <div className="grid grid-cols-1 gap-4">
           <div>
@@ -331,7 +308,6 @@ export default function CommissionsPage() {
             <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

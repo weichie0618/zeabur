@@ -189,59 +189,36 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* 頁面標題 */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl shadow-2xl shadow-indigo-500/20 p-6 sm:p-8 text-white">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-pink-600/20">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                  </svg>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-purple-100 bg-clip-text text-transparent">
-                  訂單管理
-                </h1>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={() => setIsFilterExpanded(!isFilterExpanded)}
-                  className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-xl transition-all duration-300 flex items-center justify-center border border-white/20 text-sm sm:text-base shadow-lg"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  篩選條件
-                </button>
-                <button
-                  onClick={fetchOrders}
-                  className="bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2 rounded-xl transition-all duration-300 flex items-center justify-center border border-white/20 text-sm sm:text-base shadow-lg"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  重新整理
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+      {/* 頁面標題 */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">訂單管理</h1>
+        <div className="flex flex-col sm:flex-row gap-2 sm:space-x-2">
+          <button
+            onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+            className="bg-white hover:bg-gray-50 text-gray-700 px-3 py-2 sm:px-4 rounded-lg transition-colors flex items-center justify-center border border-gray-300 text-sm sm:text-base"
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            篩選條件
+          </button>
+          <button
+            onClick={fetchOrders}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 sm:px-4 rounded-lg transition-colors flex items-center justify-center text-sm sm:text-base"
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            重新整理
+          </button>
         </div>
+      </div>
 
-        {/* 篩選器 */}
-        <div className={`bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-200/50 border border-white/20 overflow-hidden transition-all duration-300 ${isFilterExpanded ? 'max-h-96' : 'max-h-0'}`}>
-          <div className="p-6 sm:p-8">
-            <div className="flex items-center mb-6">
-              <div className="w-2 h-8 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full mr-4"></div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">篩選條件</h2>
-            </div>
+      {/* 篩選器 */}
+      <div className={`bg-white rounded-lg shadow-sm overflow-hidden transition-all duration-200 ${isFilterExpanded ? 'max-h-96' : 'max-h-0'}`}>
+        <div className="p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">篩選條件</h2>
           
           <div className="grid grid-cols-1 gap-4">
             <div>
@@ -311,30 +288,25 @@ export default function OrdersPage() {
         </div>
       </div>
 
-        {/* 錯誤訊息 */}
-        {error && (
-          <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200/50 rounded-2xl p-4 sm:p-6 shadow-lg">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center mr-3">
-                <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <span className="text-red-700 text-sm sm:text-base font-medium">{error}</span>
-            </div>
+      {/* 錯誤訊息 */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+          <div className="flex items-center">
+            <svg className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-red-700 text-sm sm:text-base">{error}</span>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* 訂單列表 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-200/50 border border-white/20">
-          <div className="p-6 sm:p-8 border-b border-gray-200/50">
-            <div className="flex items-center">
-              <div className="w-2 h-8 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full mr-4"></div>
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                訂單列表 ({pagination.total} 筆)
-              </h2>
-            </div>
-          </div>
+      {/* 訂單列表 */}
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="p-4 sm:p-6 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+            訂單列表 ({pagination.total} 筆)
+          </h2>
+        </div>
 
         {orders.length === 0 ? (
           <div className="p-8 sm:p-12 text-center">
@@ -488,7 +460,6 @@ export default function OrdersPage() {
             <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

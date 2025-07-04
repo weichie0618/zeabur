@@ -9,7 +9,33 @@ export default function QRCodePage() {
   const { salesperson, storeId } = useSalesperson();
   const [lineUrl, setLineUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isLiffReady, setIsLiffReady] = useState(false);
+  const [liffError, setLiffError] = useState<string | null>(null);
   const qrRef = useRef(null);
+
+  useEffect(() => {
+    const initializeLiff = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        
+        if (!window.liff) {
+          setLiffError('LIFF SDK 尚未載入');
+          return;
+        }
+
+        if (!window.liff.isLoggedIn()) {
+          await window.liff.login();
+        }
+
+        setIsLiffReady(true);
+      } catch (error) {
+        console.error('LIFF 初始化失敗:', error);
+        setLiffError('LIFF 初始化失敗');
+      }
+    };
+
+    initializeLiff();
+  }, []);
 
   useEffect(() => {
     if (storeId) {
@@ -137,6 +163,11 @@ export default function QRCodePage() {
   };
 
   const sendToLineChat = async () => {
+    if (!isLiffReady) {
+      alert('LIFF 尚未準備就緒，請稍後再試');
+      return;
+    }
+
     try {
       if (!qrRef.current) return;
       
@@ -168,33 +199,38 @@ export default function QRCodePage() {
               text: `推廣連結：${lineUrl}`
             }
           ]);
-         
+          alert('已成功發送到LINE聊天室！');
         } catch (error) {
           console.error('發送到LINE失敗:', error);
-          
+          alert('發送失敗，請稍後再試');
         }
       };
       
       img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
     } catch (err) {
       console.error('處理QR Code失敗:', err);
-      
+      alert('發送失敗，請稍後再試');
     }
   };
 
   const shareToFriends = async () => {
+    if (!isLiffReady) {
+      alert('LIFF 尚未準備就緒，請稍後再試');
+      return;
+    }
+
     try {
       const flexMessage = createPromotionFlexMessage();
       
       if (liff.isApiAvailable('shareTargetPicker')) {
         await liff.shareTargetPicker([flexMessage as any]);
-        
+        alert('已成功分享給好友！');
       } else {
-        
+        alert('此功能需要在LINE應用程式中使用');
       }
     } catch (error) {
       console.error('分享失敗:', error);
-     
+      alert('分享失敗，請稍後再試');
     }
   };
 
@@ -210,6 +246,13 @@ export default function QRCodePage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      {liffError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+          <p className="font-medium">錯誤</p>
+          <p className="text-sm">{liffError}</p>
+        </div>
+      )}
+
       {/* 頁面標題 */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">專屬 QR Code</h1>
@@ -240,7 +283,7 @@ export default function QRCodePage() {
                     onClick={sendToLineChat}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                   >
-                    📤 傳送到LINE
+                    📤 QR Code傳送到LINE
                   </button>
                   <button
                     onClick={shareToFriends}

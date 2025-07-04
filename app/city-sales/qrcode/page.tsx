@@ -169,25 +169,42 @@ export default function QRCodePage() {
     }
 
     try {
-      if (!qrRef.current) return;
+      if (!qrRef.current) {
+        alert('QR Code 尚未生成');
+        return;
+      }
       
+      // 檢查是否在 LINE 環境中
+      if (!liff.isInClient()) {
+        alert('此功能需要在 LINE APP 中使用');
+        return;
+      }
+
       const svg = qrRef.current;
       const svgData = new XMLSerializer().serializeToString(svg);
       const canvas = document.createElement("canvas");
       const img = new Image();
       
       img.onload = async () => {
-        canvas.width = 300;
-        canvas.height = 300;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, 300, 300);
-        
-        const imageData = canvas.toDataURL("image/png");
-        
         try {
+          canvas.width = 300;
+          canvas.height = 300;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            throw new Error('無法創建 Canvas 上下文');
+          }
+          
+          // 設置白色背景
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // 繪製 QR Code
+          ctx.drawImage(img, 0, 0, 300, 300);
+          
+          // 轉換為 base64
+          const imageData = canvas.toDataURL("image/png");
+          
+          // 發送訊息
           await liff.sendMessages([
             {
               type: 'image',
@@ -199,17 +216,22 @@ export default function QRCodePage() {
               text: `推廣連結：${lineUrl}`
             }
           ]);
-          alert('已成功發送到LINE聊天室！');
+          
+          alert('已成功發送到 LINE 聊天室！');
         } catch (error) {
-          console.error('發送到LINE失敗:', error);
-          alert('發送失敗，請稍後再試');
+          console.error('處理圖片失敗:', error);
+          alert('圖片處理失敗，請稍後再試');
         }
+      };
+      
+      img.onerror = () => {
+        alert('圖片載入失敗，請稍後再試');
       };
       
       img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
     } catch (err) {
-      console.error('處理QR Code失敗:', err);
-      alert('發送失敗，請稍後再試');
+      console.error('發送失敗:', err);
+      alert('發送失敗，請確認是否在 LINE APP 中使用');
     }
   };
 
@@ -220,17 +242,29 @@ export default function QRCodePage() {
     }
 
     try {
+      // 檢查是否支援分享功能
+      if (!liff.isApiAvailable('shareTargetPicker')) {
+        alert('此裝置不支援分享功能');
+        return;
+      }
+
       const flexMessage = createPromotionFlexMessage();
       
-      if (liff.isApiAvailable('shareTargetPicker')) {
-        await liff.shareTargetPicker([flexMessage as any]);
-        alert('已成功分享給好友！');
+      // 執行分享
+      const result = await liff.shareTargetPicker([flexMessage as any]);
+      
+      if (result) {
+        alert('已成功分享！');
       } else {
-        alert('此功能需要在LINE應用程式中使用');
+        alert('分享已取消');
       }
     } catch (error) {
       console.error('分享失敗:', error);
-      alert('分享失敗，請稍後再試');
+      if (!liff.isInClient()) {
+        alert('請在 LINE APP 中使用此功能');
+      } else {
+        alert('分享失敗，請稍後再試');
+      }
     }
   };
 

@@ -611,20 +611,19 @@ export default function OwnersManagement() {
               >
                 取消
               </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center"
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <>
-                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                    處理中...
-                  </>
-                ) : (
-                  '確認刪除'
-                )}
-              </button>
+              {!isDeleting ? (
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  確認刪除
+                </button>
+              ) : (
+                <div className="px-4 py-2 bg-red-600 text-white rounded-md flex items-center">
+                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                  處理中...
+                </div>
+              )}
             </div>
           </div>
         </div>

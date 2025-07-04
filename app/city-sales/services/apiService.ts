@@ -127,24 +127,6 @@ export interface Commission {
   status: string;
   notes: string;
   created_at: string;
-  salesperson: {
-    id: string;
-    name: string;
-    email: string;
-    companyName: string;
-    commission_plan: {
-      id: number;
-      name: string;
-      rule_type: string;
-      fixed_rate: number;
-    } | null;
-  };
-  order: {
-    total_amount: number;
-    subtotal: number;
-    status: string;
-    payment_status: string;
-  } | null;
 }
 
 // 分潤列表回應類型
@@ -328,11 +310,6 @@ export const salespersonApi = {
     status?: string;
     startDate?: string;
     endDate?: string;
-    orderNumber?: string;
-    minAmount?: number;
-    maxAmount?: number;
-    sortBy?: string;
-    sortOrder?: string;
   }): Promise<ApiResponse<CommissionsResponse>> => {
     const queryParams = new URLSearchParams();
     if (params.page) queryParams.append('page', params.page.toString());
@@ -340,11 +317,6 @@ export const salespersonApi = {
     if (params.status) queryParams.append('status', params.status);
     if (params.startDate) queryParams.append('startDate', params.startDate);
     if (params.endDate) queryParams.append('endDate', params.endDate);
-    if (params.orderNumber) queryParams.append('orderNumber', params.orderNumber);
-    if (params.minAmount) queryParams.append('minAmount', params.minAmount.toString());
-    if (params.maxAmount) queryParams.append('maxAmount', params.maxAmount.toString());
-    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
-    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
     return makeApiRequest(() => 
       citySalesApi.get(`/api/salesperson/commissions?${queryParams.toString()}`, {

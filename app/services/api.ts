@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import authDebugger from '../utils/authDebugger';
 
 // 設置環境變數
 const isDev = process.env.NODE_ENV === 'development';
@@ -68,13 +69,19 @@ const storeTokens = (tokens: AuthTokens): void => {
 const clearTokens = (): void => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+  authDebugger.log('auth_check', '已清除localStorage中的tokens', 'apiService');
 };
 
 // 刷新token - 確保路徑格式正確
 const refreshAuthToken = async (): Promise<boolean> => {
   try {
     const tokens = getTokens();
-    if (!tokens) return false;
+    if (!tokens) {
+      authDebugger.log('token_refresh', '無可用的refreshToken', 'apiService');
+      return false;
+    }
+    
+    authDebugger.log('token_refresh', '嘗試刷新accessToken', 'apiService');
     
     // 使用現有的api實例而不是原始axios
     const response = await api.post<RefreshResponse>('/api/auth/refresh-token', {
@@ -84,11 +91,14 @@ const refreshAuthToken = async (): Promise<boolean> => {
     if (response.data.success && response.data.data) {
       const { accessToken, refreshToken } = response.data.data;
       storeTokens({ accessToken, refreshToken });
+      authDebugger.log('token_refresh', '刷新accessToken成功', 'apiService');
       return true;
     }
     
+    authDebugger.log('token_refresh', '刷新accessToken失敗：服務器響應無效', 'apiService');
     return false;
   } catch (error) {
+    authDebugger.log('token_refresh', `刷新accessToken失敗：${error}`, 'apiService');
     if (isDev) console.error('刷新令牌失敗:', error);
     clearTokens();
     return false;
@@ -100,6 +110,10 @@ api.interceptors.request.use((config) => {
   const tokens = getTokens();
   if (tokens) {
     config.headers.Authorization = `Bearer ${tokens.accessToken}`;
+    // 記錄API請求
+    if (config.url) {
+      authDebugger.log('api_request', `${config.method?.toUpperCase()} ${config.url}`, 'axios.request');
+    }
   }
   return config;
 });
@@ -107,7 +121,7 @@ api.interceptors.request.use((config) => {
 // 管理是否顯示通知的狀態，防止多次通知
 let isRedirectingToLogin = false;
 let lastRedirectTime = 0;
-const REDIRECT_COOLDOWN = 5000; // 5秒內不重複重定向
+const REDIRECT_COOLDOWN = 10000; // 增加到10秒內不重複重定向
 
 // 檢查當前頁面是否是登入頁面
 const isLoginPage = (): boolean => {
@@ -117,10 +131,22 @@ const isLoginPage = (): boolean => {
 
 // 記錄重定向歷史，用於偵測循環
 const redirectHistory: string[] = [];
-const MAX_HISTORY_SIZE = 10;
+const MAX_HISTORY_SIZE = 5; // 減少歷史記錄大小
+let redirectCount = 0;
+const MAX_REDIRECTS = 3; // 最大重定向次數
 
-// 檢測是否存在循環重定向
+// 檢測是否存在循環重定向 - 增強檢測邏輯
 const isRedirectLoop = (destination: string): boolean => {
+  // 增加重定向計數
+  redirectCount++;
+  
+  // 如果短時間內重定向次數過多，判定為循環
+  if (redirectCount >= MAX_REDIRECTS) {
+    authDebugger.log('redirect', `檢測到重定向循環：短時間內重定向 ${redirectCount} 次`, 'apiService');
+    console.warn(`檢測到重定向循環：短時間內重定向 ${redirectCount} 次`);
+    return true;
+  }
+  
   // 添加到歷史
   redirectHistory.push(destination);
   
@@ -133,8 +159,21 @@ const isRedirectLoop = (destination: string): boolean => {
   const loginPageCount = redirectHistory.filter(url => url.includes('/login')).length;
   
   // 如果登入頁面出現次數過多，判定為循環重定向
-  return loginPageCount >= 3;
+  if (loginPageCount >= 3) {
+    authDebugger.log('redirect', `檢測到登入頁面循環：登入頁面在歷史中出現 ${loginPageCount} 次`, 'apiService');
+    console.warn(`檢測到登入頁面循環：登入頁面在歷史中出現 ${loginPageCount} 次`);
+    return true;
+  }
+  
+  return false;
 };
+
+// 重置重定向計數器 - 定期重置
+setInterval(() => {
+  if (redirectCount > 0) {
+    redirectCount = Math.max(0, redirectCount - 1);
+  }
+}, 5000);
 
 // 回應攔截器 - 處理token過期
 api.interceptors.response.use(
@@ -146,6 +185,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
+      authDebugger.log('auth_check', `收到401錯誤，原始請求: ${originalRequest.url}`, 'axios.interceptor');
+      
       try {
         // 嘗試刷新token
         const refreshSuccess = await refreshAuthToken();
@@ -156,9 +197,11 @@ api.interceptors.response.use(
           if (tokens && originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
           }
+          authDebugger.log('auth_check', `Token刷新成功，重試請求: ${originalRequest.url}`, 'axios.interceptor');
           return axios(originalRequest);
         }
       } catch (refreshError) {
+        authDebugger.log('auth_check', `Token刷新錯誤: ${refreshError}`, 'axios.interceptor');
         if (isDev) console.error('刷新令牌時出錯:', refreshError);
       }
       
@@ -168,14 +211,16 @@ api.interceptors.response.use(
         
         // 如果是登入頁面，不進行頁面重新整理，而是簡單返回錯誤，讓登入組件處理
         if (isOnLoginPage) {
-          if (isDev) console.log('在登入頁面，不重新導向');
+          authDebugger.log('redirect', '在登入頁面，不重新導向', 'axios.interceptor');
+          if (isDev) console.log('API攔截器：在登入頁面，不重新導向');
           return Promise.reject(error);
         }
         
         // 檢查是否應該重定向 (防止短時間內多次重定向)
         const now = Date.now();
         if (isRedirectingToLogin || (now - lastRedirectTime < REDIRECT_COOLDOWN)) {
-          if (isDev) console.log('已在重定向過程中或冷卻期間，跳過重定向');
+          authDebugger.log('redirect', '已在重定向過程中或冷卻期間，跳過重定向', 'axios.interceptor');
+          if (isDev) console.log('API攔截器：已在重定向過程中或冷卻期間，跳過重定向');
           return Promise.reject(error);
         }
         
@@ -184,12 +229,15 @@ api.interceptors.response.use(
         const loginPath = '/login';
         
         if (isRedirectLoop(loginPath)) {
-          console.error('偵測到重定向循環，直接重定向到登入頁面');
+          authDebugger.log('redirect', '偵測到重定向循環，停止重定向', 'axios.interceptor');
+          console.error('API攔截器：偵測到重定向循環，停止重定向');
           // 清除循環標記
           redirectHistory.length = 0;
+          redirectCount = 0;
+          isRedirectingToLogin = false;
           
-          // 直接重定向到登入頁面，不帶重定向路徑參數，避免循環
-          window.location.href = '/login?reason=auth-error';
+          // 不再重定向，只清除token
+          clearTokens();
           return Promise.reject(error);
         }
         
@@ -200,12 +248,14 @@ api.interceptors.response.use(
         // 清除令牌
         clearTokens();
         
-        if (isDev) console.log('非登入頁面，準備導向到登入頁面');
+        authDebugger.log('redirect', `準備重定向到登入頁面，當前路徑: ${currentPath}`, 'axios.interceptor');
+        if (isDev) console.log('API攔截器：非登入頁面，準備導向到登入頁面');
         
-        // 使用客戶端導航，帶上過期參數
-        window.location.href = loginPath;
+        // 使用客戶端導航，帶上過期參數和當前路徑
+        const redirectUrl = `${loginPath}?reason=expired&redirect=${encodeURIComponent(currentPath)}`;
+        window.location.href = redirectUrl;
         
-        // 5秒後重置狀態，以便下次可以再次重定向
+        // 重新設置狀態重置時間
         setTimeout(() => {
           isRedirectingToLogin = false;
         }, REDIRECT_COOLDOWN);
@@ -302,6 +352,7 @@ interface UserData {
 // API調用方法 - 使用通用的錯誤處理函數
 export const apiService = {
   login: async (email: string, password: string) => {
+    authDebugger.log('login', `發送登入請求: ${email}`, 'apiService.login');
     if (isDev) {
       console.log(`發送登入請求: ${email}`);
     }
@@ -326,16 +377,24 @@ export const apiService = {
       if (result.success && result.data && result.data.tokens) {
         const { accessToken, refreshToken } = result.data.tokens;
         storeTokens({ accessToken, refreshToken });
+        
+        // 登入成功後重置重定向計數
+        redirectCount = 0;
+        redirectHistory.length = 0;
+        authDebugger.log('login', '登入成功，已重置重定向計數', 'apiService.login');
       }
 
       return result;
     } catch (error) {
+      authDebugger.log('login', `登入發生錯誤: ${error}`, 'apiService.login');
       if (isDev) console.error('登入時發生錯誤:', error);
       throw error;
     }
   },
 
   logout: async () => {
+    authDebugger.log('logout', '發送登出請求', 'apiService.logout');
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
         method: 'POST',
@@ -353,15 +412,30 @@ export const apiService = {
       const result = await response.json().catch(() => ({ success: true }));
 
       clearTokens();
+      
+      // 登出時重置重定向狀態
+      redirectCount = 0;
+      redirectHistory.length = 0;
+      isRedirectingToLogin = false;
+      authDebugger.log('logout', '登出成功，已重置所有狀態', 'apiService.logout');
+      
       return result;
     } catch (error) {
       if (isDev) console.error('登出時發生錯誤:', error);
       clearTokens();
+      
+      // 即使登出失敗也重置重定向狀態
+      redirectCount = 0;
+      redirectHistory.length = 0;
+      isRedirectingToLogin = false;
+      authDebugger.log('logout', `登出發生錯誤但已重置狀態: ${error}`, 'apiService.logout');
+      
       throw error;
     }
   },
   
   getCurrentUser: async () => {
+    authDebugger.log('api_request', 'getCurrentUser -> /api/auth/me', 'apiService.getCurrentUser');
     return handleApiRequest(() => 
       api.get('/api/auth/me')
     );

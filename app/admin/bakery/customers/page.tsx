@@ -299,11 +299,9 @@ export default function CustomersManagement() {
   const handleConfirmDelete = async () => {
     if (!deletingCustomerId || !tempLineId) return;
     
-    // 立即設置刪除中狀態，防止重複點擊
-    setIsDeleting(true);
-    setDeleteError(null);
-    
     try {
+      setIsDeleting(true);
+      setDeleteError(null);
       
       // 使用暫存的lineId進行刪除
       const lineId = tempLineId;
@@ -655,27 +653,27 @@ export default function CustomersManagement() {
             <p className="mb-6 text-gray-700">您確定要刪除此客戶嗎？此操作無法撤銷。</p>
             
             <div className="flex justify-end gap-2">
-              {isDeleting ? (
-                <div className="flex items-center justify-center w-full py-2">
-                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-red-600 mr-3"></div>
-                  <span className="text-gray-700">正在刪除中...</span>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleCancelDelete}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-                  >
-                    取消
-                  </button>
-                  <button
-                    onClick={handleConfirmDelete}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center transition-colors"
-                  >
-                    確認刪除
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={handleCancelDelete}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                disabled={isDeleting}
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 flex items-center transition-colors"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                    處理中...
+                  </>
+                ) : (
+                  '確認刪除'
+                )}
+              </button>
             </div>
           </div>
         </div>

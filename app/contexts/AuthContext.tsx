@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiService } from '../services/api';
+import authDebugger from '../utils/authDebugger';
 
 // 設置環境變數
 const isDev = process.env.NODE_ENV === 'development';
@@ -42,31 +43,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const checkAuth = async () => {
       // 防止重複檢查
       if (isCheckingAuth.current || hasInitiallyChecked.current) {
-        if (isDev) console.log('AuthContext: 跳過重複認證檢查');
+        authDebugger.log('auth_check', '跳過重複認證檢查', 'AuthContext');
         return;
       }
 
+      authDebugger.log('auth_check', '開始初始認證檢查', 'AuthContext');
       isCheckingAuth.current = true;
       setIsLoading(true);
       
       try {
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
-          if (isDev) console.log('AuthContext: 沒有accessToken，設置為未登入狀態');
+          authDebugger.log('auth_check', '沒有accessToken，設置為未登入狀態', 'AuthContext');
           setUser(null);
           setIsLoading(false);
           hasInitiallyChecked.current = true;
           return;
         }
 
-        if (isDev) console.log('AuthContext: 驗證token有效性');
+        authDebugger.log('api_request', '驗證token有效性 -> /api/auth/me', 'AuthContext');
         // 驗證token有效性
         const response = await apiService.getCurrentUser();
         if (response.data.success) {
-          if (isDev) console.log('AuthContext: token有效，設置用戶數據');
+          authDebugger.log('auth_check', 'token有效，設置用戶數據', 'AuthContext');
           setUser(response.data.data);
         } else {
-          if (isDev) console.log('AuthContext: token無效，清除認證信息');
+          authDebugger.log('auth_check', 'token無效，清除認證信息', 'AuthContext');
           setUser(null);
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
         }
       } catch (error) {
+        authDebugger.log('auth_check', `身份驗證檢查錯誤: ${error}`, 'AuthContext');
         if (isDev) console.error('AuthContext: 身份驗證檢查錯誤:', error);
         setUser(null);
         localStorage.removeItem('accessToken');
@@ -86,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         isCheckingAuth.current = false;
         hasInitiallyChecked.current = true;
+        authDebugger.log('auth_check', '初始認證檢查完成', 'AuthContext');
       }
     };
 
@@ -95,11 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 刷新用戶信息
   const refreshUser = async () => {
     try {
+      authDebugger.log('api_request', '刷新用戶信息 -> /api/auth/me', 'AuthContext.refreshUser');
       const response = await apiService.getCurrentUser();
       if (response.data.success) {
         setUser(response.data.data);
+        authDebugger.log('auth_check', '用戶信息刷新成功', 'AuthContext.refreshUser');
       }
     } catch (error) {
+      authDebugger.log('auth_check', `刷新用戶信息錯誤: ${error}`, 'AuthContext.refreshUser');
       if (isDev) console.error('刷新用戶信息錯誤:', error);
     }
   };
@@ -107,7 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 登入函數
   const login = async (email: string, password: string) => {
     try {
-      console.log('開始登入');
+      authDebugger.log('login', `開始登入: ${email}`, 'AuthContext');
       const response = await apiService.login(email, password);
       
       // 注意: 由於改用fetch，response結構已經改變，不再需要 .data 層級
@@ -128,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           document.cookie = `accessToken=${accessToken}; path=/; expires=${accessExpiry.toUTCString()}`;
           document.cookie = `refreshToken=${refreshToken}; path=/; expires=${refreshExpiry.toUTCString()}`;
           
-          if (isDev) console.log('已設置新的格式到Cookie');
+          authDebugger.log('login', '已設置token到Cookie和localStorage', 'AuthContext');
           
           // 驗證cookie是否正確設置 - 僅開發環境
           if (isDev) {
@@ -166,23 +173,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (cookieError) {
           if (isDev) console.error('設置Cookie失敗:', cookieError);
+          authDebugger.log('login', `設置Cookie失敗: ${cookieError}`, 'AuthContext');
         }
         
         // 設置用戶信息並重置認證檢查狀態
         setUser(response.data.user);
         hasInitiallyChecked.current = true; // 重置狀態
+        authDebugger.log('login', '登入成功，用戶狀態已設置', 'AuthContext');
         
         return { 
           success: true, 
           userData: response.data.user  // 返回用戶數據
         };
       } else {
+        authDebugger.log('login', `登入失敗: ${response.message}`, 'AuthContext');
         return { 
           success: false, 
           message: response.message || '登入失敗' 
         };
       }
     } catch (error: any) {
+      authDebugger.log('login', `登入錯誤: ${error.message}`, 'AuthContext');
       if (isDev) console.error('登入錯誤:', error);
       return { 
         success: false, 
@@ -194,8 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 登出函數
   const logout = async () => {
     try {
+      authDebugger.log('logout', '開始登出流程', 'AuthContext');
       await apiService.logout();
     } catch (error) {
+      authDebugger.log('logout', `登出錯誤: ${error}`, 'AuthContext');
       if (isDev) console.error('登出錯誤:', error);
     } finally {
       // 清除本地存儲數據
@@ -227,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 重置認證檢查狀態
       hasInitiallyChecked.current = false;
       isCheckingAuth.current = false;
+      authDebugger.log('logout', '登出完成，已清除所有認證狀態', 'AuthContext');
       
       // 保存當前頁面路徑，登入後可以返回
       const currentPath = window.location.pathname;
@@ -255,6 +269,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 重置認證檢查狀態
     hasInitiallyChecked.current = false;
     isCheckingAuth.current = false;
+    
+    authDebugger.log('auth_check', '已清除所有身份驗證狀態 (clearAuth)', 'AuthContext');
     
     if (isDev) {
       console.log('已清除所有身份驗證狀態 (clearAuth)');

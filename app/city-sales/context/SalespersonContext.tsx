@@ -11,8 +11,8 @@ declare global {
   }
 }
 
-// 佣金計畫介面
-export interface CommissionPlan {
+// 定義分潤專案介面
+interface CommissionPlan {
   id: number;
   name: string;
   description?: string;
@@ -24,29 +24,21 @@ export interface CommissionPlan {
     rate: number;
   }>;
   status: 'active' | 'inactive';
-  effective_date?: string;
-  expiry_date?: string;
 }
 
-// 業務員資料介面
-export interface SalespersonData {
+// 定義業務員資料介面
+interface SalespersonData {
   id: string;
   name: string;
   email: string;
-  phone: string | null;
-  companyName: string | null;
-  location: string | null;
-  status: 'active' | 'inactive';
-  notes: string | null;
-  commission_plan_id: number | null;
-  contract_start_date: string | null;
-  contract_end_date: string | null;
-  created_at: string;
-  updated_at: string;
-  commissionPlan: CommissionPlan | null;
+  companyName: string;
+  commission_plan_id?: number;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  commissionPlan?: CommissionPlan;
 }
 
-// Context 類型定義
+// 定義 Context 介面
 interface SalespersonContextType {
   salesperson: SalespersonData | null;
   storeId: string | null;
@@ -65,43 +57,34 @@ interface SalespersonContextType {
 // 創建 Context
 const SalespersonContext = createContext<SalespersonContextType | undefined>(undefined);
 
-// Provider 組件
+// 業務員認證 Provider
 export function SalespersonProvider({ children }: { children: ReactNode }) {
   const [salesperson, setSalesperson] = useState<SalespersonData | null>(null);
-  const [storeId, setStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLiffReady, setIsLiffReady] = useState(false);
   const [liffError, setLiffError] = useState<string | null>(null);
+  const router = useRouter();
 
-  // 檢查認證狀態
+  // 檢查是否已登入
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const savedStoreId = localStorage.getItem('storeId');
-        if (savedStoreId) {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesperson/profile`, {
-            headers: {
-              'X-Salesperson-ID': savedStoreId
-            }
-          });
-
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data) {
-              setSalesperson(data.data);
-              setStoreId(savedStoreId);
-            } else {
-              throw new Error('無效的業務員資料');
-            }
+        const savedData = localStorage.getItem('salesperson');
+        if (savedData) {
+          const data = JSON.parse(savedData);
+          // 驗證儲存的認證是否仍然有效
+          const response = await salespersonApi.getDashboard(data.id);
+          if (response.success && response.data) {
+            setSalesperson(response.data.salesperson);
           } else {
-            throw new Error('驗證失敗');
+            // 認證已失效，清除儲存的數據
+            localStorage.removeItem('salesperson');
           }
         }
-      } catch (err) {
-        console.error('認證檢查失敗:', err);
-        setError(err instanceof Error ? err.message : '認證檢查失敗');
-        logout();
+      } catch (error) {
+        console.error('檢查認證狀態失敗:', error);
+        localStorage.removeItem('salesperson');
       } finally {
         setLoading(false);
       }
@@ -112,27 +95,26 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
 
   // 登入函數
   const login = async (salespersonId: string): Promise<boolean> => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesperson/profile`, {
-        headers: {
-          'X-Salesperson-ID': salespersonId
-        }
-      });
+    setLoading(true);
+    setError(null);
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setSalesperson(data.data);
-          setStoreId(salespersonId);
-          localStorage.setItem('storeId', salespersonId);
-          return true;
-        }
+    try {
+      // 調用後端 API 驗證業務員
+      const response = await salespersonApi.getDashboard(salespersonId);
+
+      if (response.success && response.data) {
+        const salespersonData = response.data.salesperson;
+        
+        // 儲存認證資料
+        setSalesperson(salespersonData);
+        localStorage.setItem('salesperson', JSON.stringify(salespersonData));
+        return true;
+      } else {
+        throw new Error(response.error || '業務員認證失敗');
       }
-      throw new Error('登入失敗');
-    } catch (err) {
-      console.error('登入失敗:', err);
-      setError(err instanceof Error ? err.message : '登入失敗');
+    } catch (error) {
+      console.error('登入失敗:', error);
+      setError(error instanceof Error ? error.message : '登入過程中發生錯誤');
       return false;
     } finally {
       setLoading(false);
@@ -142,105 +124,74 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   // 登出函數
   const logout = () => {
     setSalesperson(null);
-    setStoreId(null);
-    localStorage.removeItem('storeId');
-    if (window.liff?.isLoggedIn()) {
-      window.liff.logout();
-    }
+    localStorage.removeItem('salesperson');
+    router.push('/city-sales/login');
   };
 
-  // 獲取 LIFF Profile
+  // LIFF 相關功能
   const getLiffProfile = async (): Promise<any | null> => {
     try {
-      if (!window.liff?.isLoggedIn()) {
-        return null;
+      if (typeof window !== 'undefined' && window.liff && window.liff.isLoggedIn()) {
+        const profile = await window.liff.getProfile();
+        return profile;
       }
-      return await window.liff.getProfile();
+      return null;
     } catch (error) {
       console.error('獲取 LIFF Profile 失敗:', error);
       return null;
     }
   };
 
-  // 檢查是否在 LIFF 環境
   const isInLiffEnvironment = (): boolean => {
-    return window.liff?.isInClient() || false;
+    if (typeof window === 'undefined') return false;
+    return !!(window.liff);
   };
 
-  // 檢查 URL 參數
+  // 檢查 URL 參數中的 storeId（從 LIFF URL 傳遞）
   useEffect(() => {
     const checkUrlParams = () => {
       if (typeof window === 'undefined') return;
-
+      
       const urlParams = new URLSearchParams(window.location.search);
-      const error = urlParams.get('error');
-      if (error) {
-        setError(decodeURIComponent(error));
+      const storeIdFromUrl = urlParams.get('storeId');
+      
+      // 如果 URL 中有 storeId 且用戶還未登入，嘗試自動登入
+      if (storeIdFromUrl && !salesperson) {
+        console.log('從 URL 參數取得 storeId:', storeIdFromUrl);
+        login(storeIdFromUrl);
       }
     };
 
     checkUrlParams();
-  }, []);
+  }, [salesperson]);
 
-  // 初始化 LIFF
-  useEffect(() => {
-    const initializeLiff = async () => {
-      try {
-        if (typeof window === 'undefined') return;
-
-        if (!window.liff) {
-          const script = document.createElement('script');
-          script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-          script.onload = async () => {
-            try {
-              await window.liff.init({
-                liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
-              });
-              setIsLiffReady(true);
-            } catch (error) {
-              console.error('LIFF 初始化失敗:', error);
-              setLiffError('LIFF 初始化失敗');
-            }
-          };
-          document.head.appendChild(script);
-        } else {
-          setIsLiffReady(true);
-        }
-      } catch (error) {
-        console.error('LIFF 設置失敗:', error);
-        setLiffError('LIFF 設置失敗');
-      }
-    };
-
-    initializeLiff();
-  }, []);
-
-  const value = {
+  const contextValue: SalespersonContextType = {
     salesperson,
-    storeId,
+    storeId: salesperson?.id || null,
     loading,
     error,
     login,
     logout,
-    isAuthenticated: !!storeId,
+    isAuthenticated: !!salesperson,
+    // LIFF 相關
     isLiffReady,
     liffError,
     getLiffProfile,
-    isInLiffEnvironment
+    isInLiffEnvironment,
   };
 
   return (
-    <SalespersonContext.Provider value={value}>
+    <SalespersonContext.Provider value={contextValue}>
       {children}
     </SalespersonContext.Provider>
   );
 }
 
-// Hook
+// 使用 Context 的 Hook
 export function useSalesperson() {
   const context = useContext(SalespersonContext);
   if (context === undefined) {
-    throw new Error('useSalesperson must be used within a SalespersonProvider');
+    throw new Error('useSalesperson 必須在 SalespersonProvider 內部使用');
   }
   return context;
 } 

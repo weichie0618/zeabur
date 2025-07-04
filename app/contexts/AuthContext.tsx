@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiService } from '../services/api';
 
@@ -32,24 +32,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  
+  // 添加請求狀態控制，防止重複請求
+  const isCheckingAuth = useRef(false);
+  const hasInitiallyChecked = useRef(false);
 
   // 檢查用戶是否已經登入
   useEffect(() => {
     const checkAuth = async () => {
+      // 防止重複檢查
+      if (isCheckingAuth.current || hasInitiallyChecked.current) {
+        if (isDev) console.log('AuthContext: 跳過重複認證檢查');
+        return;
+      }
+
+      isCheckingAuth.current = true;
       setIsLoading(true);
+      
       try {
         const accessToken = localStorage.getItem('accessToken');
         if (!accessToken) {
+          if (isDev) console.log('AuthContext: 沒有accessToken，設置為未登入狀態');
           setUser(null);
           setIsLoading(false);
+          hasInitiallyChecked.current = true;
           return;
         }
 
+        if (isDev) console.log('AuthContext: 驗證token有效性');
         // 驗證token有效性
         const response = await apiService.getCurrentUser();
         if (response.data.success) {
+          if (isDev) console.log('AuthContext: token有效，設置用戶數據');
           setUser(response.data.data);
         } else {
+          if (isDev) console.log('AuthContext: token無效，清除認證信息');
           setUser(null);
           localStorage.removeItem('accessToken');
           localStorage.removeItem('refreshToken');
@@ -58,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
         }
       } catch (error) {
-        if (isDev) console.error('身份驗證檢查錯誤:', error);
+        if (isDev) console.error('AuthContext: 身份驗證檢查錯誤:', error);
         setUser(null);
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -67,11 +84,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
       } finally {
         setIsLoading(false);
+        isCheckingAuth.current = false;
+        hasInitiallyChecked.current = true;
       }
     };
 
     checkAuth();
-  }, []);
+  }, []); // 移除所有依賴項，只在組件掛載時執行一次
 
   // 刷新用戶信息
   const refreshUser = async () => {
@@ -149,8 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isDev) console.error('設置Cookie失敗:', cookieError);
         }
         
-        // 設置用戶信息
+        // 設置用戶信息並重置認證檢查狀態
         setUser(response.data.user);
+        hasInitiallyChecked.current = true; // 重置狀態
         
         return { 
           success: true, 
@@ -204,6 +224,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       setUser(null);
+      // 重置認證檢查狀態
+      hasInitiallyChecked.current = false;
+      isCheckingAuth.current = false;
       
       // 保存當前頁面路徑，登入後可以返回
       const currentPath = window.location.pathname;
@@ -228,6 +251,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // 清除用戶狀態
     setUser(null);
+    
+    // 重置認證檢查狀態
+    hasInitiallyChecked.current = false;
+    isCheckingAuth.current = false;
     
     if (isDev) {
       console.log('已清除所有身份驗證狀態 (clearAuth)');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -48,6 +48,10 @@ export default function LoginPage() {
   const [redirectPath, setRedirectPath] = useState(''); // 存儲重定向路徑
   const isDev = process.env.NODE_ENV === 'development';
   const [isExpired, setIsExpired] = useState(false);
+  
+  // 添加導航狀態控制，防止重複導航
+  const isNavigating = useRef(false);
+  const hasNavigated = useRef(false);
 
   // 處理搜尋參數回調
   const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null, reason: string | null) => {
@@ -101,13 +105,22 @@ export default function LoginPage() {
     }
   };
 
-  // 統一處理基於角色的導航邏輯
+  // 統一處理基於角色的導航邏輯 - 使用 useMemo 來穩定函數
   const navigateBasedOnRole = useCallback((userData: any) => {
+    // 防止重複導航
+    if (isNavigating.current || hasNavigated.current) {
+      if (isDev) addDebugInfo('跳過重複導航');
+      return;
+    }
+
     try {
       if (!userData || !userData.role) {
         if (isDev) addDebugInfo('無效的用戶數據或角色');
         return;
       }
+      
+      isNavigating.current = true;
+      hasNavigated.current = true;
       
       // 如果有重定向路徑，優先使用該路徑
       if (redirectPath) {
@@ -132,12 +145,11 @@ export default function LoginPage() {
         addDebugInfo(`導航錯誤: ${error}`);
         console.error('導航錯誤:', error);
       }
+      isNavigating.current = false;
     }
-  }, [router, isDev, redirectPath]);
+  }, [router, redirectPath, isDev]); // 移除不必要的依賴項
 
-  // 已移除：頁面初次加載時的 token 檢查邏輯，因為它會干擾正常的登入跳轉流程
-
-  // 監聽認證狀態變更，根據角色進行導航
+  // 監聽認證狀態變更，根據角色進行導航 - 優化依賴項
   useEffect(() => {
     // 如果檢測到令牌過期，不要觸發導航邏輯
     if (isExpired) {
@@ -165,10 +177,10 @@ export default function LoginPage() {
     }
     
     // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況，且不是令牌過期的情況
-    if (isAuthenticated && user && !loginAttempted && !isExpired) {
+    if (isAuthenticated && user && !loginAttempted && !isExpired && !hasNavigated.current) {
       navigateBasedOnRole(user);
     }
-  }, [isAuthenticated, user, router, isDev, loginAttempted, isExpired, clearAuth, navigateBasedOnRole]);
+  }, [isAuthenticated, user, loginAttempted, isExpired, navigateBasedOnRole]); // 移除不需要的依賴項
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -187,6 +199,8 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     setLoginAttempted(false); // 重置登入嘗試狀態
+    hasNavigated.current = false; // 重置導航狀態
+    isNavigating.current = false;
     addDebugInfo('正在處理登入請求...');
 
     // 表單驗證
@@ -259,6 +273,8 @@ export default function LoginPage() {
     setError('');
     setLoginAttempted(false);
     setPassword('');
+    hasNavigated.current = false; // 重置導航狀態
+    isNavigating.current = false;
     // 設定焦點在密碼欄位
     const passwordField = document.getElementById('password') as HTMLInputElement;
     if (passwordField) {

@@ -169,80 +169,27 @@ export default function QRCodePage() {
     }
 
     try {
-      if (!qrRef.current) {
-        alert('QR Code 尚未生成');
-        return;
-      }
-      
       // 檢查是否在 LINE 環境中
       if (!liff.isInClient()) {
         alert('此功能需要在 LINE APP 中使用');
         return;
       }
 
-      // 將 SVG 轉換為 PNG
-      const convertSvgToPng = async (svg: SVGElement): Promise<string> => {
-        return new Promise((resolve, reject) => {
-          try {
-            const svgData = new XMLSerializer().serializeToString(svg);
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            const svgUrl = URL.createObjectURL(svgBlob);
-            
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            
-            img.onload = () => {
-              try {
-                const canvas = document.createElement('canvas');
-                canvas.width = 300;
-                canvas.height = 300;
-                
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                  reject(new Error('無法創建 Canvas 上下文'));
-                  return;
-                }
-                
-                // 設置白色背景
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // 繪製 QR Code
-                ctx.drawImage(img, 0, 0, 300, 300);
-                
-                // 清理資源
-                URL.revokeObjectURL(svgUrl);
-                
-                // 轉換為 base64
-                const pngData = canvas.toDataURL('image/png');
-                resolve(pngData);
-              } catch (err) {
-                reject(err);
-              }
-            };
-            
-            img.onerror = () => {
-              URL.revokeObjectURL(svgUrl);
-              reject(new Error('圖片載入失敗'));
-            };
-            
-            img.src = svgUrl;
-          } catch (err) {
-            reject(err);
-          }
-        });
-      };
+      if (!lineUrl) {
+        alert('推廣連結尚未生成');
+        return;
+      }
 
+      // 使用 QR Server API
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(lineUrl)}&size=300x300`;
+      
       try {
-        // 轉換圖片
-        const pngData = await convertSvgToPng(qrRef.current);
-        
         // 發送訊息
         await liff.sendMessages([
           {
             type: 'image',
-            originalContentUrl: pngData,
-            previewImageUrl: pngData
+            originalContentUrl: qrImageUrl,
+            previewImageUrl: qrImageUrl
           },
           {
             type: 'text',
@@ -252,12 +199,8 @@ export default function QRCodePage() {
         
         alert('已成功發送到 LINE 聊天室！');
       } catch (error) {
-        console.error('圖片處理失敗:', error);
-        if (error instanceof Error) {
-          alert(`處理失敗：${error.message}`);
-        } else {
-          alert('圖片處理失敗，請稍後再試');
-        }
+        console.error('發送失敗:', error);
+        alert('發送失敗，請稍後再試');
       }
     } catch (err) {
       console.error('發送失敗:', err);

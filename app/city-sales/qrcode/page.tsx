@@ -352,7 +352,7 @@ export default function QRCodePage() {
                   <li>• 📤 傳送到LINE：將QR Code發送到您的LINE聊天室</li>
                   <li>• 👥 分享給好友：使用精美的Flex訊息分享給LINE好友</li>
                   <li>• 🎨 Flex訊息包含您的專屬推廣連結和聯絡資訊</li>
-                  <li>• 🔗 好友點擊按鈕即可直接進入購買頁面</li>
+                  <li>• 🔗 好友點擊按鈕即可直接綁訂您的資訊</li>
                 </ul>
               </div>
             </div>
@@ -367,7 +367,7 @@ export default function QRCodePage() {
                   <li>• 客戶掃描 QR Code 後會自動開啟 LINE</li>
                   <li>• 系統會自動將客戶串聯到您的帳號</li>
                   <li>• 所有透過此連結產生的訂單都會計入您的業績</li>
-                  <li>• 建議在名片或宣傳資料上印製此 QR Code</li>
+                 
                 </ul>
               </div>
             </div>

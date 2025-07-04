@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSalesperson } from '../context/SalespersonContext';
 import { 
-  salespersonApi, 
+  api, 
   Commission, 
   CommissionsResponse,
   formatCurrency,
@@ -45,9 +45,10 @@ export default function CommissionsPage() {
     if (!storeId) return;
 
     try {
-      const response = await salespersonApi.getDashboard(storeId);
-      if (response.success && response.data) {
-        setSalespersonData(response.data.salesperson);
+      const response = await api.get('/api/salesperson/dashboard');
+      const data = response.data;
+      if (data.success && data.data) {
+        setSalespersonData(data.data.salesperson);
       }
     } catch (err) {
       console.error('獲取業務員資料失敗:', err);
@@ -69,13 +70,14 @@ export default function CommissionsPage() {
         ...(filters.endDate && { endDate: filters.endDate }),
       };
 
-      const response = await salespersonApi.getCommissions(storeId, params);
+      const response = await api.get('/api/salesperson/commissions', { params });
+      const data = response.data;
       
-      if (response.success && response.data) {
-        setCommissions(response.data.commissions);
-        setPagination(response.data.pagination);
+      if (data.success && data.data) {
+        setCommissions(data.data.commissions);
+        setPagination(data.data.pagination);
       } else {
-        setError(response.error || '獲取分潤數據失敗');
+        setError(data.error || '獲取分潤數據失敗');
       }
     } catch (err) {
       setError('獲取分潤時發生錯誤');

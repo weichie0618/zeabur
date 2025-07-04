@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSalesperson } from '../context/SalespersonContext';
-import { salespersonApi, formatCurrency, formatCommissionAmount } from '../services/apiService';
+import { api, formatCurrency, formatCommissionAmount } from '../services/apiService';
 
 interface DashboardStats {
   total_orders: number;
@@ -77,14 +77,16 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      const response = await salespersonApi.getDashboard(storeId);
-      if (response.success && response.data && 
-          'today' in response.data && 
-          'monthly' in response.data && 
-          'commission' in response.data) {
-        setDashboardData(response.data as DashboardData);
+      const response = await api.get('/api/salesperson/dashboard');
+      const data = response.data;
+      
+      if (data.success && data.data && 
+          'today' in data.data && 
+          'monthly' in data.data && 
+          'commission' in data.data) {
+        setDashboardData(data.data as DashboardData);
       } else {
-        setError(response.error || '獲取儀表板數據失敗');
+        setError(data.error || '獲取儀表板數據失敗');
       }
     } catch (err) {
       setError('獲取儀表板數據時發生錯誤');

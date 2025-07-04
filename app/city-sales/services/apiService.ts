@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
+import { SalespersonData } from '../context/SalespersonContext';
 
 // API 基礎配置
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
@@ -172,82 +173,80 @@ export interface CommissionRulesResponse {
   error?: string;
 }
 
-// 創建獨立的 city-sales axios 實例
-const citySalesApi: AxiosInstance = axios.create({
-  baseURL: "",
+// 業務員列表查詢參數
+export interface SalespersonListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: 'active' | 'inactive';
+  hasPlan?: 'all' | 'yes' | 'no';
+}
+
+// 業務員列表回應
+export interface SalespersonListResponse {
+  success: boolean;
+  data?: {
+    customers: Array<{
+      id: string;
+      name: string;
+      email: string;
+      phone: string | null;
+      companyName: string | null;
+      location: string | null;
+      status: 'active' | 'inactive';
+      notes: string | null;
+      commission_plan_id: number | null;
+      contract_start_date: string | null;
+      contract_end_date: string | null;
+      created_at: string;
+      updated_at: string;
+      commissionPlan: {
+        id: number;
+        name: string;
+        rule_type: string;
+        fixed_rate: number;
+        description: string;
+      } | null;
+    }>;
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  };
+  error?: string;
+}
+
+// API 實例
+const api: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// 從 localStorage 獲取業務員資訊
-const getSalespersonInfo = () => {
-  if (typeof window === 'undefined') return null;
-  
-  try {
-    const savedData = localStorage.getItem('salesperson');
-    if (savedData) {
-      return JSON.parse(savedData);
-    }
-  } catch (error) {
-    if (isDev) console.error('獲取業務員資訊失敗:', error);
-  }
-  return null;
-};
-
-// 請求攔截器 - 只添加業務員相關的認證
-citySalesApi.interceptors.request.use(
+// 攔截器設置
+api.interceptors.request.use(
   (config) => {
-    const salesperson = getSalespersonInfo();
-    
-    // 添加業務員 ID 到請求頭
-    if (salesperson && salesperson.id) {
-      config.headers = config.headers || {};
-      config.headers['X-Salesperson-ID'] = salesperson.id;
+    const storeId = localStorage.getItem('storeId');
+    if (storeId) {
+      config.headers['X-Salesperson-ID'] = storeId;
     }
-
-    if (isDev) {
-      console.log(`[City-Sales API] ${config.method?.toUpperCase()} ${config.url}`);
-      if (salesperson?.id) {
-        console.log(`[City-Sales API] Salesperson ID: ${salesperson.id}`);
-      }
-    }
-
     return config;
   },
-  (error: AxiosError) => {
-    if (isDev) console.error('[City-Sales API] Request error:', error);
+  (error) => {
     return Promise.reject(error);
   }
 );
 
-// 回應攔截器 - 處理業務員平台特有的錯誤
-citySalesApi.interceptors.response.use(
-  (response: AxiosResponse) => {
-    if (isDev) {
-      console.log(`[City-Sales API] Response ${response.status}:`, response.data);
-    }
-    return response;
-  },
+api.interceptors.response.use(
+  (response) => response,
   (error: AxiosError) => {
     if (isDev) {
-      console.error('[City-Sales API] Response error:', error.response?.status, error.response?.data);
+      console.error('API Error:', error);
     }
-
-    // 處理業務員認證失敗
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      // 清除業務員資訊
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('salesperson');
-        
-        // 如果不在登入頁面，重定向到業務員登入頁
-        if (window.location.pathname !== '/city-sales/login') {
-          window.location.href = '/city-sales/login?reason=auth-error';
-        }
-      }
-    }
-
     return Promise.reject(error);
   }
 );
@@ -260,22 +259,41 @@ async function makeApiRequest<T>(
     const response = await requestFn();
     return response.data;
   } catch (error) {
-    if (isDev) console.error('[City-Sales API] Request failed:', error);
-    
-    if (error instanceof Error) {
-      throw new Error(error.message);
+    if (isDev) {
+      console.error('API Request failed:', error);
     }
-    
-    throw new Error('請求失敗');
+    throw error;
   }
 }
+
+// 獲取所有業務員列表
+export const getAllSalespersons = async (params: SalespersonListParams = {}): Promise<SalespersonListResponse> => {
+  try {
+    const response = await api.get('/api/salesperson/all', { params });
+    return response.data;
+  } catch (error) {
+    console.error('獲取業務員列表失敗:', error);
+    throw error;
+  }
+};
+
+// 獲取業務員個人資料
+export const getProfile = async (): Promise<ApiResponse<SalespersonData>> => {
+  try {
+    const response = await api.get('/api/salesperson/profile');
+    return response.data;
+  } catch (error) {
+    console.error('獲取業務員資料失敗:', error);
+    throw error;
+  }
+};
 
 // 業務員 API 服務
 export const salespersonApi = {
   // 獲取業務員儀表板數據
   getDashboard: async (storeId: string): Promise<ApiResponse<{ salesperson: DashboardData['salesperson'] }>> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/dashboard`, {
+      api.get(`/api/salesperson/dashboard`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -297,7 +315,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/orders?${queryParams.toString()}`, {
+      api.get(`/api/salesperson/orders?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -319,7 +337,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commissions?${queryParams.toString()}`, {
+      api.get(`/api/salesperson/commissions?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -328,11 +346,17 @@ export const salespersonApi = {
   // 獲取業務員分潤規則
   getCommissionRules: async (storeId: string): Promise<CommissionRulesResponse> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commission-rules`, {
+      api.get(`/api/salesperson/commission-rules`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
-  }
+  },
+
+  // 獲取所有業務員列表
+  getAllSalespersons: getAllSalespersons,
+
+  // 獲取業務員個人資料
+  getProfile: getProfile
 };
 
 // 管理後台 API（如果需要的話）
@@ -350,7 +374,7 @@ export const adminApi = {
     }>;
   }>> => {
     return makeApiRequest(() => 
-      citySalesApi.get('/api/admin/commission/salespersons')
+      api.get('/api/admin/commission/salespersons')
     );
   },
 
@@ -378,7 +402,7 @@ export const adminApi = {
     };
   }>> => {
     return makeApiRequest(() => 
-      citySalesApi.post('/api/admin/commission/rules', data)
+      api.post('/api/admin/commission/rules', data)
     );
   },
 
@@ -399,7 +423,7 @@ export const adminApi = {
     }>;
   }>> => {
     return makeApiRequest(() => 
-      citySalesApi.post('/api/admin/commission/calculate', data)
+      api.post('/api/admin/commission/calculate', data)
     );
   },
 
@@ -421,14 +445,14 @@ export const adminApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/admin/commission/records?${queryParams.toString()}`)
+      api.get(`/api/admin/commission/records?${queryParams.toString()}`)
     );
   },
 
   // 更新分潤狀態
   updateCommissionStatus: async (id: number, status: string): Promise<ApiResponse<void>> => {
     return makeApiRequest(() => 
-      citySalesApi.put(`/api/admin/commission/records/${id}/status`, { status })
+      api.put(`/api/admin/commission/records/${id}/status`, { status })
     );
   }
 };
@@ -508,4 +532,4 @@ export const commissionRuleTypeMap: { [key: string]: string } = {
 };
 
 // 導出獨立的 API 實例供特殊用途使用
-export { citySalesApi }; 
+export { api }; 

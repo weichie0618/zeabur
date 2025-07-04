@@ -180,55 +180,85 @@ export default function QRCodePage() {
         return;
       }
 
-      const svg = qrRef.current;
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement("canvas");
-      const img = new Image();
-      
-      img.onload = async () => {
-        try {
-          canvas.width = 300;
-          canvas.height = 300;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            throw new Error('無法創建 Canvas 上下文');
+      // 將 SVG 轉換為 PNG
+      const convertSvgToPng = async (svg: SVGElement): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          try {
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const svgUrl = URL.createObjectURL(svgBlob);
+            
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            
+            img.onload = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 300;
+                canvas.height = 300;
+                
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                  reject(new Error('無法創建 Canvas 上下文'));
+                  return;
+                }
+                
+                // 設置白色背景
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 繪製 QR Code
+                ctx.drawImage(img, 0, 0, 300, 300);
+                
+                // 清理資源
+                URL.revokeObjectURL(svgUrl);
+                
+                // 轉換為 base64
+                const pngData = canvas.toDataURL('image/png');
+                resolve(pngData);
+              } catch (err) {
+                reject(err);
+              }
+            };
+            
+            img.onerror = () => {
+              URL.revokeObjectURL(svgUrl);
+              reject(new Error('圖片載入失敗'));
+            };
+            
+            img.src = svgUrl;
+          } catch (err) {
+            reject(err);
           }
-          
-          // 設置白色背景
-          ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          // 繪製 QR Code
-          ctx.drawImage(img, 0, 0, 300, 300);
-          
-          // 轉換為 base64
-          const imageData = canvas.toDataURL("image/png");
-          
-          // 發送訊息
-          await liff.sendMessages([
-            {
-              type: 'image',
-              originalContentUrl: imageData,
-              previewImageUrl: imageData
-            },
-            {
-              type: 'text',
-              text: `推廣連結：${lineUrl}`
-            }
-          ]);
-          
-          alert('已成功發送到 LINE 聊天室！');
-        } catch (error) {
-          console.error('處理圖片失敗:', error);
+        });
+      };
+
+      try {
+        // 轉換圖片
+        const pngData = await convertSvgToPng(qrRef.current);
+        
+        // 發送訊息
+        await liff.sendMessages([
+          {
+            type: 'image',
+            originalContentUrl: pngData,
+            previewImageUrl: pngData
+          },
+          {
+            type: 'text',
+            text: `推廣連結：${lineUrl}`
+          }
+        ]);
+        
+        alert('已成功發送到 LINE 聊天室！');
+      } catch (error) {
+        console.error('圖片處理失敗:', error);
+        if (error instanceof Error) {
+          alert(`處理失敗：${error.message}`);
+        } else {
           alert('圖片處理失敗，請稍後再試');
         }
-      };
-      
-      img.onerror = () => {
-        alert('圖片載入失敗，請稍後再試');
-      };
-      
-      img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+      }
     } catch (err) {
       console.error('發送失敗:', err);
       alert('發送失敗，請確認是否在 LINE APP 中使用');

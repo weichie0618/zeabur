@@ -56,35 +56,12 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-50 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-        {/* 頁面標題 */}
-        <div className="relative overflow-hidden bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 rounded-2xl shadow-2xl shadow-purple-500/20 p-6 sm:p-8 text-white">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-          </div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-white to-purple-100 bg-clip-text text-transparent">
-                個人資料
-              </h1>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900">個人資料</h1>
 
-        {/* 基本資訊 */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl shadow-gray-200/50 border border-white/20 p-6 sm:p-8">
-          <div className="flex items-center mb-6">
-            <div className="w-2 h-8 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full mr-4"></div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">基本資訊</h2>
-          </div>
+      {/* 基本資訊 */}
+      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">基本資訊</h2>
         
         <div className="grid grid-cols-1 gap-4 sm:gap-6">
           <div className="grid grid-cols-2 gap-4">
@@ -259,7 +236,7 @@ export default function ProfilePage() {
       </div>
 
       {/* 操作按鈕 */}
-      </div>
+      
     </div>
   );
 } 

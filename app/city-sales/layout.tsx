@@ -24,10 +24,10 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ href, active, children, onCli
   return (
     <Link 
       href={href} 
-      className={`block px-4 py-3 my-1 mx-2 rounded-lg transition-colors ${
+      className={`block px-4 py-3 my-1 mx-2 rounded-lg transition-all duration-200 ${
         active 
-          ? 'bg-blue-600 text-white shadow-md' 
-          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg transform scale-105' 
+          : 'text-gray-300 hover:bg-gray-700/50 hover:text-white hover:translate-x-1'
       }`}
       onClick={onClick}
     >
@@ -113,14 +113,14 @@ function CitySalesLayoutInner({
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       {/* 側邊欄 */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 text-white transform ${
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-gray-800 to-gray-900 text-white transform ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } md:translate-x-0 transition-transform duration-300 ease-in-out md:static md:block`}>
-        <div className="p-4 border-b border-gray-700">
-          <Link href="/city-sales/dashboard" className="text-xl font-bold flex items-center" onClick={closeSidebar}>
-            <span className="bg-blue-600 h-8 w-8 rounded-lg flex items-center justify-center text-white mr-3">
+      } md:translate-x-0 transition-transform duration-300 ease-in-out md:static md:block shadow-xl`}>
+        <div className="p-4 border-b border-gray-700/50">
+          <Link href="/city-sales/dashboard" className="text-xl font-bold flex items-center hover:opacity-90 transition-opacity" onClick={closeSidebar}>
+            <span className="bg-gradient-to-r from-blue-500 to-blue-600 h-8 w-8 rounded-lg flex items-center justify-center text-white mr-3 shadow-lg">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
@@ -128,7 +128,7 @@ function CitySalesLayoutInner({
             晴朗家推廣平台
           </Link>
           {storeId && (
-            <p className="text-sm text-gray-300 mt-2">代號：{storeId}</p>
+            <p className="text-sm text-gray-400 mt-2 bg-gray-800/50 px-2 py-1 rounded-md">代號：{storeId}</p>
           )}
         </div>
         
@@ -187,7 +187,7 @@ function CitySalesLayoutInner({
       {/* 主要內容區 */}
       <main className="flex-1 overflow-auto">
         {/* 頂部導航欄 */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+        <header className="bg-white/80 backdrop-blur-sm shadow-lg border-b border-gray-200/60">
           <div className="flex justify-between items-center px-4 py-3">
             <div className="flex items-center">
               {/* 側邊欄切換按鈕 - 僅在行動裝置顯示 */}
@@ -220,8 +220,10 @@ function CitySalesLayoutInner({
         </header>
         
         {/* 內容區域 */}
-        <div className="p-4">
-          {children}
+        <div className="p-4 min-h-screen">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </div>
       </main>
       

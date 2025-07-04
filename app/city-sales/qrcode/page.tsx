@@ -193,7 +193,8 @@ export default function QRCodePage() {
           },
           {
             type: 'text',
-            text: `推廣連結：${lineUrl}`
+            text: `晴朗家麵包：
+            ${lineUrl}`
           }
         ]);
         

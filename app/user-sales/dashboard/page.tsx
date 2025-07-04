@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSalesperson } from '../context/SalespersonContext';
-import { salespersonApi, formatCurrency } from '../services/apiService';
+import { salespersonApi, formatCurrency, formatCommissionAmount } from '../services/apiService';
 
 interface DashboardStats {
   total_orders: number;
@@ -125,7 +125,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
       {/* 歡迎區塊 */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-4 sm:p-6 text-white">
+      <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl p-4 sm:p-6 text-white shadow-lg">
         <h1 className="text-lg sm:text-2xl font-bold mb-2">歡迎回來，{dashboardData?.salesperson?.companyName }！</h1>
         
         <p className="text-blue-100 text-xs sm:text-sm mt-1">
@@ -139,18 +139,18 @@ export default function DashboardPage() {
       </div>
 
       {/* 本月業績 */}
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">
           本月業績 ({dashboardData.monthly.month})
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:gap-6">
-          <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-blue-600 mb-1">訂單總數</p>
             <p className="text-lg sm:text-2xl font-bold text-blue-700">
               {dashboardData.monthly.total_orders} 筆
             </p>
           </div>
-          <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-purple-600 mb-1">商品銷售額</p>
             <p className="text-lg sm:text-2xl font-bold text-purple-700">
               {formatCurrency(dashboardData.monthly.subtotal_sum)}
@@ -163,7 +163,7 @@ export default function DashboardPage() {
         <div className="mt-4 sm:mt-6">
           <h3 className="text-sm sm:text-md font-medium text-gray-900 mb-2 sm:mb-3">訂單狀態分布</h3>
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <div className="bg-yellow-50 rounded-lg p-3 sm:p-4 text-center">
+            <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-yellow-600 mb-1">未完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-yellow-700">
                 {dashboardData.monthly.status_breakdown.pending +
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                  dashboardData.monthly.status_breakdown.cancelled}
               </p>
             </div>
-            <div className="bg-green-50 rounded-lg p-3 sm:p-4 text-center">
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-green-600 mb-1">已完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-green-700">
                 {dashboardData.monthly.status_breakdown.delivered}
@@ -185,38 +185,38 @@ export default function DashboardPage() {
     
 
       {/*分潤資訊 */}
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">分潤資訊</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-6">
-          <div className="bg-yellow-50 rounded-lg p-3 sm:p-4">
+          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-yellow-600 mb-1">待結算分潤</p>
             <p className="text-lg sm:text-2xl font-bold text-yellow-700">
-              {formatCurrency(dashboardData.commission.calculated)}
+              {formatCommissionAmount(dashboardData.commission.calculated)}
             </p>
           </div>
-          <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-green-600 mb-1">已結算分潤</p>
             <p className="text-lg sm:text-2xl font-bold text-green-700">
-              {formatCurrency(dashboardData.commission.paid)}
+              {formatCommissionAmount(dashboardData.commission.paid)}
             </p>
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-blue-600 mb-1">分潤總額</p>
             <p className="text-lg sm:text-2xl font-bold text-blue-700">
-              {formatCurrency(dashboardData.commission.total)}
+              {formatCommissionAmount(dashboardData.commission.total)}
             </p>
           </div>
         </div>
       </div>
 
       {/* 快速功能 */}
-      <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">快速功能</h2>
         
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4">
           <Link 
             href="/city-sales/orders" 
-            className="bg-blue-50 hover:bg-blue-100 rounded-lg p-3 sm:p-4 text-center transition-colors"
+            className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-3 sm:p-4 text-center transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
           >
             <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-blue-600">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -228,7 +228,7 @@ export default function DashboardPage() {
           
           <Link 
             href="/city-sales/commissions" 
-            className="bg-green-50 hover:bg-green-100 rounded-lg p-3 sm:p-4 text-center transition-colors"
+            className="bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 rounded-xl p-3 sm:p-4 text-center transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
           >
             <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-green-600">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
           
           <Link 
             href="/city-sales/profile" 
-            className="bg-purple-50 hover:bg-purple-100 rounded-lg p-3 sm:p-4 text-center transition-colors"
+            className="bg-gradient-to-br from-purple-50 to-purple-100 hover:from-purple-100 hover:to-purple-200 rounded-xl p-3 sm:p-4 text-center transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
           >
             <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-purple-600">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

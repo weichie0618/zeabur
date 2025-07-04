@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSalesperson } from '../context/SalespersonContext';
 import { QRCodeSVG } from 'qrcode.react';
+import liff from '@line/liff';
 
 export default function QRCodePage() {
   const { salesperson, storeId } = useSalesperson();
@@ -27,16 +28,124 @@ export default function QRCodePage() {
     }
   };
 
-  const downloadQRCode = () => {
-    if (!qrRef.current) return;
-    
+  // 創建精美的 Flex 訊息
+  const createPromotionFlexMessage = () => {
+    return {
+      type: "flex" as const,
+      altText: "晴朗家烘焙麵包",
+      contents: {
+        type: "bubble",
+        size: "kilo",
+        header: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "晴朗家烘焙麵包訂購",
+              color: "#ffffff",
+              align: "center",
+              size: "xl",
+              gravity: "center",
+              weight: "bold"
+            }
+          ],
+          backgroundColor: "#E4A853",
+          paddingAll: "10px"
+        },
+        hero: {
+          type: "image",
+          url: "https://i.ibb.co/5WLJ6sNk/LINE-ALBUM-2025-1-17-1-250117-7-2-1.jpg",
+          size: "full",
+          aspectRatio: "20:8",
+          aspectMode: "cover"
+        },
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: "晴朗家烘焙邀請您",
+              weight: "bold",
+              size: "lg",
+              color: "#8B4513",
+              align: "center",
+              margin: "md"
+            },
+            {
+              type: "separator",
+              margin: "md"
+            },
+            {
+              type: "box",
+              layout: "vertical",
+              contents: [
+                {
+                  type: "text",
+                  text: "🥖 精選烘焙商品",
+                  size: "md",
+                  color: "#C87941"
+                },
+                {
+                  type: "text",
+                  text: "💰 會員點數回饋",
+                  size: "md",
+                  color: "#C87941",
+                  margin: "sm"
+                },
+                {
+                  type: "text",
+                  text: "🚚 低溫配送服務",
+                  size: "md",
+                  color: "#C87941",
+                  margin: "sm"
+                }
+              ],
+              margin: "lg",
+              spacing: "md"
+            }
+          ],
+          paddingBottom: "md",
+          spacing: "md"
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              color: "#E4A853",
+              action: {
+                type: "uri",
+                label: "來去看看",
+                uri: lineUrl
+              }
+            }
+          ],
+          spacing: "sm"
+        },
+        styles: {
+          footer: {
+            separator: true
+          }
+        }
+      }
+    };
+  };
+
+  const sendToLineChat = async () => {
     try {
-      const canvas = document.createElement("canvas");
+      if (!qrRef.current) return;
+      
       const svg = qrRef.current;
       const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement("canvas");
       const img = new Image();
       
-      img.onload = () => {
+      img.onload = async () => {
         canvas.width = 300;
         canvas.height = 300;
         const ctx = canvas.getContext("2d");
@@ -45,16 +154,47 @@ export default function QRCodePage() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, 300, 300);
         
-        const pngFile = canvas.toDataURL("image/png");
-        const downloadLink = document.createElement("a");
-        downloadLink.download = `${storeId}_QRCode.png`;
-        downloadLink.href = pngFile;
-        downloadLink.click();
+        const imageData = canvas.toDataURL("image/png");
+        
+        try {
+          await liff.sendMessages([
+            {
+              type: 'image',
+              originalContentUrl: imageData,
+              previewImageUrl: imageData
+            },
+            {
+              type: 'text',
+              text: `推廣連結：${lineUrl}`
+            }
+          ]);
+         
+        } catch (error) {
+          console.error('發送到LINE失敗:', error);
+          
+        }
       };
       
       img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
     } catch (err) {
-      console.error('下載失敗:', err);
+      console.error('處理QR Code失敗:', err);
+      
+    }
+  };
+
+  const shareToFriends = async () => {
+    try {
+      const flexMessage = createPromotionFlexMessage();
+      
+      if (liff.isApiAvailable('shareTargetPicker')) {
+        await liff.shareTargetPicker([flexMessage as any]);
+        
+      } else {
+        
+      }
+    } catch (error) {
+      console.error('分享失敗:', error);
+     
     }
   };
 
@@ -81,8 +221,6 @@ export default function QRCodePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* QR Code 顯示區 */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          
-          
           <div className="text-center">
             {lineUrl ? (
               <div className="space-y-4">
@@ -99,13 +237,17 @@ export default function QRCodePage() {
                 
                 <div className="space-y-2">
                   <button
-                    onClick={downloadQRCode}
+                    onClick={sendToLineChat}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                   >
-                    下載 QR Code
+                    📤 傳送到LINE
                   </button>
-                  
-                  
+                  <button
+                    onClick={shareToFriends}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    👥 分享給好友
+                  </button>
                 </div>
               </div>
             ) : (
@@ -121,8 +263,6 @@ export default function QRCodePage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-4">連結資訊</h2>
           
           <div className="space-y-4">
-            
-
             {/* LINE 連結 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -149,6 +289,21 @@ export default function QRCodePage() {
               <p className="text-xs text-gray-500 mt-1">
                 您也可以直接分享此連結給客戶
               </p>
+            </div>
+
+            {/* 分享功能說明 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                分享功能說明
+              </label>
+              <div className="bg-green-50 rounded-lg p-3 text-sm text-green-800">
+                <ul className="space-y-1">
+                  <li>• 📤 傳送到LINE：將QR Code發送到您的LINE聊天室</li>
+                  <li>• 👥 分享給好友：使用精美的Flex訊息分享給LINE好友</li>
+                  <li>• 🎨 Flex訊息包含您的專屬推廣連結和聯絡資訊</li>
+                  <li>• 🔗 好友點擊按鈕即可直接進入購買頁面</li>
+                </ul>
+              </div>
             </div>
 
             {/* 使用說明 */}
@@ -181,9 +336,9 @@ export default function QRCodePage() {
             <h3 className="text-sm font-medium text-yellow-800">注意事項</h3>
             <div className="mt-2 text-sm text-yellow-700">
               <ul className="list-disc list-inside space-y-1">
-               
+                <li>分享功能需要在LINE應用程式中使用才能正常運作</li>
                 <li>如發現異常使用情況，請立即聯絡系統管理員</li>
-                
+                <li>請確保您的聯絡資訊正確，以便客戶能夠聯繫您</li>
               </ul>
             </div>
           </div>

@@ -356,7 +356,7 @@ export default function AdminLayout({
               
               {expandedGroup === 'sales' && (
                 <div className="transition-all duration-300 ease-in-out pb-2">
-                  <Link href="/admin/bakery/commissions/sales" className={getNavItemClass('/admin/bakery/commissions/sales')}>
+                  <Link href="/admin/bakery/owners" className={getNavItemClass('/admin/bakery/owners')}>
                     <span className="flex items-center">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />

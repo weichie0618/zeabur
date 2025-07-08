@@ -199,8 +199,26 @@ export default function CommissionHistoryPage() {
       if (salespersonsData.success && salespersonsData.data) {
         setSalespersons(salespersonsData.data.map((c: any) => ({ id: c.id, name: c.name })));
       }
+      
+      // 修正 plans 資料處理邏輯
       if (plansData.success && plansData.data) {
-        setPlans(plansData.data.map((p: any) => ({ id: p.id, name: p.name })));
+        // 檢查 data.salespeople 是否存在（新 API 結構）
+        if (plansData.data.salespeople) {
+          const uniquePlans = new Map();
+          plansData.data.salespeople.forEach((sp: any) => {
+            if (sp.commission_plan) {
+              uniquePlans.set(sp.commission_plan.id, {
+                id: sp.commission_plan.id,
+                name: sp.commission_plan.name
+              });
+            }
+          });
+          setPlans(Array.from(uniquePlans.values()));
+        } else {
+          // 舊的 API 結構處理
+          const plansList = Array.isArray(plansData.data) ? plansData.data : [];
+          setPlans(plansList.map((p: any) => ({ id: p.id, name: p.name })));
+        }
       }
     } catch (error) {
       console.error('載入篩選數據錯誤:', error);

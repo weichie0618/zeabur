@@ -44,6 +44,13 @@ interface PaginationData {
   total_pages: number;
 }
 
+interface StatisticsData {
+  total_salespeople: number;
+  assigned_salespeople: number;
+  active_contracts: number;
+  expiring_soon: number;
+}
+
 export default function AssignmentsPage() {
   const [accessToken, setAccessToken] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -52,6 +59,12 @@ export default function AssignmentsPage() {
   
   const [salespeople, setSalespeople] = useState<Salesperson[]>([]);
   const [plans, setPlans] = useState<CommissionPlan[]>([]);
+  const [statistics, setStatistics] = useState<StatisticsData>({
+    total_salespeople: 0,
+    assigned_salespeople: 0,
+    active_contracts: 0,
+    expiring_soon: 0
+  });
   const [pagination, setPagination] = useState<PaginationData>({
     total: 0,
     page: 1,
@@ -114,6 +127,10 @@ export default function AssignmentsPage() {
       if (data.success) {
         setSalespeople(data.data.salespeople);
         setPagination(data.data.pagination);
+        // 設定統計資訊
+        if (data.data.statistics) {
+          setStatistics(data.data.statistics);
+        }
       } else {
         throw new Error(data.message || '載入業務員列表失敗');
       }
@@ -142,8 +159,29 @@ export default function AssignmentsPage() {
       }
 
       const data = await response.json();
+      
+      // 檢查並處理新的 API 回傳格式
       if (data.success) {
-        setPlans(data.data.filter((plan: CommissionPlan) => plan.status === 'active'));
+        // 從所有業務員的 commission_plan 中提取不重複的計畫
+        const uniquePlans = new Map();
+        
+        if (data.data.salespeople) {
+          // 新 API 格式
+          data.data.salespeople.forEach((salesperson: Salesperson) => {
+            if (salesperson.commission_plan && salesperson.commission_plan.status === 'active') {
+              uniquePlans.set(salesperson.commission_plan.id, salesperson.commission_plan);
+            }
+          });
+        } else if (Array.isArray(data.data)) {
+          // 舊 API 格式
+          data.data.forEach((plan: CommissionPlan) => {
+            if (plan.status === 'active') {
+              uniquePlans.set(plan.id, plan);
+            }
+          });
+        }
+        
+        setPlans(Array.from(uniquePlans.values()));
       } else {
         throw new Error(data.message || '載入佣金專案失敗');
       }
@@ -529,7 +567,7 @@ export default function AssignmentsPage() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">總業務員</dt>
-                        <dd className="text-lg font-medium text-gray-900">{salespeople.length}</dd>
+                        <dd className="text-lg font-medium text-gray-900">{statistics.total_salespeople}</dd>
                       </dl>
                     </div>
                   </div>
@@ -548,7 +586,7 @@ export default function AssignmentsPage() {
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">已分配</dt>
                         <dd className="text-lg font-medium text-gray-900">
-                          {salespeople.filter(c => c.commission_plan_id).length}
+                          {statistics.assigned_salespeople}
                         </dd>
                       </dl>
                     </div>
@@ -568,13 +606,7 @@ export default function AssignmentsPage() {
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">生效中</dt>
                         <dd className="text-lg font-medium text-gray-900">
-                          {salespeople.filter(c => {
-                            if (!c.contract_start_date) return false;
-                            const now = new Date();
-                            const start = new Date(c.contract_start_date);
-                            const end = c.contract_end_date ? new Date(c.contract_end_date) : null;
-                            return start <= now && (!end || end >= now);
-                          }).length}
+                          {statistics.active_contracts}
                         </dd>
                       </dl>
                     </div>
@@ -594,13 +626,7 @@ export default function AssignmentsPage() {
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">即將到期</dt>
                         <dd className="text-lg font-medium text-gray-900">
-                          {salespeople.filter(c => {
-                            if (!c.contract_end_date) return false;
-                            const end = new Date(c.contract_end_date);
-                            const thirtyDaysFromNow = new Date();
-                            thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-                            return end <= thirtyDaysFromNow && end >= new Date();
-                          }).length}
+                          {statistics.expiring_soon}
                         </dd>
                       </dl>
                     </div>

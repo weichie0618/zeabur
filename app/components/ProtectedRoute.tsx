@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
@@ -12,10 +12,16 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // 檢查當前路徑是否為管理後台
-    const isAdminPath = window.location.pathname.startsWith('/admin');
+    const isAdminPath = pathname.startsWith('/admin');
     
     // 如果不是管理後台路徑，直接返回，不做權限檢查
     if (!isAdminPath) {
@@ -44,10 +50,19 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       // 其他未授權的情況，直接重定向到登入頁面
       router.push('/login');
     }
-  }, [isLoading, isAuthenticated, requiredRole, user, router]);
+  }, [isLoading, isAuthenticated, requiredRole, user, router, pathname]);
+
+  // 在客戶端渲染之前，返回一個通用的載入狀態
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-500"></div>
+      </div>
+    );
+  }
 
   // 檢查是否為管理後台路徑
-  const isAdminPath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin');
+  const isAdminPath = pathname.startsWith('/admin');
 
   // 如果不是管理後台路徑，直接渲染內容
   if (!isAdminPath) {

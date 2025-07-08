@@ -82,7 +82,38 @@ export default function CommissionPlansPage() {
 
       const data = await response.json();
       if (data.success) {
-        setPlans(data.data);
+        // 從所有業務員的 commission_plan 中提取不重複的計畫
+        const uniquePlans = new Map();
+        
+        if (data.data.salespeople) {
+          // 新 API 格式：從業務員資料中提取佣金計畫
+          data.data.salespeople.forEach((salesperson: any) => {
+            if (salesperson.commission_plan) {
+              const plan = salesperson.commission_plan;
+              if (!uniquePlans.has(plan.id)) {
+                // 添加使用此計畫的業務員資訊
+                plan.customer_count = plan.customer_count || 0;
+                plan.customers = plan.customers || [];
+                if (!plan.customers.find((c: any) => c.id === salesperson.id)) {
+                  plan.customer_count++;
+                  plan.customers.push({
+                    id: salesperson.id,
+                    name: salesperson.name,
+                    contract_start_date: salesperson.contract_start_date,
+                    contract_end_date: salesperson.contract_end_date
+                  });
+                }
+                uniquePlans.set(plan.id, plan);
+              }
+            }
+          });
+          setPlans(Array.from(uniquePlans.values()));
+        } else if (Array.isArray(data.data)) {
+          // 舊 API 格式：直接使用回傳的計畫列表
+          setPlans(data.data);
+        } else {
+          setPlans([]);
+        }
       } else {
         throw new Error(data.message || '載入佣金專案失敗');
       }

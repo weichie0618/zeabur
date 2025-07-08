@@ -110,11 +110,23 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('salesperson', JSON.stringify(salespersonData));
         return true;
       } else {
-        throw new Error(response.error || '業務員認證失敗');
+        // 驗證失敗，統一導向未開通分潤計畫頁面
+        const errorMessage = response.error || '業務員認證失敗';
+        console.error('登入失敗:', errorMessage);
+        
+        // 所有登入失敗都導向分潤計畫未開通頁面
+        router.push('/city-sales/commission-not-activated');
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('登入失敗:', error);
-      setError(error instanceof Error ? error.message : '登入過程中發生錯誤');
+      const errorMessage = error instanceof Error ? error.message : '登入過程中發生錯誤';
+      setError(errorMessage);
+      
+      // 統一導向分潤計畫未開通頁面
+      router.push('/city-sales/commission-not-activated');
+      
       return false;
     } finally {
       setLoading(false);

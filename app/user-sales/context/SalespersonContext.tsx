@@ -4,13 +4,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { salespersonApi } from '../services/apiService';
 
-// 聲明 LIFF 類型
-declare global {
-  interface Window {
-    liff: any;
-  }
-}
-
 // 定義分潤專案介面
 interface CommissionPlan {
   id: number;
@@ -31,11 +24,18 @@ interface SalespersonData {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   companyName: string;
   commission_plan_id?: number;
   contract_start_date?: string;
   contract_end_date?: string;
   commissionPlan?: CommissionPlan;
+}
+
+// 定義登入表單資料介面
+interface LoginCredentials {
+  email: string;
+  phone: string;
 }
 
 // 定義 Context 介面
@@ -44,14 +44,9 @@ interface SalespersonContextType {
   storeId: string | null;
   loading: boolean;
   error: string | null;
-  login: (salespersonId: string) => Promise<boolean>;
+  login: (credentials: LoginCredentials) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
-  // LIFF 相關功能
-  isLiffReady: boolean;
-  liffError: string | null;
-  getLiffProfile: () => Promise<any | null>;
-  isInLiffEnvironment: () => boolean;
 }
 
 // 創建 Context
@@ -62,8 +57,6 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   const [salesperson, setSalesperson] = useState<SalespersonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLiffReady, setIsLiffReady] = useState(false);
-  const [liffError, setLiffError] = useState<string | null>(null);
   const router = useRouter();
 
   // 檢查是否已登入
@@ -93,28 +86,45 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     checkAuthStatus();
   }, []);
 
-  // 登入函數
-  const login = async (salespersonId: string): Promise<boolean> => {
+  // 登入函數 - 基於 email/phone
+  const login = async (credentials: LoginCredentials): Promise<boolean> => {
     setLoading(true);
     setError(null);
 
     try {
-      // 調用後端 API 驗證業務員
-      const response = await salespersonApi.getDashboard(salespersonId);
+      const { email, phone } = credentials;
+
+      // 驗證必要欄位
+      if (!email || !phone) {
+        throw new Error('請填寫電子郵件和電話號碼');
+      }
+
+      // 調用後端 API 進行業務員認證
+      const response = await salespersonApi.login(email, phone);
 
       if (response.success && response.data) {
-        const salespersonData = response.data.salesperson;
+        const salespersonData = response.data;
         
         // 儲存認證資料
         setSalesperson(salespersonData);
         localStorage.setItem('salesperson', JSON.stringify(salespersonData));
         return true;
       } else {
-        throw new Error(response.error || '業務員認證失敗');
+        const errorMessage = response.error || '登入認證失敗';
+        console.error('登入失敗:', errorMessage);
+        setError(errorMessage);
+        
+        // 認證失敗，導向錯誤頁面
+        router.push('/user-sales/login-failed');
+        return false;
       }
     } catch (error) {
       console.error('登入失敗:', error);
-      setError(error instanceof Error ? error.message : '登入過程中發生錯誤');
+      const errorMessage = error instanceof Error ? error.message : '登入過程中發生錯誤';
+      setError(errorMessage);
+      
+      // 登入失敗，導向錯誤頁面
+      router.push('/user-sales/login-failed');
       return false;
     } finally {
       setLoading(false);
@@ -125,45 +135,8 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setSalesperson(null);
     localStorage.removeItem('salesperson');
-    router.push('/city-sales/login');
+    router.push('/user-sales/login');
   };
-
-  // LIFF 相關功能
-  const getLiffProfile = async (): Promise<any | null> => {
-    try {
-      if (typeof window !== 'undefined' && window.liff && window.liff.isLoggedIn()) {
-        const profile = await window.liff.getProfile();
-        return profile;
-      }
-      return null;
-    } catch (error) {
-      console.error('獲取 LIFF Profile 失敗:', error);
-      return null;
-    }
-  };
-
-  const isInLiffEnvironment = (): boolean => {
-    if (typeof window === 'undefined') return false;
-    return !!(window.liff);
-  };
-
-  // 檢查 URL 參數中的 storeId（從 LIFF URL 傳遞）
-  useEffect(() => {
-    const checkUrlParams = () => {
-      if (typeof window === 'undefined') return;
-      
-      const urlParams = new URLSearchParams(window.location.search);
-      const storeIdFromUrl = urlParams.get('storeId');
-      
-      // 如果 URL 中有 storeId 且用戶還未登入，嘗試自動登入
-      if (storeIdFromUrl && !salesperson) {
-        console.log('從 URL 參數取得 storeId:', storeIdFromUrl);
-        login(storeIdFromUrl);
-      }
-    };
-
-    checkUrlParams();
-  }, [salesperson]);
 
   const contextValue: SalespersonContextType = {
     salesperson,
@@ -173,11 +146,6 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     isAuthenticated: !!salesperson,
-    // LIFF 相關
-    isLiffReady,
-    liffError,
-    getLiffProfile,
-    isInLiffEnvironment,
   };
 
   return (
@@ -187,11 +155,11 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// 使用 Context 的 Hook
+// Hook 使用 Context
 export function useSalesperson() {
   const context = useContext(SalespersonContext);
   if (context === undefined) {
-    throw new Error('useSalesperson 必須在 SalespersonProvider 內部使用');
+    throw new Error('useSalesperson 必須在 SalespersonProvider 內使用');
   }
   return context;
 } 

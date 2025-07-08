@@ -1,16 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSalesperson, SalespersonProvider } from './context/SalespersonContext';
-
-// 聲明 LIFF 類型
-declare global {
-  interface Window {
-    liff: any;
-  }
-}
 
 // 自定義側邊欄連結元件
 interface SidebarLinkProps {
@@ -36,65 +29,8 @@ const SidebarLink: React.FC<SidebarLinkProps> = ({ href, active, children, onCli
   );
 };
 
-// LIFF 初始化 Hook
-function useLiffInit() {
-  const [isLiffReady, setIsLiffReady] = useState(false);
-  const [liffError, setLiffError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const initializeLiff = async () => {
-      try {
-        // 檢查是否在瀏覽器環境
-        if (typeof window === 'undefined') return;
-
-        // 檢查是否已經載入 LIFF SDK
-        if (window.liff) {
-          console.log('LIFF SDK 已載入，開始初始化');
-          await window.liff.init({
-            liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
-          });
-          setIsLiffReady(true);
-          console.log('LIFF 初始化完成');
-          return;
-        }
-
-        // 載入 LIFF SDK
-        console.log('載入 LIFF SDK');
-        const script = document.createElement('script');
-        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-        script.onload = async () => {
-          try {
-            if (window.liff) {
-              await window.liff.init({
-                liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
-              });
-              setIsLiffReady(true);
-              console.log('LIFF 初始化完成');
-            }
-          } catch (error) {
-            console.error('LIFF 初始化失敗:', error);
-            setLiffError('LIFF 初始化失敗');
-          }
-        };
-        script.onerror = () => {
-          console.error('LIFF SDK 載入失敗');
-          setLiffError('LIFF SDK 載入失敗');
-        };
-        document.head.appendChild(script);
-      } catch (error) {
-        console.error('LIFF 設置失敗:', error);
-        setLiffError('LIFF 設置失敗');
-      }
-    };
-
-    initializeLiff();
-  }, []);
-
-  return { isLiffReady, liffError };
-}
-
 // 內部佈局組件，使用 Context
-function CitySalesLayoutInner({
+function UserSalesLayoutInner({
   children,
 }: {
   children: React.ReactNode;
@@ -102,7 +38,6 @@ function CitySalesLayoutInner({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
   const { salesperson, storeId, logout } = useSalesperson();
-  const { isLiffReady, liffError } = useLiffInit();
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -119,7 +54,7 @@ function CitySalesLayoutInner({
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       } md:translate-x-0 transition-transform duration-300 ease-in-out md:static md:block shadow-xl`}>
         <div className="p-4 border-b border-gray-700/50">
-          <Link href="/city-sales/dashboard" className="text-xl font-bold flex items-center hover:opacity-90 transition-opacity" onClick={closeSidebar}>
+          <Link href="/user-sales/dashboard" className="text-xl font-bold flex items-center hover:opacity-90 transition-opacity" onClick={closeSidebar}>
             <span className="bg-gradient-to-r from-blue-500 to-blue-600 h-8 w-8 rounded-lg flex items-center justify-center text-white mr-3 shadow-lg">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -135,7 +70,7 @@ function CitySalesLayoutInner({
         <nav className="mt-6">
           <div className="px-4 py-2 text-xs text-gray-400 uppercase tracking-wider">主要功能</div>
           
-          <SidebarLink href="/city-sales/dashboard" active={pathname === '/city-sales/dashboard'} onClick={closeSidebar}>
+          <SidebarLink href="/user-sales/dashboard" active={pathname === '/user-sales/dashboard'} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -144,7 +79,7 @@ function CitySalesLayoutInner({
             </span>
           </SidebarLink>
           
-          <SidebarLink href="/city-sales/orders" active={pathname.startsWith('/city-sales/orders')} onClick={closeSidebar}>
+          <SidebarLink href="/user-sales/orders" active={pathname.startsWith('/user-sales/orders')} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -153,7 +88,7 @@ function CitySalesLayoutInner({
             </span>
           </SidebarLink>
           
-          <SidebarLink href="/city-sales/commissions" active={pathname.startsWith('/city-sales/commissions')} onClick={closeSidebar}>
+          <SidebarLink href="/user-sales/commissions" active={pathname.startsWith('/user-sales/commissions')} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -162,7 +97,7 @@ function CitySalesLayoutInner({
             </span>
           </SidebarLink>
           
-          <SidebarLink href="/city-sales/qrcode" active={pathname === '/city-sales/qrcode'} onClick={closeSidebar}>
+          <SidebarLink href="/user-sales/qrcode" active={pathname === '/user-sales/qrcode'} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 16a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM16 3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V3zM11 5h2M9 7h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m6-4h2" />
@@ -173,7 +108,7 @@ function CitySalesLayoutInner({
           
           <div className="px-4 py-2 mt-6 text-xs text-gray-400 uppercase tracking-wider">設定</div>
           
-          <SidebarLink href="/city-sales/profile" active={pathname === '/city-sales/profile'} onClick={closeSidebar}>
+          <SidebarLink href="/user-sales/profile" active={pathname === '/user-sales/profile'} onClick={closeSidebar}>
             <span className="flex items-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -239,16 +174,16 @@ function CitySalesLayoutInner({
 }
 
 // 主要佈局組件，提供 Context
-export default function CitySalesLayout({
+export default function UserSalesLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
     <SalespersonProvider>
-      <CitySalesLayoutInner>
+      <UserSalesLayoutInner>
         {children}
-      </CitySalesLayoutInner>
+      </UserSalesLayoutInner>
     </SalespersonProvider>
   );
 } 

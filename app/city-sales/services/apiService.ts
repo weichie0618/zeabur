@@ -1,7 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API 基礎配置
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+                    (process.env.NODE_ENV === 'development' 
+                      ? 'http://localhost:4000/api' 
+                      : 'http://localhost:4000/api');
 
 // 開發環境標識
 const isDev = process.env.NODE_ENV === 'development';
@@ -174,7 +177,7 @@ export interface CommissionRulesResponse {
 
 // 創建獨立的 city-sales axios 實例
 const citySalesApi: AxiosInstance = axios.create({
-  baseURL: "",
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -273,9 +276,9 @@ async function makeApiRequest<T>(
 // 業務員 API 服務
 export const salespersonApi = {
   // 獲取業務員儀表板數據
-  getDashboard: async (storeId: string): Promise<ApiResponse<{ salesperson: DashboardData['salesperson'] }>> => {
+  getDashboard: async (storeId: string): Promise<ApiResponse<DashboardData>> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/dashboard`, {
+      citySalesApi.get(`/salesperson/dashboard`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -297,7 +300,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/orders?${queryParams.toString()}`, {
+      citySalesApi.get(`/salesperson/orders?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -319,7 +322,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commissions?${queryParams.toString()}`, {
+      citySalesApi.get(`/salesperson/commissions?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -328,7 +331,7 @@ export const salespersonApi = {
   // 獲取業務員分潤規則
   getCommissionRules: async (storeId: string): Promise<CommissionRulesResponse> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commission-rules`, {
+      citySalesApi.get(`/salesperson/commission-rules`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );

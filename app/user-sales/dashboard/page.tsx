@@ -213,7 +213,7 @@ export default function DashboardPage() {
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
         <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">快速功能</h2>
         
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
           <Link 
             href="/city-sales/orders" 
             className="bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 rounded-xl p-3 sm:p-4 text-center transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
@@ -248,6 +248,18 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="text-xs sm:text-sm font-medium text-gray-900">個人資料</div>
+          </Link>
+
+          <Link 
+            href="/city-sales/qrcode" 
+            className="bg-gradient-to-br from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-200 rounded-xl p-3 sm:p-4 text-center transition-all duration-200 shadow-sm hover:shadow-md hover:scale-105"
+          >
+            <div className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-2 text-amber-600">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+            </div>
+            <div className="text-xs sm:text-sm font-medium text-gray-900">QR Code</div>
           </Link>
         </div>
       </div>

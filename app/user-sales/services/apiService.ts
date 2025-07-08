@@ -242,8 +242,8 @@ citySalesApi.interceptors.response.use(
         localStorage.removeItem('salesperson');
         
         // 如果不在登入頁面，重定向到業務員登入頁
-        if (window.location.pathname !== '/city-sales/login') {
-          window.location.href = '/city-sales/login?reason=auth-error';
+        if (window.location.pathname !== '/user-sales/login') {
+          window.location.href = '/user-sales/login?reason=auth-error';
         }
       }
     }
@@ -270,8 +270,31 @@ async function makeApiRequest<T>(
   }
 }
 
+// 定義業務員資料介面（用於登入回應）
+export interface SalespersonData {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  companyName: string;
+  commission_plan_id?: number;
+  contract_start_date?: string;
+  contract_end_date?: string;
+  commissionPlan?: CommissionPlan;
+}
+
 // 業務員 API 服務
 export const salespersonApi = {
+  // 業務員登入 - 使用 email 和 phone 認證
+  login: async (email: string, phone: string): Promise<ApiResponse<SalespersonData>> => {
+    return makeApiRequest(() => 
+      citySalesApi.post('/api/salesperson/login', {
+        email,
+        phone
+      })
+    );
+  },
+
   // 獲取業務員儀表板數據
   getDashboard: async (storeId: string): Promise<ApiResponse<{ salesperson: DashboardData['salesperson'] }>> => {
     return makeApiRequest(() => 

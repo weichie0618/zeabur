@@ -12,7 +12,8 @@ export default function QRCodePage() {
 
   useEffect(() => {
     if (storeId) {
-      const url = `https://line.me/R/app/2006231077-Add1OBJ8?services=${storeId}`;
+      // 生成推廣連結（這裡可以根據實際需求調整 URL 格式）
+      const url = `https://your-domain.com/bakery?ref=${storeId}`;
       setLineUrl(url);
     }
   }, [storeId]);
@@ -24,6 +25,21 @@ export default function QRCodePage() {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('複製失敗:', err);
+      // 降級方案：使用舊的複製方法
+      const textArea = document.createElement('textarea');
+      textArea.value = lineUrl;
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (fallbackErr) {
+        console.error('降級複製也失敗:', fallbackErr);
+        alert('複製失敗，請手動複製連結');
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -31,30 +47,30 @@ export default function QRCodePage() {
     if (!qrRef.current) return;
     
     try {
-      const canvas = document.createElement("canvas");
-      const svg = qrRef.current;
+      // 創建 canvas 來下載 QR Code
+      const svg = qrRef.current as unknown as SVGElement;
       const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
       const img = new Image();
       
+      canvas.width = 300;
+      canvas.height = 300;
+      
       img.onload = () => {
-        canvas.width = 300;
-        canvas.height = 300;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, 300, 300);
+        ctx?.drawImage(img, 0, 0, 300, 300);
+        const pngFile = canvas.toDataURL('image/png');
         
-        const pngFile = canvas.toDataURL("image/png");
-        const downloadLink = document.createElement("a");
-        downloadLink.download = `${storeId}_QRCode.png`;
+        const downloadLink = document.createElement('a');
+        downloadLink.download = `推廣QRCode_${storeId}.png`;
         downloadLink.href = pngFile;
         downloadLink.click();
       };
       
       img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-    } catch (err) {
-      console.error('下載失敗:', err);
+    } catch (error) {
+      console.error('下載失敗:', error);
+      alert('下載失敗，請稍後再試');
     }
   };
 
@@ -72,17 +88,15 @@ export default function QRCodePage() {
     <div className="max-w-4xl mx-auto">
       {/* 頁面標題 */}
       <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">專屬 QR Code</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">專屬推廣 QR Code</h1>
         <p className="text-gray-600">
-          您的專屬推廣 QR Code
+          您的專屬推廣 QR Code，客戶掃描後可直接進入您的推廣頁面
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* QR Code 顯示區 */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          
-          
           <div className="text-center">
             {lineUrl ? (
               <div className="space-y-4">
@@ -102,10 +116,11 @@ export default function QRCodePage() {
                     onClick={downloadQRCode}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                   >
-                    下載 QR Code
+                    📥 下載 QR Code
                   </button>
-                  
-                  
+                  <p className="text-sm text-gray-500">
+                    下載 QR Code 圖片，可列印或分享使用
+                  </p>
                 </div>
               </div>
             ) : (
@@ -118,15 +133,30 @@ export default function QRCodePage() {
 
         {/* 連結資訊區 */}
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">連結資訊</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">推廣資訊</h2>
           
           <div className="space-y-4">
-            
+            {/* 業務員資訊 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                業務員資訊
+              </label>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-sm">
+                  <p><span className="font-medium">姓名：</span>{salesperson?.name}</p>
+                  <p><span className="font-medium">代號：</span>{storeId}</p>
+                  <p><span className="font-medium">郵箱：</span>{salesperson?.email}</p>
+                  {salesperson?.phone && (
+                    <p><span className="font-medium">電話：</span>{salesperson.phone}</p>
+                  )}
+                </div>
+              </div>
+            </div>
 
-            {/* LINE 連結 */}
+            {/* 推廣連結 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                LINE 推廣連結
+                推廣連結
               </label>
               <div className="flex">
                 <input
@@ -147,7 +177,7 @@ export default function QRCodePage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                您也可以直接分享此連結給客戶
+                您可以直接分享此連結給客戶
               </p>
             </div>
 
@@ -158,10 +188,26 @@ export default function QRCodePage() {
               </label>
               <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
                 <ul className="space-y-1">
-                  <li>• 客戶掃描 QR Code 後會自動開啟 LINE</li>
-                  <li>• 系統會自動將客戶串聯到您的帳號</li>
+                  <li>• 客戶掃描 QR Code 或點擊連結可進入您的推廣頁面</li>
+                  <li>• 系統會自動將客戶關聯到您的帳號</li>
                   <li>• 所有透過此連結產生的訂單都會計入您的業績</li>
-                  <li>• 建議在名片或宣傳資料上印製此 QR Code</li>
+                  <li>• 您可以下載 QR Code 圖片用於印刷品或電子媒體</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* 分享方式 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                推廣方式建議
+              </label>
+              <div className="bg-green-50 rounded-lg p-3 text-sm text-green-800">
+                <ul className="space-y-1">
+                  <li>• 📱 將 QR Code 設為手機桌布或 LINE 頭像</li>
+                  <li>• 📄 列印 QR Code 製作名片或傳單</li>
+                  <li>• 💬 在社群媒體分享推廣連結</li>
+                  <li>• 📧 透過 Email 發送給潛在客戶</li>
+                  <li>• 🏪 在實體店面展示 QR Code</li>
                 </ul>
               </div>
             </div>
@@ -181,9 +227,10 @@ export default function QRCodePage() {
             <h3 className="text-sm font-medium text-yellow-800">注意事項</h3>
             <div className="mt-2 text-sm text-yellow-700">
               <ul className="list-disc list-inside space-y-1">
-               
+                <li>請妥善保管您的推廣連結，避免被他人濫用</li>
                 <li>如發現異常使用情況，請立即聯絡系統管理員</li>
-                
+                <li>請確保您的聯絡資訊正確，以便客戶能夠聯繫您</li>
+                <li>推廣連結的有效性與您的帳號狀態相關</li>
               </ul>
             </div>
           </div>

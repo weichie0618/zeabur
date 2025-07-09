@@ -28,12 +28,11 @@ interface ErrorInfo {
 const ERROR_CONFIGS: Record<ErrorType, ErrorInfo> = {
   [ErrorType.STORE_NOT_FOUND]: {
     type: ErrorType.STORE_NOT_FOUND,
-    title: '店家資料未找到',
-    description: '系統中找不到與您的 LINE 帳號關聯的店家資料',
+    title: '未開通分潤計畫',
+    description: '請申請開通分潤計畫',
     solutions: [
-      '確認您使用的是正確的 LINE 帳號',
-      '聯絡管理員確認店家註冊狀態',
-      '申請新的分潤計畫'
+      '請聯絡管理員確認狀態',
+      '請申請分潤計畫'
     ],
     canRetry: true,
     icon: 'warning',

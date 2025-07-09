@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useSalesperson } from '../context/SalespersonContext';
 import { salespersonApi, formatCurrency, formatCommissionAmount } from '../services/apiService';
@@ -58,85 +58,293 @@ interface DashboardData {
   };
 }
 
+// 錯誤邊界狀態
+interface ErrorState {
+  hasError: boolean;
+  error: string | null;
+  retryCount: number;
+}
+
+// 載入狀態
+interface LoadingState {
+  initial: boolean;
+  refreshing: boolean;
+  error: boolean;
+}
+
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    initial: true,
+    refreshing: false,
+    error: false
+  });
+  const [errorState, setErrorState] = useState<ErrorState>({
+    hasError: false,
+    error: null,
+    retryCount: 0
+  });
   const { storeId } = useSalesperson();
 
-  useEffect(() => {
-    if (storeId) {
-      fetchDashboardData();
-    }
-  }, [storeId]);
+  // 快取管理
+  const cacheKey = useMemo(() => `dashboard_${storeId}`, [storeId]);
+  const CACHE_DURATION = 5 * 60 * 1000; // 5分鐘
 
-  const fetchDashboardData = async () => {
+  // 從快取獲取數據
+  const getCachedData = useCallback(() => {
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          return data;
+        }
+      }
+    } catch (error) {
+      console.error('讀取快取失敗:', error);
+    }
+    return null;
+  }, [cacheKey, CACHE_DURATION]);
+
+  // 快取數據
+  const setCachedData = useCallback((data: DashboardData) => {
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+    } catch (error) {
+      console.error('儲存快取失敗:', error);
+    }
+  }, [cacheKey]);
+
+  // 重試機制
+  const retryWithBackoff = useCallback(async (
+    operation: () => Promise<any>,
+    maxRetries: number = 3
+  ) => {
+    let lastError: any;
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (i === maxRetries - 1) throw error;
+        
+        // 指數退避
+        const delay = Math.pow(2, i) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    throw lastError;
+  }, []);
+
+  // 獲取儀表板數據
+  const fetchDashboardData = useCallback(async (forceRefresh: boolean = false) => {
     if (!storeId) return;
 
-    setLoading(true);
-    setError(null);
+    // 嘗試使用快取數據
+    if (!forceRefresh) {
+      const cachedData = getCachedData();
+      if (cachedData) {
+        setDashboardData(cachedData);
+        setLoadingState({ initial: false, refreshing: false, error: false });
+        return;
+      }
+    }
+
+    setLoadingState(prev => ({ 
+      ...prev, 
+      initial: !dashboardData, 
+      refreshing: !!dashboardData 
+    }));
+    setErrorState(prev => ({ ...prev, hasError: false, error: null }));
 
     try {
-      const response = await salespersonApi.getDashboard(storeId);
+      const response = await retryWithBackoff(async () => {
+        return await salespersonApi.getDashboard(storeId);
+      });
+
       if (response.success && response.data && 
           'today' in response.data && 
           'monthly' in response.data && 
           'commission' in response.data) {
-        setDashboardData(response.data as DashboardData);
+        
+        const data = response.data as DashboardData;
+        setDashboardData(data);
+        setCachedData(data);
+        setLoadingState({ initial: false, refreshing: false, error: false });
+        setErrorState({ hasError: false, error: null, retryCount: 0 });
       } else {
-        setError(response.error || '獲取儀表板數據失敗');
+        throw new Error(response.error || '獲取儀表板數據失敗');
       }
-    } catch (err) {
-      setError('獲取儀表板數據時發生錯誤');
+    } catch (err: any) {
       console.error('Dashboard error:', err);
-    } finally {
-      setLoading(false);
+      const errorMessage = err?.message || '獲取儀表板數據時發生錯誤';
+      
+      setErrorState(prev => ({
+        hasError: true,
+        error: errorMessage,
+        retryCount: prev.retryCount + 1
+      }));
+      setLoadingState({ initial: false, refreshing: false, error: true });
     }
-  };
+  }, [storeId, retryWithBackoff, getCachedData, setCachedData, dashboardData]);
 
-  if (loading) {
+  // 手動重試
+  const handleRetry = useCallback(() => {
+    fetchDashboardData(true);
+  }, [fetchDashboardData]);
+
+  // 自動重新整理
+  const handleRefresh = useCallback(() => {
+    fetchDashboardData(true);
+  }, [fetchDashboardData]);
+
+  // 初始載入
+  useEffect(() => {
+    if (storeId) {
+      fetchDashboardData();
+    }
+  }, [storeId, fetchDashboardData]);
+
+  // 自動重新整理（每5分鐘）
+  useEffect(() => {
+    if (!storeId || !dashboardData) return;
+
+    const interval = setInterval(() => {
+      fetchDashboardData(true);
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [storeId, dashboardData, fetchDashboardData]);
+
+  // 載入組件
+  const LoadingComponent = useMemo(() => {
+    if (loadingState.initial) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">載入中...</p>
+            <p className="text-gray-600">載入儀表板數據...</p>
         </div>
       </div>
     );
   }
+    return null;
+  }, [loadingState.initial]);
 
-  if (error) {
+  // 錯誤組件
+  const ErrorComponent = useMemo(() => {
+    if (errorState.hasError && !dashboardData) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div className="flex items-center">
-          <svg className="h-5 w-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <div className="text-red-600 mb-4">
+            <svg className="h-12 w-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span className="text-red-700">{error}</span>
+          </div>
+          <h3 className="text-lg font-medium text-red-800 mb-2">載入失敗</h3>
+          <p className="text-red-600 mb-4">{errorState.error}</p>
+          <div className="space-y-2">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+            >
+              重新載入 {errorState.retryCount > 0 && `(${errorState.retryCount})`}
+            </button>
+          </div>
         </div>
+      );
+    }
+    return null;
+  }, [errorState, dashboardData, handleRetry]);
+
+  // 刷新指示器
+  const RefreshIndicator = useMemo(() => {
+    if (loadingState.refreshing) {
+      return (
+        <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 z-50">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          <span className="text-sm">更新中...</span>
       </div>
     );
   }
-
-  if (!dashboardData) {
     return null;
-  }
+  }, [loadingState.refreshing]);
+
+  // 如果是初始載入或有錯誤且沒有數據，顯示相應組件
+  if (LoadingComponent) return LoadingComponent;
+  if (ErrorComponent) return ErrorComponent;
+  if (!dashboardData) return null;
+
+  // 記憶化計算數據
+  const calculatedData = useMemo(() => {
+    const totalUnfinished = dashboardData.monthly.status_breakdown.pending +
+      dashboardData.monthly.status_breakdown.processing +
+      dashboardData.monthly.status_breakdown.shipped +
+      dashboardData.monthly.status_breakdown.cancelled;
+
+    const completedOrders = dashboardData.monthly.status_breakdown.delivered;
+
+    return {
+      totalUnfinished,
+      completedOrders,
+      currentDate: new Date().toLocaleDateString('zh-TW', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        weekday: 'long'
+      })
+    };
+  }, [dashboardData]);
 
   return (
+    <>
+      {RefreshIndicator}
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
+        {/* 頂部工具列 */}
+        <div className="flex justify-between items-center">
+          <div></div>
+          <button
+            onClick={handleRefresh}
+            disabled={loadingState.refreshing}
+            className="flex items-center space-x-2 px-3 py-1.5 text-sm bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors disabled:opacity-50"
+          >
+            <svg className={`h-4 w-4 ${loadingState.refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span>刷新</span>
+          </button>
+        </div>
+
       {/* 歡迎區塊 */}
       <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-xl p-4 sm:p-6 text-white shadow-lg">
-        <h1 className="text-lg sm:text-2xl font-bold mb-2">歡迎回來，{dashboardData?.salesperson?.companyName }！</h1>
+          <h1 className="text-lg sm:text-2xl font-bold mb-2">歡迎回來，{dashboardData?.salesperson?.companyName}！</h1>
         
         <p className="text-blue-100 text-xs sm:text-sm mt-1">
-          今天是 {new Date().toLocaleDateString('zh-TW', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            weekday: 'long'
-          })}
+            今天是 {calculatedData.currentDate}
         </p>
       </div>
+
+        {/* 錯誤提示（有數據時的軟錯誤） */}
+        {errorState.hasError && dashboardData && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="flex items-center text-yellow-800 text-sm">
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>更新數據時發生錯誤，顯示的可能不是最新資料</span>
+              <button
+                onClick={handleRetry}
+                className="ml-2 underline hover:no-underline"
+              >
+                重試
+              </button>
+            </div>
+          </div>
+        )}
 
       {/* 本月業績 */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
@@ -166,23 +374,18 @@ export default function DashboardPage() {
             <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-yellow-600 mb-1">未完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-yellow-700">
-                {dashboardData.monthly.status_breakdown.pending +
-                 dashboardData.monthly.status_breakdown.processing +
-                 dashboardData.monthly.status_breakdown.shipped +
-                 dashboardData.monthly.status_breakdown.cancelled}
+                  {calculatedData.totalUnfinished}
               </p>
             </div>
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-green-600 mb-1">已完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-green-700">
-                {dashboardData.monthly.status_breakdown.delivered}
+                  {calculatedData.completedOrders}
               </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-    
 
       {/*分潤資訊 */}
       <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-gray-200/50 p-4 sm:p-6">
@@ -264,5 +467,6 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+    </>
   );
 } 

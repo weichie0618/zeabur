@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ExclamationTriangleIcon, ArrowLeftIcon, DocumentTextIcon, PhoneIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 
 // 錯誤類型定義
 enum ErrorType {
@@ -106,7 +106,8 @@ const ERROR_CONFIGS: Record<ErrorType, ErrorInfo> = {
   }
 };
 
-export default function CommissionNotActivatedPage() {
+// 主要內容組件（使用 useSearchParams）
+function CommissionNotActivatedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -286,5 +287,28 @@ export default function CommissionNotActivatedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 載入組件
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-6 sm:p-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">載入中...</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 主要導出組件
+export default function CommissionNotActivatedPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <CommissionNotActivatedContent />
+    </Suspense>
   );
 } 

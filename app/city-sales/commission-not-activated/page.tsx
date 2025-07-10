@@ -130,8 +130,8 @@ function CommissionNotActivatedContent() {
 
   // 申請分潤計畫
   const handleApplyCommission = useCallback(() => {
-    router.push('/apply-commission');
-  }, [router]);
+    window.location.href = '/apply-commission';
+  }, []);
 
   // 圖示組件
   const IconComponent = useCallback(() => {

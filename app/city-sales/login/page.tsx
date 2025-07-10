@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSalesperson } from '../context/SalespersonContext';
+import { createNavigationUtils, ErrorUtils, NavigationErrorType, ROUTES } from '../utils';
 
 // 聲明 LIFF 類型
 declare global {
@@ -37,6 +38,7 @@ interface InitState {
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated } = useSalesperson();
+  const navigationUtils = createNavigationUtils(router);
 
   // 優化狀態管理
   const [initState, setInitState] = useState<InitState>({
@@ -56,13 +58,13 @@ export default function LoginPage() {
     // 預加載未開通頁面
     const link = document.createElement('link');
     link.rel = 'prefetch';
-    link.href = '/city-sales/commission-not-activated';
+    link.href = ROUTES.COMMISSION_NOT_ACTIVATED;
     document.head.appendChild(link);
     
     // 預加載儀表板頁面
     const dashboardLink = document.createElement('link');
     dashboardLink.rel = 'prefetch';
-    dashboardLink.href = '/city-sales/dashboard';
+    dashboardLink.href = ROUTES.DASHBOARD;
     document.head.appendChild(dashboardLink);
   }, []);
 
@@ -115,11 +117,11 @@ export default function LoginPage() {
         return;
       }
 
-        const script = document.createElement('script');
-        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+      const script = document.createElement('script');
+      script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
       script.async = true;
       
-        script.onload = async () => {
+      script.onload = async () => {
         try {
           if (window.liff) {
             await window.liff.init({
@@ -195,7 +197,7 @@ export default function LoginPage() {
           console.error(`LINE 登入嘗試 ${attempt}/${maxRetries} 失敗:`, error);
           
           // 如果是超時錯誤且還有重試機會，等待後重試
-          if (attempt < maxRetries && (error.name === 'TimeoutError' || error.message?.includes('timeout'))) {
+          if (attempt < maxRetries && ErrorUtils.isRetryableError(error)) {
             console.log(`網路超時，${2000 * attempt}ms 後重試...`);
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
             continue;
@@ -213,9 +215,7 @@ export default function LoginPage() {
       
       throw {
         type: ErrorType.AUTH_API_FAILED,
-        message: lastError?.name === 'TimeoutError' 
-          ? '網路連線超時，請檢查網路狀態後重試'
-          : '店家驗證失敗',
+        message: ErrorUtils.formatError(lastError),
         retryable: true
       };
     } catch (error: any) {
@@ -246,7 +246,7 @@ export default function LoginPage() {
         // 有本地認證，嘗試直接登入
         const loginSuccess = await login(localAuthResult.value.id);
         if (loginSuccess) {
-          router.push('/city-sales/dashboard');
+          navigationUtils.goToDashboard();
           return;
         }
       }
@@ -261,10 +261,10 @@ export default function LoginPage() {
         if (storeId) {
           const loginSuccess = await login(storeId);
           if (loginSuccess) {
-                  router.push('/city-sales/dashboard');
-                }
-              }
-            } else {
+            navigationUtils.goToDashboard();
+          }
+        }
+      } else {
         throw {
           type: ErrorType.LIFF_INIT_FAILED,
           message: 'LIFF 初始化失敗',
@@ -290,12 +290,15 @@ export default function LoginPage() {
       if (loginError.retryable && initState.retryCount < 2) {
         setTimeout(() => initializeApp(), 2000);
       } else {
-        router.push('/city-sales/commission-not-activated');
-          }
+        navigationUtils.goToCommissionNotActivated(
+          NavigationErrorType.LIFF_ERROR, 
+          initState.retryCount
+        );
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [login, router, retryWithBackoff, initializeLiff, checkLocalAuth, handleLineLogin, initState.retryCount]);
+  }, [login, retryWithBackoff, initializeLiff, checkLocalAuth, handleLineLogin, initState.retryCount, navigationUtils]);
 
   // 開發模式測試登入
   const handleDevLogin = useCallback(async () => {
@@ -303,14 +306,14 @@ export default function LoginPage() {
     try {
       const loginSuccess = await login(testStoreId);
       if (loginSuccess) {
-        router.push('/city-sales/dashboard');
+        navigationUtils.goToDashboard();
       }
-      } catch (error) {
+    } catch (error) {
       console.error('開發模式登入失敗:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [login, testStoreId, router]);
+  }, [login, testStoreId, navigationUtils]);
 
   // 手動重試
   const handleRetry = useCallback(() => {
@@ -326,13 +329,13 @@ export default function LoginPage() {
   // 初始化效果
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/city-sales/dashboard');
+      navigationUtils.goToDashboard();
       return;
     }
 
     preloadResources();
     initializeApp();
-  }, [isAuthenticated, router, preloadResources, initializeApp]);
+  }, [isAuthenticated, preloadResources, initializeApp, navigationUtils]);
 
   // 記憶化載入狀態
   const loadingContent = useMemo(() => (

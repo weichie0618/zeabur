@@ -9,7 +9,7 @@ export default function CommissionNotActivatedPage() {
 
   const handleApplyCommission = () => {
     // 導向到申請分潤計畫表單
-    router.push('/city-sales/apply-commission');
+    router.push('/apply-commission');
   };
 
   const handleBackToLogin = () => {

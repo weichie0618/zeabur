@@ -155,7 +155,7 @@ function CommissionNotActivatedContent() {
 
   // 申請分潤計畫
   const handleApplyCommission = useCallback(() => {
-    router.push('/city-sales/apply-commission');
+    router.push('/apply-commission');
   }, [router]);
 
   // 圖示組件

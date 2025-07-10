@@ -193,11 +193,12 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
 
   // 刷新認證狀態
   const refreshAuth = useCallback(async (): Promise<void> => {
-    if (!authState.salesperson?.id) return;
+    const currentSalespersonId = authState.salesperson?.id;
+    if (!currentSalespersonId) return;
 
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
-      const isValid = await validateAuth(authState.salesperson.id);
+      const isValid = await validateAuth(currentSalespersonId);
       
       if (isValid) {
         dispatch({ type: 'SET_LAST_VALIDATED', payload: Date.now() });
@@ -214,7 +215,7 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [authState.salesperson?.id, validateAuth, clearCachedAuth, router]);
+  }, [validateAuth, clearCachedAuth, router]);
 
   // 檢查認證狀態
   const checkAuthStatus = useCallback(async () => {
@@ -254,34 +255,53 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_STATUS', payload: 'checking' });
 
     try {
-      // 調用後端 API 驗證業務員
-      const response = await salespersonApi.getDashboard(salespersonId);
+      // 添加重試機制
+      const maxRetries = 3;
+      let lastError: any;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // 調用後端 API 驗證業務員
+          const response = await salespersonApi.getDashboard(salespersonId);
 
-      if (response.success && response.data?.salesperson) {
-        const salespersonData = response.data.salesperson;
-        
-        // 儲存認證資料
-        dispatch({ type: 'SET_SALESPERSON', payload: salespersonData });
-        dispatch({ type: 'SET_LAST_VALIDATED', payload: Date.now() });
-        setCachedAuth(salespersonData);
-        
-        return true;
-      } else {
-        // 驗證失敗，統一導向未開通分潤計畫頁面
-        const errorMessage = response.error || '業務員認證失敗';
-        console.error('登入失敗:', errorMessage);
-        
-        dispatch({ type: 'SET_ERROR', payload: errorMessage });
-        dispatch({ type: 'INCREMENT_RETRY' });
-        
-        // 所有登入失敗都導向分潤計畫未開通頁面
-        router.push('/city-sales/commission-not-activated');
-        
-        return false;
+          if (response.success && response.data?.salesperson) {
+            const salespersonData = response.data.salesperson;
+            
+            // 儲存認證資料
+            dispatch({ type: 'SET_SALESPERSON', payload: salespersonData });
+            dispatch({ type: 'SET_LAST_VALIDATED', payload: Date.now() });
+            setCachedAuth(salespersonData);
+            
+            return true;
+          } else {
+            // API 回應但驗證失敗
+            const errorMessage = response.error || '業務員認證失敗';
+            console.error('登入驗證失敗:', errorMessage);
+            
+            dispatch({ type: 'SET_ERROR', payload: errorMessage });
+            router.push('/city-sales/commission-not-activated');
+            return false;
+          }
+        } catch (error: any) {
+          lastError = error;
+          console.error(`登入嘗試 ${attempt}/${maxRetries} 失敗:`, error);
+          
+          // 如果是超時錯誤且還有重試機會，等待後重試
+          if (attempt < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout'))) {
+            console.log(`網路超時，${2000 * attempt}ms 後重試...`);
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            continue;
+          }
+          
+          // 最後一次嘗試失敗或非超時錯誤
+          break;
+        }
       }
-    } catch (error: any) {
-      console.error('登入失敗:', error);
-      const errorMessage = error?.message || '登入過程中發生錯誤';
+      
+      // 所有重試都失敗了
+      const errorMessage = lastError?.code === 'ECONNABORTED' 
+        ? '網路連線超時，請檢查網路狀態後重試'
+        : lastError?.message || '登入過程中發生錯誤';
       
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       dispatch({ type: 'INCREMENT_RETRY' });

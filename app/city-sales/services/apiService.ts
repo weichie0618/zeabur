@@ -178,7 +178,7 @@ export interface CommissionRulesResponse {
 // 創建獨立的 city-sales axios 實例
 const citySalesApi: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // 增加到 30 秒
   headers: {
     'Content-Type': 'application/json',
   },

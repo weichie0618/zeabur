@@ -283,26 +283,20 @@ export default function DashboardPage() {
   
   if (!dashboardData) return null;
 
-  // 記憶化計算數據
-  const calculatedData = useMemo(() => {
-    const totalUnfinished = dashboardData.monthly.status_breakdown.pending +
-      dashboardData.monthly.status_breakdown.processing +
-      dashboardData.monthly.status_breakdown.shipped +
-      dashboardData.monthly.status_breakdown.cancelled;
+  // 計算數據
+  const totalUnfinished = dashboardData.monthly.status_breakdown.pending +
+    dashboardData.monthly.status_breakdown.processing +
+    dashboardData.monthly.status_breakdown.shipped +
+    dashboardData.monthly.status_breakdown.cancelled;
 
-    const completedOrders = dashboardData.monthly.status_breakdown.delivered;
+  const completedOrders = dashboardData.monthly.status_breakdown.delivered;
 
-    return {
-      totalUnfinished,
-      completedOrders,
-      currentDate: new Date().toLocaleDateString('zh-TW', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric',
-        weekday: 'long'
-      })
-    };
-  }, [dashboardData]);
+  const currentDate = new Date().toLocaleDateString('zh-TW', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    weekday: 'long'
+  });
 
   return (
     <>
@@ -328,7 +322,7 @@ export default function DashboardPage() {
           <h1 className="text-lg sm:text-2xl font-bold mb-2">歡迎回來，{dashboardData?.salesperson?.companyName}！</h1>
         
         <p className="text-blue-100 text-xs sm:text-sm mt-1">
-            今天是 {calculatedData.currentDate}
+            今天是 {currentDate}
         </p>
       </div>
 
@@ -378,13 +372,13 @@ export default function DashboardPage() {
             <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-yellow-600 mb-1">未完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-yellow-700">
-                  {calculatedData.totalUnfinished}
+                  {totalUnfinished}
               </p>
             </div>
             <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-3 sm:p-4 text-center shadow-sm">
               <p className="text-xs sm:text-sm text-green-600 mb-1">已完成訂單</p>
               <p className="text-lg sm:text-2xl font-bold text-green-700">
-                  {calculatedData.completedOrders}
+                  {completedOrders}
               </p>
               </div>
             </div>

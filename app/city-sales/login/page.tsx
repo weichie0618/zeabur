@@ -150,34 +150,74 @@ export default function LoginPage() {
         return null;
       }
 
-              const profile = await window.liff.getProfile();
-              const lineUserId = profile.userId;
-              
-              const response = await fetch('https://line.cityburger.com.tw/gsa', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  userId: lineUserId
-                })
-              });
-
-      if (!response.ok) {
-        throw new Error(`API 請求失敗: ${response.status}`);
-      }
-
-                const data = await response.json();
+      const profile = await window.liff.getProfile();
+      const lineUserId = profile.userId;
       
-                if (data.isValid && data.storeId) {
-        return data.storeId;
-      } else {
-        throw {
-          type: ErrorType.STORE_NOT_FOUND,
-          message: '找不到對應的店家資料',
-          retryable: false
-        };
+      // 添加重試機制
+      const maxRetries = 3;
+      let lastError: any;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 20000); // 20秒超時
+          
+          const response = await fetch('https://line.cityburger.com.tw/gsa', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: lineUserId
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`API 請求失敗: ${response.status}`);
+          }
+
+          const data = await response.json();
+          
+          if (data.isValid && data.storeId) {
+            return data.storeId;
+          } else {
+            throw {
+              type: ErrorType.STORE_NOT_FOUND,
+              message: '找不到對應的店家資料',
+              retryable: false
+            };
+          }
+        } catch (error: any) {
+          lastError = error;
+          console.error(`LINE 登入嘗試 ${attempt}/${maxRetries} 失敗:`, error);
+          
+          // 如果是超時錯誤且還有重試機會，等待後重試
+          if (attempt < maxRetries && (error.name === 'TimeoutError' || error.message?.includes('timeout'))) {
+            console.log(`網路超時，${2000 * attempt}ms 後重試...`);
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+            continue;
+          }
+          
+          // 最後一次嘗試失敗或非超時錯誤
+          break;
+        }
       }
+      
+      // 所有重試都失敗了
+      if (lastError.type) {
+        throw lastError;
+      }
+      
+      throw {
+        type: ErrorType.AUTH_API_FAILED,
+        message: lastError?.name === 'TimeoutError' 
+          ? '網路連線超時，請檢查網路狀態後重試'
+          : '店家驗證失敗',
+        retryable: true
+      };
     } catch (error: any) {
       if (error.type) {
         throw error;

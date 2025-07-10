@@ -113,8 +113,6 @@ function CommissionNotActivatedContent() {
   // 狀態管理
   const [errorInfo, setErrorInfo] = useState<ErrorInfo>(ERROR_CONFIGS[ErrorType.STORE_NOT_FOUND]);
   const [retryCount, setRetryCount] = useState(0);
-  const [isRetrying, setIsRetrying] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
 
   // 從 URL 參數獲取錯誤類型
   useEffect(() => {
@@ -129,29 +127,6 @@ function CommissionNotActivatedContent() {
       setRetryCount(parseInt(retryCountParam, 10) || 0);
     }
   }, [searchParams]);
-
-  // 重試機制
-  const handleRetry = useCallback(async () => {
-    if (!errorInfo.canRetry || isRetrying) return;
-
-    setIsRetrying(true);
-    
-    try {
-      // 增加重試計數
-      const newRetryCount = retryCount + 1;
-      setRetryCount(newRetryCount);
-      
-      // 添加延遲以防止過於頻繁的重試
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 導回登入頁面進行重試
-      router.push(`/city-sales/login?retry=${newRetryCount}`);
-    } catch (error) {
-      console.error('重試失敗:', error);
-    } finally {
-      setIsRetrying(false);
-    }
-  }, [errorInfo.canRetry, isRetrying, retryCount, router]);
 
   // 申請分潤計畫
   const handleApplyCommission = useCallback(() => {
@@ -207,62 +182,8 @@ function CommissionNotActivatedContent() {
           )}
         </div>
 
-        {/* 解決方案 */}
-        <div className="mb-6">
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <span className="text-sm font-medium text-gray-700">解決方案</span>
-            <svg 
-              className={`h-4 w-4 text-gray-500 transition-transform ${showDetails ? 'rotate-180' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          
-          {showDetails && (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <ul className="space-y-2">
-                {errorInfo.solutions.map((solution, index) => (
-                  <li key={index} className="flex items-start text-sm text-gray-600">
-                    <span className="text-blue-500 mr-2 mt-0.5">•</span>
-                    <span>{solution}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
         {/* 操作按鈕 */}
         <div className="space-y-3">
-          {/* 重試按鈕 */}
-          {errorInfo.canRetry && (
-            <button
-              onClick={handleRetry}
-              disabled={isRetrying}
-              className={`w-full bg-${errorInfo.color}-600 hover:bg-${errorInfo.color}-700 disabled:bg-${errorInfo.color}-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2`}
-            >
-              {isRetrying ? (
-                <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>重試中...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <span>重新嘗試</span>
-                </>
-              )}
-            </button>
-          )}
-
           {/* 申請分潤計畫按鈕 */}
           <button
             onClick={handleApplyCommission}

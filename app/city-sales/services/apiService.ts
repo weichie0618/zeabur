@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API 基礎配置
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL + '/api' || 
                     (process.env.NODE_ENV === 'development' 
                       ? 'http://localhost:4000/api' 
                       : 'http://localhost:4000/api');

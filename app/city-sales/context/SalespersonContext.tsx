@@ -204,10 +204,10 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
         dispatch({ type: 'SET_LAST_VALIDATED', payload: Date.now() });
         dispatch({ type: 'RESET_RETRY' });
       } else {
-        // 認證失效，清除狀態
+        // 認證失效，清除狀態，但不強制重定向
         dispatch({ type: 'RESET_AUTH' });
         clearCachedAuth();
-        router.push('/city-sales/commission-not-activated');
+        console.log('認證已失效，請重新登入');
       }
     } catch (error) {
       console.error('刷新認證失敗:', error);
@@ -215,10 +215,17 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [validateAuth, clearCachedAuth, router]);
+  }, [validateAuth, clearCachedAuth]);
 
   // 檢查認證狀態
   const checkAuthStatus = useCallback(async () => {
+    // 如果在登入頁面，跳過認證檢查
+    if (typeof window !== 'undefined' && window.location.pathname === '/city-sales/login') {
+      dispatch({ type: 'SET_STATUS', payload: 'unauthenticated' });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      return;
+    }
+
     dispatch({ type: 'SET_STATUS', payload: 'checking' });
     dispatch({ type: 'SET_LOADING', payload: true });
 
@@ -370,16 +377,20 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
       
       const urlParams = new URLSearchParams(window.location.search);
       const storeIdFromUrl = urlParams.get('storeId');
+      const currentPath = window.location.pathname;
       
-      // 如果 URL 中有 storeId 且用戶還未登入，嘗試自動登入
-      if (storeIdFromUrl && authState.status === 'unauthenticated') {
+      // 只在登入頁面且有 storeId 參數時才嘗試自動登入
+      if (storeIdFromUrl && 
+          currentPath === '/city-sales/login' && 
+          authState.status === 'unauthenticated') {
         console.log('從 URL 參數取得 storeId:', storeIdFromUrl);
         login(storeIdFromUrl);
       }
     };
 
+    // 只在非檢查狀態時執行
     if (authState.status !== 'checking') {
-    checkUrlParams();
+      checkUrlParams();
     }
   }, [authState.status, login]);
 

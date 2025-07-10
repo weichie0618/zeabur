@@ -356,13 +356,7 @@ export default function OnlineContractPage() {
               <span>下載合約</span>
             </button>
 
-            <button
-              onClick={handleBackToHome}
-              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
-            >
-              <ArrowLeftIcon className="h-4 w-4" />
-              <span>返回首頁</span>
-            </button>
+           
           </div>
         </div>
       </div>

@@ -208,13 +208,7 @@ function CitySalesLayoutInner({
                 <span className="text-sm">{salesperson?.name || '業務員'}</span>
               </div>
               
-              {/* 登出按鈕 */}
-              <button 
-                onClick={logout}
-                className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
-              >
-                登出
-              </button>
+             
             </div>
           </div>
         </header>

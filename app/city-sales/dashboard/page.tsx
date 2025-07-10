@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSalesperson } from '../context/SalespersonContext';
 import { salespersonApi, formatCurrency, formatCommissionAmount } from '../services/apiService';
@@ -86,13 +86,15 @@ export default function DashboardPage() {
   });
   const { storeId } = useSalesperson();
 
-  // 快取管理
-  const cacheKey = useMemo(() => `dashboard_${storeId}`, [storeId]);
+  // 快取管理 - 簡化為常量
   const CACHE_DURATION = 5 * 60 * 1000; // 5分鐘
 
   // 從快取獲取數據
   const getCachedData = useCallback(() => {
+    if (!storeId) return null;
+    
     try {
+      const cacheKey = `dashboard_${storeId}`;
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
@@ -104,11 +106,14 @@ export default function DashboardPage() {
       console.error('讀取快取失敗:', error);
     }
     return null;
-  }, [cacheKey, CACHE_DURATION]);
+  }, [storeId, CACHE_DURATION]);
 
   // 快取數據
   const setCachedData = useCallback((data: DashboardData) => {
+    if (!storeId) return;
+    
     try {
+      const cacheKey = `dashboard_${storeId}`;
       sessionStorage.setItem(cacheKey, JSON.stringify({
         data,
         timestamp: Date.now()
@@ -116,7 +121,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('儲存快取失敗:', error);
     }
-  }, [cacheKey]);
+  }, [storeId]);
 
   // 重試機制
   const retryWithBackoff = useCallback(async (
@@ -156,8 +161,8 @@ export default function DashboardPage() {
 
     setLoadingState(prev => ({ 
       ...prev, 
-      initial: !dashboardData, 
-      refreshing: !!dashboardData 
+      initial: prev.initial, // 保持初始狀態
+      refreshing: !prev.initial // 只在非初始狀態時顯示刷新
     }));
     setErrorState(prev => ({ ...prev, hasError: false, error: null }));
 
@@ -190,7 +195,7 @@ export default function DashboardPage() {
       }));
       setLoadingState({ initial: false, refreshing: false, error: true });
     }
-  }, [storeId, retryWithBackoff, getCachedData, setCachedData, dashboardData]);
+  }, [storeId, retryWithBackoff, getCachedData, setCachedData]); // 移除 dashboardData 依賴
 
   // 手動重試
   const handleRetry = useCallback(() => {
@@ -209,16 +214,17 @@ export default function DashboardPage() {
     }
   }, [storeId, fetchDashboardData]);
 
-  // 自動重新整理（每5分鐘）
+  // 自動重新整理（每5分鐘）- 使用 ref 避免依賴問題
   useEffect(() => {
-    if (!storeId || !dashboardData) return;
+    if (!storeId) return;
 
     const interval = setInterval(() => {
+      // 使用 forceRefresh 來重新載入數據
       fetchDashboardData(true);
     }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [storeId, dashboardData, fetchDashboardData]);
+  }, [storeId, fetchDashboardData]); // 移除 dashboardData 依賴
 
   // 載入組件
   const renderLoadingComponent = () => {

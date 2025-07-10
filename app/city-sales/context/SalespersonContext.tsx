@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useReducer } from 'react';
 import { useRouter } from 'next/navigation';
 import { salespersonApi } from '../services/apiService';
-import { createNavigationUtils, ErrorUtils, StorageUtils, NavigationErrorType } from '../utils';
 
 // 聲明 LIFF 類型
 declare global {
@@ -145,19 +144,40 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
   const [isLiffReady, setIsLiffReady] = useState(false);
   const [liffError, setLiffError] = useState<string | null>(null);
   const router = useRouter();
-  const navigationUtils = createNavigationUtils(router);
 
   // 快取管理
   const getCachedAuth = useCallback(() => {
-    return StorageUtils.getItem<SalespersonData>(CACHE_KEY);
+      try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          return data;
+        }
+      }
+    } catch (error) {
+      console.error('讀取認證快取失敗:', error);
+    }
+    return null;
   }, []);
 
   const setCachedAuth = useCallback((data: SalespersonData) => {
-    StorageUtils.setItem(CACHE_KEY, data);
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        data,
+        timestamp: Date.now()
+      }));
+      } catch (error) {
+      console.error('儲存認證快取失敗:', error);
+    }
   }, []);
 
   const clearCachedAuth = useCallback(() => {
-    StorageUtils.removeItem(CACHE_KEY);
+    try {
+      localStorage.removeItem(CACHE_KEY);
+    } catch (error) {
+      console.error('清除認證快取失敗:', error);
+    }
   }, []);
 
   // 驗證認證有效性
@@ -187,19 +207,15 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
         // 認證失效，清除狀態
         dispatch({ type: 'RESET_AUTH' });
         clearCachedAuth();
-        navigationUtils.goToCommissionNotActivated(NavigationErrorType.AUTH_FAILED);
+        router.push('/city-sales/commission-not-activated');
       }
     } catch (error) {
       console.error('刷新認證失敗:', error);
-      const errorType = ErrorUtils.getErrorType(error);
-      const errorMessage = ErrorUtils.formatError(error);
-      
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      navigationUtils.handleError(error, authState.retryCount);
+      dispatch({ type: 'SET_ERROR', payload: '認證驗證失敗' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [validateAuth, clearCachedAuth, navigationUtils, authState.retryCount]);
+  }, [validateAuth, clearCachedAuth, router]);
 
   // 檢查認證狀態
   const checkAuthStatus = useCallback(async () => {
@@ -226,8 +242,7 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_STATUS', payload: 'unauthenticated' });
     } catch (error) {
       console.error('檢查認證狀態失敗:', error);
-      const errorMessage = ErrorUtils.formatError(error);
-      dispatch({ type: 'SET_ERROR', payload: errorMessage });
+      dispatch({ type: 'SET_ERROR', payload: '檢查認證狀態失敗' });
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
@@ -264,7 +279,7 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
             console.error('登入驗證失敗:', errorMessage);
             
             dispatch({ type: 'SET_ERROR', payload: errorMessage });
-            navigationUtils.goToCommissionNotActivated(NavigationErrorType.STORE_NOT_FOUND);
+            router.push('/city-sales/commission-not-activated');
             return false;
           }
         } catch (error: any) {
@@ -272,7 +287,7 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
           console.error(`登入嘗試 ${attempt}/${maxRetries} 失敗:`, error);
           
           // 如果是超時錯誤且還有重試機會，等待後重試
-          if (attempt < maxRetries && ErrorUtils.isRetryableError(error)) {
+          if (attempt < maxRetries && (error.code === 'ECONNABORTED' || error.message?.includes('timeout'))) {
             console.log(`網路超時，${2000 * attempt}ms 後重試...`);
             await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
             continue;
@@ -284,27 +299,28 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
       }
       
       // 所有重試都失敗了
-      const errorType = ErrorUtils.getErrorType(lastError);
-      const errorMessage = ErrorUtils.formatError(lastError);
+      const errorMessage = lastError?.code === 'ECONNABORTED' 
+        ? '網路連線超時，請檢查網路狀態後重試'
+        : lastError?.message || '登入過程中發生錯誤';
       
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       dispatch({ type: 'INCREMENT_RETRY' });
       
-      // 使用工具函數處理錯誤導航
-      navigationUtils.handleError(lastError, authState.retryCount + 1);
+      // 統一導向分潤計畫未開通頁面
+      router.push('/city-sales/commission-not-activated');
       
       return false;
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
-  }, [setCachedAuth, navigationUtils, authState.retryCount]);
+  }, [setCachedAuth, router]);
 
   // 登出函數
   const logout = useCallback(() => {
     dispatch({ type: 'RESET_AUTH' });
-    StorageUtils.clearCitySalesData();
-    navigationUtils.goToLogin();
-  }, [navigationUtils]);
+    clearCachedAuth();
+    router.push('/city-sales/login');
+  }, [clearCachedAuth, router]);
 
   // LIFF 相關功能
   const getLiffProfile = useCallback(async (): Promise<any | null> => {
@@ -363,7 +379,7 @@ export function SalespersonProvider({ children }: { children: ReactNode }) {
     };
 
     if (authState.status !== 'checking') {
-      checkUrlParams();
+    checkUrlParams();
     }
   }, [authState.status, login]);
 

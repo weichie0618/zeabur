@@ -221,29 +221,29 @@ export default function DashboardPage() {
   }, [storeId, dashboardData, fetchDashboardData]);
 
   // 載入組件
-  const LoadingComponent = useMemo(() => {
+  const renderLoadingComponent = () => {
     if (loadingState.initial) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-600">載入儀表板數據...</p>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
     return null;
-  }, [loadingState.initial]);
+  };
 
   // 錯誤組件
-  const ErrorComponent = useMemo(() => {
+  const renderErrorComponent = () => {
     if (errorState.hasError && !dashboardData) {
-    return (
+      return (
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
           <div className="text-red-600 mb-4">
             <svg className="h-12 w-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
           </div>
           <h3 className="text-lg font-medium text-red-800 mb-2">載入失敗</h3>
           <p className="text-red-600 mb-4">{errorState.error}</p>
@@ -259,24 +259,28 @@ export default function DashboardPage() {
       );
     }
     return null;
-  }, [errorState, dashboardData, handleRetry]);
+  };
 
   // 刷新指示器
-  const RefreshIndicator = useMemo(() => {
+  const renderRefreshIndicator = () => {
     if (loadingState.refreshing) {
       return (
         <div className="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 z-50">
           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
           <span className="text-sm">更新中...</span>
-      </div>
-    );
-  }
+        </div>
+      );
+    }
     return null;
-  }, [loadingState.refreshing]);
+  };
 
   // 如果是初始載入或有錯誤且沒有數據，顯示相應組件
-  if (LoadingComponent) return LoadingComponent;
-  if (ErrorComponent) return ErrorComponent;
+  const loadingComponent = renderLoadingComponent();
+  if (loadingComponent) return loadingComponent;
+  
+  const errorComponent = renderErrorComponent();
+  if (errorComponent) return errorComponent;
+  
   if (!dashboardData) return null;
 
   // 記憶化計算數據
@@ -302,7 +306,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {RefreshIndicator}
+      {renderRefreshIndicator()}
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
         {/* 頂部工具列 */}
         <div className="flex justify-between items-center">

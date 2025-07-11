@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { initializeAuth, getToken, getAuthHeaders, handleRelogin, handleAuthError, setupAuthWarningAutoHide } from '../utils/authService';
-import axios from 'axios';
+import { initializeAuth, handleRelogin, handleAuthError, setupAuthWarningAutoHide, apiGet, apiPost, apiPut, apiDelete } from '../utils/authService';
 import { format } from 'date-fns';
 
 // 優惠碼類型枚舉
@@ -102,20 +101,11 @@ export default function CouponsManagement() {
     
     try {
       setLoading(true);
-      const token = getToken();
-      if (!token) {
-        handleRelogin();
-        return;
-      }
-
-      const headers = getAuthHeaders(token);
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/discounts`, 
-        { headers }
-      );
       
-      if (response.data && Array.isArray(response.data)) {
-        setDiscountCodes(response.data);
+      const response = await apiGet('/api/discounts');
+      
+      if (response && Array.isArray(response)) {
+        setDiscountCodes(response);
         setError(null);
       } else {
         setDiscountCodes([]);
@@ -123,7 +113,7 @@ export default function CouponsManagement() {
       }
     } catch (err: any) {
       console.error('獲取優惠碼失敗:', err);
-      if (err.response && err.response.status === 401) {
+      if (err.message && err.message.includes('認證失敗')) {
         handleAuthErrorLocal('獲取優惠碼時認證失敗');
       } else {
         setError(err.message || '獲取優惠碼資料失敗');
@@ -206,14 +196,6 @@ export default function CouponsManagement() {
     }
 
     try {
-      const token = getToken();
-      if (!token) {
-        handleRelogin();
-        return;
-      }
-
-      const headers = getAuthHeaders(token);
-      
       const formData = {
         ...editFormData,
         start_date: editFormData.start_date ? new Date(editFormData.start_date).toISOString() : null,
@@ -223,17 +205,9 @@ export default function CouponsManagement() {
 
       let response;
       if (isEditMode) {
-        response = await axios.put(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/discounts/${editFormData.id}`, 
-          formData,
-          { headers }
-        );
+        response = await apiPut(`/api/discounts/${editFormData.id}`, formData);
       } else {
-        response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/discounts`, 
-          formData,
-          { headers }
-        );
+        response = await apiPost('/api/discounts', formData);
       }
       
       setIsModalOpen(false);
@@ -241,7 +215,7 @@ export default function CouponsManagement() {
       setError(null);
     } catch (err: any) {
       console.error('保存優惠碼失敗:', err);
-      if (err.response && err.response.status === 401) {
+      if (err.message && err.message.includes('認證失敗')) {
         handleAuthErrorLocal('保存優惠碼時認證失敗');
       } else {
         setError(err.message || '保存優惠碼失敗');
@@ -256,23 +230,13 @@ export default function CouponsManagement() {
     }
 
     try {
-      const token = getToken();
-      if (!token) {
-        handleRelogin();
-        return;
-      }
-
-      const headers = getAuthHeaders(token);
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/discounts/${id}`, 
-        { headers }
-      );
+      await apiDelete(`/api/discounts/${id}`);
       
       fetchDiscountCodes();
       setError(null);
     } catch (err: any) {
       console.error('刪除優惠碼失敗:', err);
-      if (err.response && err.response.status === 401) {
+      if (err.message && err.message.includes('認證失敗')) {
         handleRelogin();
       } else {
         setError(err.message || '刪除優惠碼失敗');
@@ -283,24 +247,13 @@ export default function CouponsManagement() {
   // 處理優惠碼啟用/停用狀態切換
   const handleToggleActive = async (id: number, currentStatus: boolean) => {
     try {
-      const token = getToken();
-      if (!token) {
-        handleRelogin();
-        return;
-      }
-
-      const headers = getAuthHeaders(token);
-      await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/discounts/${id}`, 
-        { is_active: !currentStatus },
-        { headers }
-      );
+      await apiPut(`/api/discounts/${id}`, { is_active: !currentStatus });
       
       fetchDiscountCodes();
       setError(null);
     } catch (err: any) {
       console.error('更改優惠碼狀態失敗:', err);
-      if (err.response && err.response.status === 401) {
+      if (err.message && err.message.includes('認證失敗')) {
         handleRelogin();
       } else {
         setError(err.message || '更改優惠碼狀態失敗');

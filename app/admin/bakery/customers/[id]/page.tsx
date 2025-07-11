@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiDelete
 } from '../../utils/authService';
 
 // 定義客戶類型
@@ -102,22 +103,8 @@ export default function CustomerDetails() {
       setError(null);
       
       // 直接使用lineId獲取完整LINE用戶數據
-      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('獲取客戶詳情時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
-      }
-        
-      const responseData: ApiResponse = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const responseData: ApiResponse = await apiGet(`api/customer/admin/lineusers/${lineId}`);
       
       if (responseData.status !== 'success') {
         throw new Error(responseData.message || '獲取LINE用戶資料失敗');
@@ -237,24 +224,8 @@ export default function CustomerDetails() {
       }
       
       // 使用lineId刪除LINE用戶
-      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('刪除客戶時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '刪除LINE用戶失敗');
-      }
-      
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiDelete(`api/customer/admin/lineusers/${lineId}`);
       
       // 刪除成功後導航回客戶列表頁面
       router.push('/admin/bakery/customers');

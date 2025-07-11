@@ -10,25 +10,25 @@ if (isDev && !API_BASE_URL) {
   console.warn('警告: NEXT_PUBLIC_API_URL 環境變數未設置，API請求可能會失敗');
 }
 
-interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
+// 🔑 安全改進：移除 Token 接口，不再在前端管理 tokens
+// interface AuthTokens {
+//   accessToken: string;
+//   refreshToken: string;
+// }
 
 interface RefreshResponse {
   success: boolean;
   data?: {
-    accessToken: string;
-    refreshToken: string;
     user: any;
   };
   message?: string;
 }
 
-// 創建Axios實例 - 確保baseURL設置正確
+// 創建Axios實例 - 確保baseURL設置正確，自動包含Cookie
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
+  withCredentials: true, // 🔑 關鍵：自動包含 HttpOnly Cookie
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,50 +47,29 @@ if (isDev) {
   }
 }
 
-// 從localStorage中獲取token
-const getTokens = (): AuthTokens | null => {
-  if (typeof window === 'undefined') return null;
-  
-  const accessToken = localStorage.getItem('accessToken');
-  const refreshToken = localStorage.getItem('refreshToken');
-  
-  if (!accessToken || !refreshToken) return null;
-  
-  return { accessToken, refreshToken };
-};
+// 🔑 安全改進：移除所有 localStorage token 管理函數
+// 現在完全依賴 HttpOnly Cookie，無需前端管理 tokens
 
-// 存儲token到localStorage
-const storeTokens = (tokens: AuthTokens): void => {
-  localStorage.setItem('accessToken', tokens.accessToken);
-  localStorage.setItem('refreshToken', tokens.refreshToken);
-};
-
-// 清除token
-const clearTokens = (): void => {
+// 清除功能保留，但僅用於清理殘留數據
+const clearLegacyTokens = (): void => {
+  // 清除可能殘留的 localStorage tokens
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
-  authDebugger.log('auth_check', '已清除localStorage中的tokens', 'apiService');
+  authDebugger.log('auth_check', '已清除legacy localStorage tokens', 'apiService');
 };
 
-// 刷新token - 確保路徑格式正確
+// 🔑 安全改進：移除前端 token 刷新邏輯
+// 現在 token 刷新完全由後端和瀏覽器自動處理（HttpOnly Cookie）
+
+// 保留刷新端點調用，但簡化邏輯
 const refreshAuthToken = async (): Promise<boolean> => {
   try {
-    const tokens = getTokens();
-    if (!tokens) {
-      authDebugger.log('token_refresh', '無可用的refreshToken', 'apiService');
-      return false;
-    }
+    authDebugger.log('token_refresh', '嘗試刷新accessToken（Cookie模式）', 'apiService');
     
-    authDebugger.log('token_refresh', '嘗試刷新accessToken', 'apiService');
+    // Cookie 會自動包含 refreshToken，無需手動發送
+    const response = await api.post<RefreshResponse>('/api/auth/refresh-token');
     
-    // 使用現有的api實例而不是原始axios
-    const response = await api.post<RefreshResponse>('/api/auth/refresh-token', {
-      refreshToken: tokens.refreshToken,
-    });
-    
-    if (response.data.success && response.data.data) {
-      const { accessToken, refreshToken } = response.data.data;
-      storeTokens({ accessToken, refreshToken });
+    if (response.data.success) {
       authDebugger.log('token_refresh', '刷新accessToken成功', 'apiService');
       return true;
     }
@@ -100,20 +79,17 @@ const refreshAuthToken = async (): Promise<boolean> => {
   } catch (error) {
     authDebugger.log('token_refresh', `刷新accessToken失敗：${error}`, 'apiService');
     if (isDev) console.error('刷新令牌失敗:', error);
-    clearTokens();
+    clearLegacyTokens(); // 清理殘留的 localStorage
     return false;
   }
 };
 
-// 請求攔截器 - 添加授權頭
+// 🔑 安全改進：移除手動添加 Authorization 頭
+// HttpOnly Cookie 會自動包含在請求中，無需手動處理
 api.interceptors.request.use((config) => {
-  const tokens = getTokens();
-  if (tokens) {
-    config.headers.Authorization = `Bearer ${tokens.accessToken}`;
-    // 記錄API請求
-    if (config.url) {
-      authDebugger.log('api_request', `${config.method?.toUpperCase()} ${config.url}`, 'axios.request');
-    }
+  // 記錄API請求
+  if (config.url) {
+    authDebugger.log('api_request', `${config.method?.toUpperCase()} ${config.url}`, 'axios.request');
   }
   return config;
 });
@@ -192,11 +168,7 @@ api.interceptors.response.use(
         const refreshSuccess = await refreshAuthToken();
         
         if (refreshSuccess) {
-          // 重試原始請求
-          const tokens = getTokens();
-          if (tokens && originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`;
-          }
+          // 🔑 安全改進：重試原始請求，Cookie 會自動包含新的 token
           authDebugger.log('auth_check', `Token刷新成功，重試請求: ${originalRequest.url}`, 'axios.interceptor');
           return axios(originalRequest);
         }
@@ -236,8 +208,8 @@ api.interceptors.response.use(
           redirectCount = 0;
           isRedirectingToLogin = false;
           
-          // 不再重定向，只清除token
-          clearTokens();
+          // 不再重定向，只清除殘留的 localStorage token
+          clearLegacyTokens();
           return Promise.reject(error);
         }
         
@@ -245,8 +217,8 @@ api.interceptors.response.use(
         isRedirectingToLogin = true;
         lastRedirectTime = now;
         
-        // 清除令牌
-        clearTokens();
+        // 清除殘留的 localStorage token
+        clearLegacyTokens();
         
         authDebugger.log('redirect', `準備重定向到登入頁面，當前路徑: ${currentPath}`, 'axios.interceptor');
         if (isDev) console.log('API攔截器：非登入頁面，準備導向到登入頁面');
@@ -266,7 +238,7 @@ api.interceptors.response.use(
   }
 );
 
-// 創建一個備用API實例處理函數 - 用於處理連接到localhost失敗的情況
+// 🔑 安全改進：創建備用API實例，使用Cookie認證
 const createAlternativeApiInstance = () => {
   if (isDev) console.log('連接到localhost失敗，嘗試使用127.0.0.1...');
   
@@ -274,16 +246,11 @@ const createAlternativeApiInstance = () => {
   const alternativeApi = axios.create({
     baseURL: API_BASE_URL.replace('localhost', '127.0.0.1'),
     timeout: 10000,
+    withCredentials: true, // 🔑 Cookie會自動包含
     headers: {
       'Content-Type': 'application/json',
     },
   });
-  
-  // 添加授權頭
-  const tokens = getTokens();
-  if (tokens) {
-    alternativeApi.defaults.headers.common.Authorization = `Bearer ${tokens.accessToken}`;
-  }
   
   if (isDev) console.log('嘗試備用URL:', API_BASE_URL.replace('localhost', '127.0.0.1'));
   
@@ -358,25 +325,19 @@ export const apiService = {
     }
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: 'include' // 包含cookies
-      });
+      const response = await handleApiRequest(() => 
+        api.post('/api/auth/login', { email, password }, {
+          withCredentials: true, // 包含cookies，等同於 credentials: 'include'
+          timeout: 15000 // 15秒超時，比默認的10秒稍長
+        })
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `登入失敗: ${response.status}`);
-      }
+      const result = response.data;
 
-      const result = await response.json();
-
-      if (result.success && result.data && result.data.tokens) {
-        const { accessToken, refreshToken } = result.data.tokens;
-        storeTokens({ accessToken, refreshToken });
+      if (result.success && result.data) {
+        // 🔑 安全改進：登入成功，tokens 由後端設置為 HttpOnly Cookie
+        // 清除任何殘留的 localStorage tokens
+        clearLegacyTokens();
         
         // 登入成功後重置重定向計數
         redirectCount = 0;
@@ -385,10 +346,22 @@ export const apiService = {
       }
 
       return result;
-    } catch (error) {
+    } catch (error: any) {
       authDebugger.log('login', `登入發生錯誤: ${error}`, 'apiService.login');
       if (isDev) console.error('登入時發生錯誤:', error);
-      throw error;
+      
+      // 更詳細的錯誤處理
+      if (error.response) {
+        // 服務器響應了錯誤狀態碼
+        const errorData = error.response.data || {};
+        throw new Error(errorData.message || `登入失敗: ${error.response.status}`);
+      } else if (error.request) {
+        // 請求已發送但沒有收到響應
+        throw new Error('網絡連接問題，請檢查您的網絡連接');
+      } else {
+        // 其他錯誤
+        throw new Error(error.message || '登入時發生未知錯誤');
+      }
     }
   },
 
@@ -396,22 +369,17 @@ export const apiService = {
     authDebugger.log('logout', '發送登出請求', 'apiService.logout');
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include' // 包含cookies
-      });
+      const response = await handleApiRequest(() => 
+        api.post('/api/auth/logout', {}, {
+          withCredentials: true, // 包含cookies
+          timeout: 10000 // 10秒超時
+        })
+      );
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `登出失敗: ${response.status}`);
-      }
+      const result = response.data;
 
-      const result = await response.json().catch(() => ({ success: true }));
-
-      clearTokens();
+      // 🔑 安全改進：清除殘留的 localStorage，Cookie 由後端清除
+      clearLegacyTokens();
       
       // 登出時重置重定向狀態
       redirectCount = 0;
@@ -420,9 +388,9 @@ export const apiService = {
       authDebugger.log('logout', '登出成功，已重置所有狀態', 'apiService.logout');
       
       return result;
-    } catch (error) {
+    } catch (error: any) {
       if (isDev) console.error('登出時發生錯誤:', error);
-      clearTokens();
+      clearLegacyTokens();
       
       // 即使登出失敗也重置重定向狀態
       redirectCount = 0;
@@ -430,18 +398,19 @@ export const apiService = {
       isRedirectingToLogin = false;
       authDebugger.log('logout', `登出發生錯誤但已重置狀態: ${error}`, 'apiService.logout');
       
-      throw error;
+      // 對於登出，即使失敗也不拋出錯誤，因為本地狀態已清除
+      return { success: false, message: error.message || '登出時發生錯誤' };
     }
   },
   
   getCurrentUser: async () => {
     authDebugger.log('api_request', 'getCurrentUser -> /api/auth/me', 'apiService.getCurrentUser');
     return handleApiRequest(() => 
-      api.get('/api/auth/me')
+      api.get('/api/auth/me', { withCredentials: true })
     );
   },
   
-  // 用戶管理API
+  // 用戶管理API - 🔑 所有請求自動包含 Cookie（全局設置）
   getUsers: async () => {
     return handleApiRequest(() => 
       api.get('/api/users')

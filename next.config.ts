@@ -3,9 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   // 確保環境變數能被中間件使用
-  env: {
-    JWT_SECRET: process.env.JWT_SECRET || 'your-secret-key',
-  },
+  
   // 啟用嚴格模式
   reactStrictMode: true,
   // 配置輸出目錄格式以確保資源正確載入

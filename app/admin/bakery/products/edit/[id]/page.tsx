@@ -4,7 +4,9 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { 
   initializeAuth, 
-  getAuthHeaders, 
+  apiGet,
+  apiPost,
+  apiPatch,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide
@@ -124,22 +126,9 @@ export default function EditProduct() {
           return;
         }
 
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
         // 載入產品資料
-        const productResponse = await fetch(`/api/products/${productId}`, {
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include'
-        });
-        
-        // 處理認證錯誤
-        if (productResponse.status === 401) {
-          handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
-          return;
-        }
-        
-        if (!productResponse.ok) {
-          throw new Error('無法獲取產品資料');
-        }
-        const productData = await productResponse.json();
+        const productData = await apiGet(`/api/products/${productId}`);
         
         // 處理圖片數據
         let productImages: ProductImage[] = [];
@@ -204,24 +193,15 @@ export default function EditProduct() {
         });
 
         // 載入分類資料
-        const categoryResponse = await fetch('/api/categories', {
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include'
-        });
-        
-        // 處理認證錯誤
-        if (categoryResponse.status === 401) {
-          handleAuthError('獲取分類資料時認證失敗', setError, setLoading, setShowAuthWarning);
-          return;
-        }
-        
-        if (!categoryResponse.ok) {
-          throw new Error('無法獲取分類資料');
-        }
-        const categoryData = await categoryResponse.json();
+        const categoryData = await apiGet('/api/categories');
         setCategories(categoryData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : '發生錯誤');
+        console.error('載入產品資料失敗:', err);
+        if (err instanceof Error && err.message.includes('認證')) {
+          handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+        } else {
+          setError(err instanceof Error ? err.message : '發生錯誤');
+        }
       } finally {
         setLoading(false);
       }
@@ -327,13 +307,18 @@ export default function EditProduct() {
       formDataUpload.append('file', file, fileName);
       formDataUpload.append('destination', 'uploads/bakery');
       
-      // 發送圖片上傳請求
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      // 由於apiPost不支持FormData，我們需要直接使用fetch但不包含認證頭
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
+        credentials: 'include' // 自動包含 HttpOnly Cookie
       });
       
       if (!uploadResponse.ok) {
+        if (uploadResponse.status === 401) {
+          throw new Error('認證失敗，請重新登入');
+        }
         const uploadError = await uploadResponse.json();
         throw new Error(uploadError.message || `圖片上傳失敗`);
       }
@@ -385,7 +370,11 @@ export default function EditProduct() {
       
     } catch (error) {
       console.error('上傳圖片失敗:', error);
-      setError('上傳圖片失敗，請重試');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setSubmitting, setShowAuthWarning);
+      } else {
+        setError('上傳圖片失敗，請重試');
+      }
       
       // 標記上傳失敗，但不阻止其他圖片上傳
       setUploadProgress(prev => ({...prev, [index]: true}));
@@ -645,27 +634,8 @@ export default function EditProduct() {
         productImages: validImages
       };
       
-      // 發送請求
-      const response = await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthError('更新產品時認證失敗', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '更新產品失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPatch(`/api/products/${productId}`, requestBody);
       
       setSuccessMessage('產品已成功更新');
       
@@ -675,7 +645,12 @@ export default function EditProduct() {
       }, 1500);
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : '發生未知錯誤');
+      console.error('更新產品失敗:', err);
+      if (err instanceof Error && err.message.includes('認證')) {
+        handleAuthError(err.message, setError, setSubmitting, setShowAuthWarning);
+      } else {
+        setError(err instanceof Error ? err.message : '發生未知錯誤');
+      }
       setSuccessMessage(null);
     } finally {
       setSubmitting(false);

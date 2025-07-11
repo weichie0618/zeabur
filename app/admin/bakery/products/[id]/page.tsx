@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   initializeAuth, 
-  getAuthHeaders, 
+  apiGet,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide
@@ -66,28 +66,9 @@ export default function ProductDetail() {
       try {
         setLoading(true);
         
-        // 檢查令牌是否存在
-        if (!accessToken) {
-          handleAuthError('獲取產品資料時缺少認證令牌', setError, setLoading, setShowAuthWarning);
-          return;
-        }
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
+        const data = await apiGet(`/api/products/${productId}`);
         
-        const response = await fetch(`/api/products/${productId}`, {
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include'
-        });
-        
-        // 處理認證錯誤
-        if (response.status === 401) {
-          handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error('無法獲取產品資料');
-        }
-        
-        const data = await response.json();
         // 確保圖片是陣列格式
         if (data.images) {
           if (typeof data.images === 'string') {
@@ -108,7 +89,12 @@ export default function ProductDetail() {
         }
         setProduct(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : '發生錯誤');
+        console.error('獲取產品資料失敗:', err);
+        if (err instanceof Error && err.message.includes('認證')) {
+          handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+        } else {
+          setError(err instanceof Error ? err.message : '發生錯誤');
+        }
       } finally {
         setLoading(false);
       }

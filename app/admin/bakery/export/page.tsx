@@ -7,11 +7,11 @@ import {
   statusMap, 
   reverseStatusMap, 
   initializeAuth, 
-  getAuthHeaders as getAuthHeadersFromService,
   handleAuthError as handleAuthErrorFromService,
   handleRelogin as handleReloginFromService,
   getStatusDisplay as getStatusDisplayFromService,
-  getStatusClass as getStatusClassFromService
+  getStatusClass as getStatusClassFromService,
+  apiGet
 } from '../utils/authService';
 
 // 訂單類型
@@ -180,10 +180,7 @@ export default function OrderExportPage() {
     setSalesPersonFilter(e.target.value);
   };
 
-  // 獲取認證令牌
-  const getAuthHeaders = () => {
-    return getAuthHeadersFromService(accessToken);
-  };
+  // 🔑 已移除：不再需要getAuthHeaders，使用HttpOnly Cookie認證
   
   // 初始化獲取認證令牌
   useEffect(() => {
@@ -207,23 +204,9 @@ export default function OrderExportPage() {
 
       console.log('開始獲取客戶數據...');
       // 嘗試使用 admin/lineusers API
-      const response = await fetch('/api/customers?limit=100&sortBy=companyName&order=ASC', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        handleAuthError('客戶數據獲取失敗：認證失敗');
-        return;
-      }
-
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet('api/customers?limit=100&sortBy=companyName&order=ASC');
       console.log('客戶數據 API 回應:', data);
-      
-      if (!response.ok) {
-        console.error('API 請求失敗:', response.status, response.statusText);
-        return;
-      }
       
       // 檢查數據結構 - 適用於 lineusers API
       if (data && data.status === 'success' && data.data && data.data.lineUsers) {
@@ -374,24 +357,14 @@ export default function OrderExportPage() {
       console.log(`訂單API請求: /api/orders/with-items?${params.toString()}`);
       
       // 發送請求獲取訂單數據
-      const response = await fetch(`/api/orders/with-items?${params.toString()}`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data: OrdersResponse = await apiGet(`api/orders/with-items?${params.toString()}`);
       
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入系統');
-        return;
-      }
-      
-      const data: OrdersResponse = await response.json();
-      
-      if (response.ok && data.orders) {
+      if (data && data.orders) {
         setOrders(data.orders);
         setTotalOrders(data.total);
       } else {
-        setError(data.message || '獲取訂單數據失敗');
+        setError(data?.message || '獲取訂單數據失敗');
         setOrders([]);
       }
     } catch (error: any) {

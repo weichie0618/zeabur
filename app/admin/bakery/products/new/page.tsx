@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { 
   initializeAuth, 
-  getAuthHeaders, 
+  apiGet,
+  apiPost,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide
@@ -125,25 +126,10 @@ export default function NewProduct() {
       try {
         setLoadingCategories(true);
         
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
         // 添加時間戳防止快取
         const timestamp = Date.now();
-        const response = await fetch(`/api/categories?t=${timestamp}`, {
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include'
-        });
-        
-        // 處理認證錯誤
-        if (response.status === 401) {
-          handleAuthError('獲取分類資料時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
-          setLoadingCategories(false);
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error('無法獲取分類資料');
-        }
-        
-        const data = await response.json();
+        const data = await apiGet(`/api/categories?t=${timestamp}`);
         
         // 處理兩種可能的API回傳格式
         const categoriesArray = Array.isArray(data) 
@@ -155,7 +141,11 @@ export default function NewProduct() {
         setCategories(categoriesArray);
       } catch (error) {
         console.error('載入分類失敗:', error);
-        setErrorMessage('無法載入產品分類，請重新整理頁面');
+        if (error instanceof Error && error.message.includes('認證')) {
+          handleAuthError(error.message, setErrorMessage, setIsSubmitting, setShowAuthWarning);
+        } else {
+          setErrorMessage('無法載入產品分類，請重新整理頁面');
+        }
       } finally {
         setLoadingCategories(false);
       }
@@ -208,7 +198,7 @@ export default function NewProduct() {
     }));
     
     // 清除對應的錯誤狀態
-    if (apiField === 'name' || apiField === 'price' || apiField === 'categoryId') {
+    if (apiField in formErrors) {
       setFormErrors(prev => ({
         ...prev,
         [apiField]: false
@@ -216,87 +206,61 @@ export default function NewProduct() {
     }
   };
 
-  // 驗證檔案
+  // 檔案驗證
   const validateFile = (file: File): boolean => {
-    // 檢查檔案類型，只允許JPG檔案
-    if (file.type !== 'image/jpeg') {
-      setErrorMessage('請僅上傳JPG格式的圖片檔案');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage('不支援的檔案格式，僅支援 JPG、PNG、GIF、WebP 格式');
       return false;
     }
     
-    // 檢查檔案大小
-    if (file.size > 10 * 1024 * 1024) { // 10MB限制
-      setErrorMessage('圖片檔案過大，請上傳小於10MB的圖片');
-      return false;
-    }
-    
-    // 檢查檔案是否為空
-    if (file.size === 0) {
-      setErrorMessage('無效的圖片檔案（檔案大小為0）');
-      return false;
-    }
-    
-    // 檢查產品名稱是否已填寫
-    if (!formData.name.trim()) {
-      setErrorMessage('請先填寫產品名稱，再上傳圖片');
+    if (file.size > maxSize) {
+      setErrorMessage('檔案大小不能超過 5MB');
       return false;
     }
     
     return true;
   };
 
-  // 處理圖片上傳 - 改進支援多圖片預覽
+  // 處理圖片預覽
   const processImagePreview = async (file: File) => {
-    try {
-      // 使用 FileReader 創建本地預覽 URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          const newPreviewUrl = e.target.result as string;
-          
-          setPreviewUrls(prevUrls => [...prevUrls, newPreviewUrl]);
-          
-          // 添加新圖片到uploadedImages
-          setUploadedImages(prevImages => [...prevImages, file]);
-          
-          // 準備上傳圖片
-          uploadImage(file, formData.productImages.length);
-        }
-      };
-      reader.readAsDataURL(file);
-      
-      setErrorMessage('');
-      setSuccessMessage('圖片處理中，請稍後...');
-    } catch (error) {
-      console.error('處理圖片預覽失敗:', error);
-      setErrorMessage('處理圖片預覽失敗，請重試');
-    }
+    if (!validateFile(file)) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        setPreviewUrls(prev => [...prev, e.target!.result as string]);
+        setUploadedImages(prev => [...prev, file]);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  // 處理檔案上傳
+  // 處理檔案選擇變更
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      // 處理所有選中的文件
-      const files = Array.from(e.target.files);
-      
-      // 重設上傳進度
-      setUploadProgress({});
-      setUploadingImages(true);
-      
-      // 逐一處理每個文件
-      files.forEach((file, i) => {
+    const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+    
+    // 檢查是否超過最大圖片數量
+    const currentImageCount = formData.productImages.length;
+    const maxImages = 8; // 設定最大圖片數量
+    
+    if (currentImageCount + files.length > maxImages) {
+      setErrorMessage(`最多只能上傳 ${maxImages} 張圖片`);
+      return;
+    }
+    
+    // 處理每個檔案
+    if (files.length > 0) {
+      files.forEach((file, index) => {
         if (validateFile(file)) {
-          // 使用 FileReader 創建本地預覽 URL
           const reader = new FileReader();
           reader.onload = (e) => {
             if (e.target?.result) {
-              const newPreviewUrl = e.target.result as string;
-              setPreviewUrls(prevUrls => [...prevUrls, newPreviewUrl]);
-              setUploadedImages(prevImages => [...prevImages, file]);
-              
-              // 計算當前索引，考慮已有的圖片數量
-              const currentIndex = formData.productImages.length + i;
-              // 準備上傳圖片
+              const currentIndex = formData.productImages.length + index;
               uploadImage(file, currentIndex);
             }
           };
@@ -353,24 +317,18 @@ export default function NewProduct() {
       formDataUpload.append('file', file, fileName);
       formDataUpload.append('destination', 'uploads/bakery');
       
-      // 發送圖片上傳請求，添加認證頭
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      // 發送圖片上傳請求，不再需要手動設置認證頭
       const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
         body: formDataUpload,
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        },
-        credentials: 'include'
+        credentials: 'include' // 自動包含 HttpOnly Cookie
       });
       
-      // 處理認證錯誤
-      if (uploadResponse.status === 401) {
-        handleAuthError('上傳圖片時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
-        setUploadingImages(false);
-        return;
-      }
-      
       if (!uploadResponse.ok) {
+        if (uploadResponse.status === 401) {
+          throw new Error('認證失敗，請重新登入');
+        }
         const uploadError = await uploadResponse.json();
         throw new Error(uploadError.message || `圖片上傳失敗`);
       }
@@ -422,7 +380,11 @@ export default function NewProduct() {
       
     } catch (error) {
       console.error('上傳圖片失敗:', error);
-      setErrorMessage('上傳圖片失敗，請重試');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setErrorMessage, setIsSubmitting, setShowAuthWarning);
+      } else {
+        setErrorMessage('上傳圖片失敗，請重試');
+      }
       
       // 標記上傳失敗，但不阻止其他圖片上傳
       setUploadProgress(prev => ({...prev, [index]: true}));
@@ -498,52 +460,33 @@ export default function NewProduct() {
       
       console.log('拖拽後的圖片排序:', updatedImages.map(img => img.sort));
       
-      // 更新formData
       setFormData(prev => ({
         ...prev,
         productImages: updatedImages
       }));
-      
-      // 同時更新預覽URLs順序
-      const sortedPreviewUrls = [...previewUrls];
-      const draggedUrl = sortedPreviewUrls[draggingIndex];
-      sortedPreviewUrls.splice(draggingIndex, 1);
-      sortedPreviewUrls.splice(index, 0, draggedUrl);
-      setPreviewUrls(sortedPreviewUrls);
-      
-      // 更新上傳的圖片檔案順序
-      const newUploadedImages = [...uploadedImages];
-      const draggedFile = newUploadedImages[draggingIndex];
-      newUploadedImages.splice(draggingIndex, 1);
-      newUploadedImages.splice(Math.min(index, newUploadedImages.length), 0, draggedFile);
-      setUploadedImages(newUploadedImages);
-      
-      // 顯示排序更新成功消息
-      setSuccessMessage('圖片排序已更新');
-      setTimeout(() => setSuccessMessage(''), 2000);
     }
     
-    // 處理從外部拖曳的新圖片
-    if (index === undefined && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      
-      if (validateFile(file)) {
-        processImagePreview(file);
-      }
+    // 處理檔案拖放
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      files.forEach(file => {
+        if (file.type.startsWith('image/')) {
+          processImagePreview(file);
+        }
+      });
     }
     
     setDraggingIndex(null);
     setTargetIndex(null);
-  }, [draggingIndex, formData.productImages, previewUrls, uploadedImages]);
+  }, [draggingIndex, formData.productImages]);
 
   // 移除圖片
   const handleRemoveImage = (index: number) => {
-    // 更新formData
-    const newProductImages = [...formData.productImages];
-    newProductImages.splice(index, 1);
+    const currentImages = [...formData.productImages];
+    currentImages.splice(index, 1);
     
-    // 更新排序號
-    const updatedImages = newProductImages.map((img, idx) => ({
+    // 重新計算排序號
+    const updatedImages = currentImages.map((img, idx) => ({
       ...img,
       sort: idx + 1
     }));
@@ -553,15 +496,18 @@ export default function NewProduct() {
       productImages: updatedImages
     }));
     
-    // 更新預覽URLs
-    const newPreviewUrls = [...previewUrls];
-    newPreviewUrls.splice(index, 1);
-    setPreviewUrls(newPreviewUrls);
+    // 同時移除預覽URL和上傳檔案
+    setPreviewUrls(prev => {
+      const newUrls = [...prev];
+      newUrls.splice(index, 1);
+      return newUrls;
+    });
     
-    // 更新上傳的圖片檔案
-    const newUploadedImages = [...uploadedImages];
-    newUploadedImages.splice(index, 1);
-    setUploadedImages(newUploadedImages);
+    setUploadedImages(prev => {
+      const newFiles = [...prev];
+      newFiles.splice(index, 1);
+      return newFiles;
+    });
   };
 
   // 表單驗證
@@ -569,7 +515,7 @@ export default function NewProduct() {
     const errors = {
       id: !formData.id.trim(),
       name: !formData.name.trim(),
-      price: !formData.price || isNaN(Number(formData.price)) || Number(formData.price) <= 0,
+      price: !formData.price || Number(formData.price) <= 0,
       categoryId: !formData.categoryId
     };
     
@@ -636,34 +582,22 @@ export default function NewProduct() {
         status: formData.status || 'active'
       };
       
-      // 發送API請求
-      const response = await fetch('/api/products', {
-        method: 'POST',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify(apiData)
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const result = await apiPost('/api/products', apiData);
       
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthError('新增產品時認證失敗', setErrorMessage, setIsSubmitting, setShowAuthWarning);
-        return;
-      }
-      
-      const result = await response.json();
-      
-      if (response.ok) {
-        setSuccessMessage('產品新增成功');
-        setShowSuccessModal(true);
-        // 彈窗顯示後2秒再跳轉
-        setTimeout(() => {
-          router.push('/admin/bakery/products');
-        }, 2000);
-      } else {
-        setErrorMessage(result.message || '產品新增失敗');
-      }
+      setSuccessMessage('產品新增成功');
+      setShowSuccessModal(true);
+      // 彈窗顯示後2秒再跳轉
+      setTimeout(() => {
+        router.push('/admin/bakery/products');
+      }, 2000);
     } catch (error) {
       console.error('新增產品時發生錯誤:', error);
-      setErrorMessage('伺服器錯誤，請稍後再試');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setErrorMessage, setIsSubmitting, setShowAuthWarning);
+      } else {
+        setErrorMessage(error instanceof Error ? error.message : '伺服器錯誤，請稍後再試');
+      }
     } finally {
       setIsSubmitting(false);
     }

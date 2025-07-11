@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { initializeAuth, getAuthHeaders, handleAuthError } from '../../utils/authService';
+import { initializeAuth, handleAuthError, apiGet } from '../../utils/authService';
 
 interface CommissionStats {
   totalCommissions: number;
@@ -44,15 +44,7 @@ export default function CommissionStatsPage() {
     if (!accessToken) return;
 
     try {
-      const response = await fetch(`/api/admin/commissions/stats?period=${selectedPeriod}`, {
-        headers: getAuthHeaders(accessToken)
-      });
-
-      if (!response.ok) {
-        throw new Error('載入統計數據失敗');
-      }
-
-      const data = await response.json();
+      const data = await apiGet(`/api/admin/commissions/stats?period=${selectedPeriod}`);
       if (data.success) {
         setStats(data.data);
       } else {

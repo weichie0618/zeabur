@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders as getAuthHeadersFromService,
   handleAuthError as handleAuthErrorFromService,
   handleRelogin as handleReloginFromService,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiDelete
 } from '../utils/authService';
 
 // 定義業主類型
@@ -62,10 +63,7 @@ export default function OwnersManagement() {
   const [accessToken, setAccessToken] = useState<string>('');
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
 
-  // 獲取認證標頭
-  const getAuthHeaders = () => {
-    return getAuthHeadersFromService(accessToken);
-  };
+  // 🔑 已移除：不再需要getAuthHeaders，使用HttpOnly Cookie認證
   
   // 處理認證錯誤
   const handleAuthError = (errorMessage: string) => {
@@ -137,25 +135,11 @@ export default function OwnersManagement() {
       const timestamp = Date.now();
       queryParams.append('t', timestamp.toString());
       
-      const apiUrl = `/api/customers?${queryParams.toString()}`;
-      console.log('發送請求到:', apiUrl);
+      const endpoint = `api/customers?${queryParams.toString()}`;
+      console.log('發送請求到:', endpoint);
       
-      const response = await fetch(apiUrl, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        handleAuthError('獲取業主列表時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`無法獲取業主資料: ${response.status}`);
-      }
-      
-      const data: ApiResponse = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data: ApiResponse = await apiGet(endpoint);
       
       setOwners(data.data);
       setMeta(data.meta);
@@ -259,23 +243,8 @@ export default function OwnersManagement() {
       setIsDeleting(true);
       setDeleteError(null);
       
-      const response = await fetch(`/api/customers/${deletingOwnerId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        handleAuthError('刪除業主時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '刪除業主失敗');
-      }
-      
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiDelete(`api/customers/${deletingOwnerId}`);
       setDeleteSuccess(data.message || '業主已成功刪除');
       
       // 重新獲取業主列表

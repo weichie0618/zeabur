@@ -1,11 +1,16 @@
 /**
  * 訂單系統通用工具函數
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
  */
 import { EditOrderForm } from '../types';
 
-// 重新導出 authService 的函數以保持向後兼容性
+// 🔑 安全改進：重新導出新的 HttpOnly Cookie 認證工具函數
 export { 
-  getAuthHeaders, 
+  apiGet,
+  apiPost,
+  apiPut,
+  apiPatch,
+  apiDelete,
   initializeAuth, 
   handleAuthError, 
   setupAuthWarningAutoHide,

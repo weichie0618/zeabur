@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { initializeAuth, getAuthHeaders, handleAuthError, getToken } from '../../utils/authService';
+import { initializeAuth, handleAuthError, apiGet, apiPost, apiPut, apiDelete } from '../../utils/authService';
 
 // 定義接口
 interface CommissionPlan {
@@ -115,15 +115,7 @@ export default function AssignmentsPage() {
         ...(sortOrder && { sortOrder })
       });
 
-      const response = await fetch(`/api/admin/commission-plans?${queryParams}`, {
-        headers: getAuthHeaders(accessToken)
-      });
-
-      if (!response.ok) {
-        throw new Error('載入業務員列表失敗');
-      }
-
-      const data = await response.json();
+      const data = await apiGet(`/api/admin/commission-plans?${queryParams}`);
       if (data.success) {
         setSalespeople(data.data.salespeople);
         setPagination(data.data.pagination);
@@ -150,15 +142,7 @@ export default function AssignmentsPage() {
     if (!accessToken) return;
 
     try {
-      const response = await fetch('/api/admin/commission-plans', {
-        headers: getAuthHeaders(accessToken)
-      });
-
-      if (!response.ok) {
-        throw new Error('載入佣金專案失敗');
-      }
-
-      const data = await response.json();
+      const data = await apiGet('/api/admin/commission-plans');
       
       // 檢查並處理新的 API 回傳格式
       if (data.success) {
@@ -260,13 +244,7 @@ export default function AssignmentsPage() {
         contract_end_date: formData.contract_end_date || null
       };
 
-      const response = await fetch(`/api/admin/customers/${formData.customer_id}/commission-plan`, {
-        method: 'PUT',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify(submitData)
-      });
-
-      const data = await response.json();
+      const data = await apiPut(`/api/admin/customers/${formData.customer_id}/commission-plan`, submitData);
 
       if (data.success) {
         closeModal();
@@ -292,17 +270,11 @@ export default function AssignmentsPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/customers/${customerId}/commission-plan`, {
-        method: 'PUT',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify({
-          commission_plan_id: null,
-          contract_start_date: null,
-          contract_end_date: null
-        })
+      const data = await apiPut(`/api/admin/customers/${customerId}/commission-plan`, {
+        commission_plan_id: null,
+        contract_start_date: null,
+        contract_end_date: null
       });
-
-      const data = await response.json();
 
       if (data.success) {
         loadSalespeople();
@@ -404,11 +376,7 @@ export default function AssignmentsPage() {
           contract_end_date: batchFormData.contract_end_date || null
         };
 
-        return fetch(`/api/admin/customers/${customerId}/commission-plan`, {
-          method: 'PUT',
-          headers: getAuthHeaders(accessToken),
-          body: JSON.stringify(submitData)
-        }).then(res => res.json());
+        return apiPut(`/api/admin/customers/${customerId}/commission-plan`, submitData);
       });
 
       const results = await Promise.all(promises);

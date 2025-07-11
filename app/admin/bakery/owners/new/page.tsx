@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiPost
 } from '../../utils/authService';
 
 interface OwnerFormData {
@@ -134,25 +134,8 @@ export default function NewOwner() {
     try {
       setIsSubmitting(true);
       
-      const response = await fetch('/api/customers', {
-        method: 'POST',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify(formData),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        setApiError('認證失敗，請重新登入');
-        setShowAuthWarning(true);
-        setIsSubmitting(false);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '創建業主失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPost('api/customers', formData);
       
       // 成功創建，導航到列表頁
       router.push('/admin/bakery/owners');

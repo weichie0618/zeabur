@@ -109,7 +109,7 @@ export default function LoginPage() {
   const navigateBasedOnRole = useCallback((userData: any) => {
     // 防止重複導航
     if (isNavigating.current || hasNavigated.current) {
-      if (isDev) addDebugInfo('跳過重複導航');
+      if (isDev) addDebugInfo(`跳過重複導航 - isNavigating: ${isNavigating.current}, hasNavigated: ${hasNavigated.current}`);
       return;
     }
 
@@ -120,40 +120,54 @@ export default function LoginPage() {
       }
       
       isNavigating.current = true;
-      hasNavigated.current = true;
+      hasNavigated.current = true; // 立即設置為已導航，防止重複調用
+      if (isDev) addDebugInfo(`開始導航流程 - 用戶角色: ${userData.role}`);
       
-      // 如果有重定向路徑，優先使用該路徑
+      // 確定導航目標
+      let targetPath = '';
       if (redirectPath) {
+        targetPath = redirectPath;
         if (isDev) addDebugInfo(`使用保存的重定向路徑: ${redirectPath}`);
-        router.push(redirectPath);
-        return;
+      } else if (userData.role === 'admin') {
+        targetPath = '/admin/bakery';
+        if (isDev) addDebugInfo('準備跳轉到管理員頁面: /admin/bakery');
+      } else if (userData.role === 'salesperson') {
+        targetPath = '/sales/dashboard';
+        if (isDev) addDebugInfo('準備跳轉到業務頁面: /sales/dashboard');
+      } else {
+        targetPath = '/';
+        if (isDev) addDebugInfo(`未知角色: ${userData.role}，導向首頁`);
       }
       
-      // 否則根據角色導航
-      if (userData.role === 'admin') {
-        if (isDev) addDebugInfo('執行跳轉到管理員頁面: /admin/bakery');
-        router.push('/admin/bakery');
-      } else if (userData.role === 'salesperson') {
-        if (isDev) addDebugInfo('執行跳轉到業務頁面: /sales/dashboard');
-        router.push('/sales/dashboard');
-      } else {
-        if (isDev) addDebugInfo(`未知角色: ${userData.role}，導向首頁`);
-        router.push('/');
-      }
+      // 給 Cookie 設置一些時間，然後執行導航
+      if (isDev) addDebugInfo('等待 Cookie 設置完成後執行導航...');
+      setTimeout(() => {
+        if (isDev) addDebugInfo(`執行頁面重定向: ${targetPath}`);
+        // 使用 window.location.href 確保頁面完全重新加載
+        window.location.href = targetPath;
+      }, 500); // 給 Cookie 設置 500ms 的時間
+      
     } catch (error) {
       if (isDev) {
         addDebugInfo(`導航錯誤: ${error}`);
         console.error('導航錯誤:', error);
       }
       isNavigating.current = false;
+      hasNavigated.current = false;
     }
-  }, [router, redirectPath, isDev]); // 移除不必要的依賴項
+  }, [router, redirectPath, isDev]);
 
   // 監聽認證狀態變更，根據角色進行導航 - 優化依賴項
   useEffect(() => {
     // 如果檢測到令牌過期，不要觸發導航邏輯
     if (isExpired) {
       addDebugInfo('令牌已過期，跳過導航邏輯');
+      return;
+    }
+    
+    // 如果已經導航過，不要再次執行
+    if (hasNavigated.current) {
+      addDebugInfo('已經執行過導航，跳過重複執行');
       return;
     }
     
@@ -166,21 +180,26 @@ export default function LoginPage() {
       }, {} as Record<string, string>);
       
       setDebugInfo(prev => `${prev ? prev + '\n\n' : ''}Cookie狀態檢查:\n`+
-        `- accessToken: ${cookies.accessToken ? '存在' : '不存在'}\n`+
-        `- localStorage token: ${localStorage.getItem('accessToken') ? '存在' : '不存在'}`
+        `- accessToken: ${cookies.accessToken ? '存在' : '不存在 (HttpOnly Cookie 無法被 JS 讀取)'}\n`+
+        `- localStorage token: ${localStorage.getItem('accessToken') ? '存在' : '不存在'}\n`+
+        `- 註：HttpOnly Cookie 正常情況下應該「不存在」，這是安全設計`
       );
       
       if (isAuthenticated && user) {
         addDebugInfo(`認證狀態變更: isAuthenticated=${isAuthenticated}, 用戶=${JSON.stringify(user)}`);
         addDebugInfo(`準備根據角色跳轉...`);
+        addDebugInfo(`導航狀態 - loginAttempted: ${loginAttempted}, isExpired: ${isExpired}, hasNavigated: ${hasNavigated.current}, isNavigating: ${isNavigating.current}`);
       }
     }
     
     // 處理用戶導航 - 只有在認證成功且不是登入嘗試失敗的情況，且不是令牌過期的情況
-    if (isAuthenticated && user && !loginAttempted && !isExpired && !hasNavigated.current) {
+    if (isAuthenticated && user && !loginAttempted && !isExpired && !hasNavigated.current && !isNavigating.current) {
+      if (isDev) addDebugInfo('所有導航條件都滿足，開始執行導航');
       navigateBasedOnRole(user);
+    } else if (isDev) {
+      addDebugInfo(`導航條件不滿足: isAuthenticated=${isAuthenticated}, user=${!!user}, loginAttempted=${loginAttempted}, isExpired=${isExpired}, hasNavigated=${hasNavigated.current}, isNavigating=${isNavigating.current}`);
     }
-  }, [isAuthenticated, user, loginAttempted, isExpired, navigateBasedOnRole]); // 移除不需要的依賴項
+  }, [isAuthenticated, user, loginAttempted, isExpired]);
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -199,9 +218,13 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     setLoginAttempted(false); // 重置登入嘗試狀態
-    hasNavigated.current = false; // 重置導航狀態
+    
+    // 重置所有導航相關狀態
+    hasNavigated.current = false;
     isNavigating.current = false;
+    
     addDebugInfo('正在處理登入請求...');
+    addDebugInfo('已重置所有導航狀態');
 
     // 表單驗證
     if (!email) {
@@ -256,6 +279,7 @@ export default function LoginPage() {
           setLoginAttempted(false); // 重置登入嘗試狀態
           // 不在這裡直接調用導航，讓 useEffect 來處理
           addDebugInfo('等待 AuthContext 更新用戶狀態，由 useEffect 處理導航');
+          addDebugInfo(`當前導航狀態 - hasNavigated: ${hasNavigated.current}, isNavigating: ${isNavigating.current}`);
         }
       }
     } catch (error: any) {

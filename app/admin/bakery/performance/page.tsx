@@ -5,7 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import * as XLSX from 'xlsx';
 import { 
   initializeAuth,
-  getAuthHeaders,
+  apiGet,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide,
@@ -221,22 +221,9 @@ export default function PerformanceReport() {
     if (!accessToken) return;
 
     try {
-      const response = await fetch('/api/customers?limit=100&sortBy=companyName&order=ASC', {
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include',
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet('/api/customers?limit=100&sortBy=companyName&order=ASC');
       
-      if (response.status === 401) {
-        handleAuthErrorLocal('獲取客戶數據時認證失敗');
-        return;
-      }
-
-      if (!response.ok) {
-        console.error('API 請求失敗:', response.status, response.statusText);
-        return;
-      }
-      
-      const data = await response.json();
       let customersWithCompany: CompanyInfo[] = [];
       
       // 檢查數據結構並進行適當處理
@@ -281,6 +268,9 @@ export default function PerformanceReport() {
       setSalesPersons(uniqueCompanies);
     } catch (error) {
       console.error('獲取客戶數據出錯:', error);
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthErrorLocal(error.message);
+      }
       setSalesPersons([]);
     }
   }, [accessToken]);
@@ -345,22 +335,10 @@ export default function PerformanceReport() {
       params.append('sortBy', 'created_at');
       params.append('sortOrder', 'desc');
       
-      // 發送請求獲取訂單數據
-      const response = await fetch(`/api/orders?${params.toString()}`, {
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include',
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(`/api/orders?${params.toString()}`);
       
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('獲取訂單數據時認證失敗');
-        setLoading(false);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (response.ok && Array.isArray(data.orders)) {
+      if (Array.isArray(data.orders)) {
         setOrders(data.orders);
         setTotalOrders(data.total || data.orders.length);
         calculateStatistics(data.orders);
@@ -371,6 +349,9 @@ export default function PerformanceReport() {
       }
     } catch (error: any) {
       setError(error.message || '獲取訂單數據時發生錯誤');
+      if (error.message?.includes('認證')) {
+        handleAuthErrorLocal(error.message);
+      }
       setOrders([]);
       setStatistics(initialStatistics);
     } finally {
@@ -404,155 +385,140 @@ export default function PerformanceReport() {
   const handleDateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setDateFilter(e.target.value);
   };
-  
+
   const handleSalesPersonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSalesPersonFilter(e.target.value);
   };
 
-  // 處理過濾並獲取訂單
+  // 手動觸發篩選
   const handleFilter = () => {
     fetchOrders();
   };
 
-  // 處理打開匯出預覽模態框
   const handleOpenExportModal = () => {
-    // 初始化所有業務人員統計為已選中
+    // 初始化選擇狀態
     const initialSelectedStats: Record<string, boolean> = {};
-    sortedSalesPersonStats.forEach(stat => {
-      initialSelectedStats[stat.id] = true;
+    Object.keys(statistics.salesPersonStats).forEach(id => {
+      initialSelectedStats[id] = false;
     });
     setSelectedStats(initialSelectedStats);
-    setSelectedAll(true);
+    setSelectedAll(false);
     setShowExportModal(true);
   };
 
-  // 處理關閉匯出預覽模態框
   const handleCloseExportModal = () => {
     setShowExportModal(false);
   };
 
-  // 處理全選或取消全選
   const handleSelectAll = () => {
     const newSelectedAll = !selectedAll;
     setSelectedAll(newSelectedAll);
     
     const newSelectedStats: Record<string, boolean> = {};
-    sortedSalesPersonStats.forEach(stat => {
-      newSelectedStats[stat.id] = newSelectedAll;
+    Object.keys(statistics.salesPersonStats).forEach(id => {
+      newSelectedStats[id] = newSelectedAll;
     });
     setSelectedStats(newSelectedStats);
   };
 
-  // 處理選擇單個業務人員
   const handleSelectStat = (id: string) => {
-    const newSelectedStats = { ...selectedStats };
-    newSelectedStats[id] = !newSelectedStats[id];
+    const newSelectedStats = {
+      ...selectedStats,
+      [id]: !selectedStats[id]
+    };
     setSelectedStats(newSelectedStats);
     
-    // 檢查是否所有項目都被選中
-    const allSelected = sortedSalesPersonStats.every(stat => newSelectedStats[stat.id]);
+    // 更新全選狀態
+    const allSelected = Object.keys(statistics.salesPersonStats).every(id => newSelectedStats[id]);
     setSelectedAll(allSelected);
   };
 
-  // 處理Excel匯出
   const handleExportExcel = () => {
+    setExportLoading(true);
+    
     try {
-      setExportLoading(true);
+      // 獲取選中的統計數據
+      const selectedIds = Object.keys(selectedStats).filter(id => selectedStats[id]);
+      const selectedStatsData = selectedIds.map(id => statistics.salesPersonStats[id]);
       
-      // 準備匯出數據
-      const exportData = [
-        // 表頭
-        ['業務統計報表', `期間: ${formatDateRange()}`, '', '', '']
+      if (selectedStatsData.length === 0) {
+        alert('請選擇要匯出的數據');
+        setExportLoading(false);
+        return;
+      }
+
+      // 準備Excel數據
+      const excelData = [
+        ['業務報表'],
+        [],
+        ['統計期間', formatDateRange()],
+        ['總計訂單數', statistics.totalOrders],
+        ['總計銷售額', `NT$ ${statistics.totalSales.toLocaleString()}`],
+        [],
+        ['業務人員', '公司名稱', '訂單數', '銷售額', '小計'],
+        ...selectedStatsData.map(stat => [
+          stat.id,
+          stat.companyName || '未知',
+          stat.orders,
+          `NT$ ${stat.sales.toLocaleString()}`,
+          stat.subtotal
+        ])
       ];
-      
-      // 添加整體統計數據 - 只保留總銷售額
-      exportData.push(['總覽', '', '', '', '']);
-      exportData.push(['銷售額(不含運費)', '', '', '', '']);
-      exportData.push([
-        statistics.totalSubtotal.toLocaleString(),
-        '', '', '', ''
-      ]);
-      
-      // 添加空行
-      exportData.push(['', '', '', '', '']);
-      
-      // 添加各業務人員統計數據
-      exportData.push(['各業務人員統計', '', '', '', '']);
-      exportData.push(['業務ID', '公司名稱', '訂單數', '銷售額', '銷售額(不含運費)']);
-      
-      // 只匯出選中的業務人員統計
-      sortedSalesPersonStats
-        .filter(stats => selectedStats[stats.id])
-        .forEach((stats) => {
-          exportData.push([
-            stats.id,
-            stats.companyName || '-',
-            stats.orders.toString(),
-            stats.sales.toLocaleString(),
-            stats.subtotal.toLocaleString()
-          ]);
-        });
-      
+
       // 創建工作表
-      const ws = XLSX.utils.aoa_to_sheet(exportData);
+      const worksheet = XLSX.utils.aoa_to_sheet(excelData);
       
       // 設置列寬
-      const colWidths = [
-        { wch: 20 }, // A
-        { wch: 20 }, // B
-        { wch: 15 }, // C
-        { wch: 20 }, // D
-        { wch: 20 }  // E
+      const columnWidths = [
+        { wch: 15 }, // 業務人員
+        { wch: 20 }, // 公司名稱
+        { wch: 10 }, // 訂單數
+        { wch: 15 }, // 銷售額
+        { wch: 10 }  // 小計
       ];
-      ws['!cols'] = colWidths;
-      
-      // 創建工作簿並添加工作表
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, '業務統計報表');
-      
+      worksheet['!cols'] = columnWidths;
+
+      // 創建工作簿
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '業務報表');
+
       // 生成文件名
       const now = new Date();
-      const fileName = `業務統計報表_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.xlsx`;
+      const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}`;
+      const fileName = `業務報表_${dateStr}.xlsx`;
+
+      // 下載文件
+      XLSX.writeFile(workbook, fileName);
       
-      // 匯出Excel
-      XLSX.writeFile(wb, fileName);
-      
+      // 關閉模態框
+      setShowExportModal(false);
     } catch (error) {
-      console.error('匯出Excel錯誤:', error);
-      alert('匯出Excel時發生錯誤');
+      console.error('匯出Excel時發生錯誤:', error);
+      alert('匯出失敗，請稍後再試');
     } finally {
       setExportLoading(false);
-      setShowExportModal(false);
     }
   };
 
-  // 格式化日期範圍顯示
   const formatDateRange = () => {
-    switch (dateFilter) {
-      case 'today':
-        return '今天';
-      case 'yesterday':
-        return '昨天';
-      case 'this_month':
-        return '本月';
-      case 'last_month':
-        return '上個月';
-      case 'custom':
-        return `${startDate || ''} 至 ${endDate || ''}`;
-      default:
-        return '所有時間';
+    if (dateFilter === 'today') {
+      return '今天';
+    } else if (dateFilter === 'yesterday') {
+      return '昨天';
+    } else if (dateFilter === 'this_month') {
+      return '本月';
+    } else if (dateFilter === 'last_month') {
+      return '上個月';
+    } else if (dateFilter === 'custom' && startDate && endDate) {
+      return `${formatDate(startDate)} 至 ${formatDate(endDate)}`;
+    } else {
+      return '所有時間';
     }
   };
 
-  // 格式化日期顯示
   const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      const date = new Date(dateStr);
-      return !isNaN(date.getTime()) ? date.toLocaleDateString('zh-TW') : '';
-    } catch (error) {
-      return '';
-    }
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-TW');
   };
 
   // 使用 useMemo 來計算排序後的業務人員數據

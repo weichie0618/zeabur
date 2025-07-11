@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  getToken,
-  getAuthHeaders, 
   initializeAuth, 
   handleAuthError, 
   handleRelogin, 
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiPost,
+  apiPut,
+  apiDelete
 } from '../utils/authService';
 
 // 定義分類類型
@@ -107,42 +109,14 @@ export default function CategoriesManagement() {
       setLoading(true);
       setError(null);
       
-      // 獲取認證令牌和標頭
-      const token = accessToken || getToken();
-      const headers = getAuthHeaders(token);
-      
       // 添加排序參數，避免使用不存在的sort欄位
       const timestamp = Date.now();
-      const apiUrl = `/api/categories?t=${timestamp}&sortBy=id&order=ASC`;
-      console.log('發送請求到:', apiUrl);
+      const endpoint = `/api/categories?t=${timestamp}&sortBy=id&order=ASC`;
+      console.log('發送請求到:', endpoint);
       
-      // 發送GET請求，添加認證標頭
-      const response = await fetch(apiUrl, {
-        headers: headers,
-        credentials: 'include',
-      });
-      console.log('獲得回應狀態:', response.status);
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorCallback('獲取分類時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API錯誤響應:', errorText);
-        throw new Error(`無法獲取分類資料: ${response.status} ${errorText}`);
-      }
-      
-      // 解析API回應
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error('JSON解析錯誤:', parseError);
-        throw new Error('無法解析API回應');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(endpoint);
+      console.log('獲得回應狀態: 200 OK');
       
       let allCategories: Category[] = [];
       // 處理響應
@@ -299,24 +273,14 @@ export default function CategoriesManagement() {
         status: formData.status
       };
       
-      // 決定URL和方法
-      const method = modalType === 'add' ? 'POST' : 'PUT';
-      const url = modalType === 'add' 
-        ? '/api/categories' 
-        : `/api/categories/${formData.id}`;
-      
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-      
-      const responseData = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(responseData.message || responseData.error || '操作失敗');
+      // 決定API端點和方法
+      let responseData;
+      if (modalType === 'add') {
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證新增分類
+        responseData = await apiPost('/api/categories', requestData);
+      } else {
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證更新分類
+        responseData = await apiPut(`/api/categories/${formData.id}`, requestData);
       }
       
       // 關閉模態框並重新獲取數據
@@ -353,31 +317,8 @@ export default function CategoriesManagement() {
     setDeleteSuccess(null);
     
     try {
-      // 檢查令牌是否存在
-      if (!accessToken) {
-        handleAuthErrorCallback('刪除分類時缺少認證令牌');
-        return;
-      }
-      
-      const response = await fetch(`/api/categories/${deletingCategoryId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorCallback('刪除分類時認證失敗');
-        setShowDeleteConfirm(false);
-        setDeletingCategoryId(null);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || data.error || '刪除失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證刪除分類
+      const data = await apiDelete(`/api/categories/${deletingCategoryId}`);
       
       setDeleteSuccess('分類刪除成功');
       setTimeout(() => {

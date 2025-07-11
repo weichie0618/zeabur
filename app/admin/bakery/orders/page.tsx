@@ -25,8 +25,7 @@ import {
   handleRelogin, 
   setupAuthWarningAutoHide,
   formatCurrency,
-  formatDate,
-  getAuthHeaders
+  formatDate
 } from './utils';
 
 // 引入共用組件
@@ -271,7 +270,7 @@ export default function OrdersManagement() {
       throw new Error('認證失敗，請重新登入系統');
     }
     
-    // 調用匯出服務
+    // 🔑 安全改進：調用匯出服務，不再需要傳遞認證頭
     return await fetchOrdersForExport(
       {
         searchQuery,
@@ -282,7 +281,7 @@ export default function OrdersManagement() {
         endDate
       },
       exportAll,
-      () => getAuthHeaders(accessToken)
+      () => ({}) // 已棄用的參數，保留為兼容性
     );
   };
 

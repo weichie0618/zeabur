@@ -1,10 +1,12 @@
 /**
  * 匯出訂單服務
  * 用於處理訂單數據的匯出相關功能
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
  */
 
 import { ExportFilters } from '../types';
 import { reverseStatusMap } from '../constants';
+import { apiGet } from '../../utils/authService';
 
 // 構建匯出訂單的查詢參數
 export const buildExportQueryParams = (
@@ -85,20 +87,10 @@ export const fetchOrdersForExport = async (
     
     console.log(`匯出訂單API請求: /api/orders?${params.toString()}`);
     
-    // 發送請求獲取訂單數據
-    const response = await fetch(`/api/orders?${params.toString()}`, {
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    });
+    // 🔑 安全改進：使用 HttpOnly Cookie 認證
+    const data = await apiGet(`/api/orders?${params.toString()}`);
     
-    // 處理認證錯誤
-    if (response.status === 401) {
-      throw new Error('認證失敗，請重新登入系統');
-    }
-    
-    const data = await response.json();
-    
-    if (response.ok && data.orders) {
+    if (data.orders) {
       return data.orders;
     } else {
       throw new Error(data.message || '獲取訂單數據失敗');

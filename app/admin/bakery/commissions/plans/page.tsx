@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { initializeAuth, getAuthHeaders, handleAuthError, getToken } from '../../utils/authService';
+import { initializeAuth, handleAuthError, apiGet, apiPost, apiPut, apiDelete } from '../../utils/authService';
 
 // 定義接口
 interface TieredRule {
@@ -72,15 +72,8 @@ export default function CommissionPlansPage() {
     if (!accessToken) return;
 
     try {
-      const response = await fetch('/api/admin/commission-plans', {
-        headers: getAuthHeaders(accessToken)
-      });
-
-      if (!response.ok) {
-        throw new Error('載入佣金專案失敗');
-      }
-
-      const data = await response.json();
+      const data = await apiGet('/api/admin/commission-plans');
+      
       if (data.success) {
         // 從所有業務員的 commission_plan 中提取不重複的計畫
         const uniquePlans = new Map();
@@ -196,13 +189,12 @@ export default function CommissionPlansPage() {
         tiered_rules: formData.rule_type === 'tiered' ? formData.tiered_rules : null
       };
 
-      const response = await fetch(url, {
-        method,
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify(submitData)
-      });
-
-      const data = await response.json();
+      let data;
+      if (editingPlan) {
+        data = await apiPut(url, submitData);
+      } else {
+        data = await apiPost(url, submitData);
+      }
 
       if (data.success) {
         closeModal();
@@ -228,12 +220,7 @@ export default function CommissionPlansPage() {
     }
 
     try {
-      const response = await fetch(`/api/admin/commission-plans/${planId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(accessToken)
-      });
-
-      const data = await response.json();
+      const data = await apiDelete(`/api/admin/commission-plans/${planId}`);
 
       if (data.success) {
         loadPlans();

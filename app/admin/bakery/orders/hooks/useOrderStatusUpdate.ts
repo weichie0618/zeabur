@@ -1,3 +1,7 @@
+/**
+ * 訂單狀態更新自訂Hook
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
+ */
 import { useState } from 'react';
 import { updateOrderStatus } from '../api';
 import { Order } from '../types';
@@ -24,6 +28,7 @@ export const useOrderStatusUpdate = ({
     try {
       setLoading(true);
       
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證的 API 函數
       await updateOrderStatus(accessToken, order.id, status, note);
       
       onSuccess?.('訂單狀態更新成功');

@@ -1,5 +1,6 @@
 /**
  * 訂單系統相關常量定義
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
  */
 
 // 重新導出 authService 的狀態映射以保持一致性

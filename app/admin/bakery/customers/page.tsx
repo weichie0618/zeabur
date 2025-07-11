@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders as getAuthHeadersFromService,
   handleAuthError as handleAuthErrorFromService,
   handleRelogin as handleReloginFromService,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiDelete
 } from '../utils/authService';
 
 // 定義客戶類型
@@ -82,10 +83,7 @@ export default function CustomersManagement() {
   // 保存所有未篩選的客戶數據
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
 
-  // 獲取認證頭部
-  const getAuthHeaders = () => {
-    return getAuthHeadersFromService(accessToken);
-  };
+  // 🔑 已移除：不再需要getAuthHeaders，使用HttpOnly Cookie認證
   
   // 處理認證錯誤
   const handleAuthError = (errorMessage: string) => {
@@ -151,25 +149,11 @@ export default function CustomersManagement() {
       queryParams.append('t', timestamp.toString());
       
       // 使用新的LINE用戶API
-      const apiUrl = `/api/customer/admin/lineusers?${queryParams.toString()}`;
-      console.log('發送請求到:', apiUrl);
+      const endpoint = `api/customer/admin/lineusers?${queryParams.toString()}`;
+      console.log('發送請求到:', endpoint);
       
-      const response = await fetch(apiUrl, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      // 處理認證失敗
-      if (response.status === 401) {
-        handleAuthError('獲取LINE用戶列表時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
-      }
-      
-      const responseData: ApiResponse = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const responseData: ApiResponse = await apiGet(endpoint);
       
       if (responseData.status !== 'success') {
         throw new Error(responseData.message || '獲取LINE用戶列表失敗');
@@ -306,23 +290,8 @@ export default function CustomersManagement() {
       // 使用暫存的lineId進行刪除
       const lineId = tempLineId;
       
-      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        handleAuthError('刪除LINE用戶時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '刪除LINE用戶失敗');
-      }
-      
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證刪除LINE用戶
+      const data = await apiDelete(`api/customer/admin/lineusers/${lineId}`);
       
       // 立即關閉確認彈窗
       setShowDeleteConfirm(false);

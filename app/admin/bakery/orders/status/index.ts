@@ -1,5 +1,6 @@
 /**
  * 訂單狀態處理相關函數
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
  */
 import { statusMap, getStatusDisplay as authServiceGetStatusDisplay, getStatusClass as authServiceGetStatusClass } from '../../utils/authService';
 

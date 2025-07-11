@@ -7,10 +7,11 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiPut
 } from '../../utils/authService';
 
 // 定義分類類型
@@ -137,10 +138,7 @@ export default function CategoriesSortPage() {
     return cleanup;
   }, [error]);
   
-  // 獲取認證標頭
-  const getAuthHeadersLocal = () => {
-    return getAuthHeaders(accessToken);
-  };
+  // 🔑 已移除：不再需要getAuthHeadersLocal，使用HttpOnly Cookie認證
   
   // 獲取分類資料
   const fetchCategories = async () => {
@@ -151,22 +149,8 @@ export default function CategoriesSortPage() {
       setError(null);
       
       const timestamp = Date.now();
-      const response = await fetch(`/api/categories?t=${timestamp}&sortBy=id&order=ASC`, {
-        headers: getAuthHeadersLocal(),
-        credentials: 'include'
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('獲取分類時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`無法獲取分類資料: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(`/api/categories?t=${timestamp}&sortBy=id&order=ASC`);
       
       // 處理回應
       let allCategories: Category[] = [];
@@ -318,31 +302,15 @@ export default function CategoriesSortPage() {
         sort: cat.sort || 0
       }));
       
-      const response = await fetch('/api/categories/sort', {
-        method: 'PUT',
-        headers: getAuthHeadersLocal(),
-        body: JSON.stringify({ sortData }),
-        credentials: 'include',
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證保存排序
+      const data = await apiPut('/api/categories/sort', { sortData });
       
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('保存排序時認證失敗');
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setSaveSuccess(true);
-        setIsDirty(false);
-        // 5秒後自動清除成功提示
-        setTimeout(() => {
-          setSaveSuccess(null);
-        }, 5000);
-      } else {
-        setSaveError(data.message || '保存排序失敗');
-      }
+      setSaveSuccess(true);
+      setIsDirty(false);
+      // 5秒後自動清除成功提示
+      setTimeout(() => {
+        setSaveSuccess(null);
+      }, 5000);
     } catch (err) {
       console.error('保存排序錯誤:', err);
       setSaveError(err instanceof Error ? err.message : '發生錯誤');

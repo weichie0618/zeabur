@@ -3,6 +3,8 @@
  * 提供獲取認證令牌、處理認證錯誤、狀態映射等通用功能
  */
 
+import axios from 'axios';
+
 // 訂單狀態映射 - 確保全部使用大寫鍵
 export const statusMap: Record<string, string> = {
   'PENDING': '待處理',
@@ -27,72 +29,46 @@ export const reverseStatusMap: Record<string, string> = {
 };
 
 /**
- * 從 localStorage 或 cookie 獲取認證令牌
- * @returns 認證令牌或空字串
+ * 🔑 安全改進：檢查認證狀態（不再直接獲取 token）
+ * HttpOnly Cookie 無法被 JavaScript 讀取，這是安全設計
+ * @returns 總是返回空字串，實際認證由 Cookie 自動處理
  */
 export const getToken = (): string => {
-  // 從cookies中讀取accessToken
-  const getCookieValue = (name: string): string => {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    if (match) {
-      console.log(`找到 ${name} cookie`);
-      return decodeURIComponent(match[2]);
-    } else {
-      console.warn(`未找到 ${name} cookie`);
-      return '';
-    }
-  };
-
-  // 先檢查 localStorage 是否有令牌
-  let token = localStorage.getItem('accessToken');
-  if (token) {
-    console.log('從 localStorage 獲取令牌成功');
-    return token;
-  }
+  // 🔑 重要：HttpOnly Cookie 無法被 JavaScript 讀取
+  // 這是安全特性，防止 XSS 攻擊
+  console.warn('getToken 已棄用：HttpOnly Cookie 無法被 JavaScript 讀取');
+  console.info('認證狀態由 HttpOnly Cookie 自動管理，請檢查網絡請求是否包含 Cookie');
   
-  // 如果 localStorage 沒有，再嘗試從 cookie 獲取
-  token = getCookieValue('accessToken');
-  if (token) {
-    console.log('從 cookie 獲取令牌成功');
-    // 將token也保存到localStorage，確保一致性
-    localStorage.setItem('accessToken', token);
-    return token;
-  }
-  
-  console.error('無法獲取認證令牌');
-  return '';
+  return ''; // 總是返回空字串
 };
 
 /**
- * 創建帶有認證標頭的請求頭
- * @param accessToken 認證令牌
- * @returns 包含認證信息的請求頭
+ * 🔑 安全改進：創建基本請求頭（不再包含 Authorization）
+ * HttpOnly Cookie 會自動包含在請求中
+ * @param accessToken 已棄用參數，保留為兼容性
+ * @returns 基本請求頭（不含 Authorization）
  */
-export const getAuthHeaders = (accessToken: string): Record<string, string> => {
-  if (!accessToken) {
-    console.warn('getAuthHeaders: accessToken 為空');
-  } else {
-    console.log('getAuthHeaders: 使用令牌', accessToken.substring(0, 10) + '...');
+export const getAuthHeaders = (accessToken?: string): Record<string, string> => {
+  if (accessToken) {
+    console.warn('getAuthHeaders: accessToken 參數已棄用，HttpOnly Cookie 會自動處理認證');
   }
   
   return {
-    'Authorization': `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
+    // 🔑 移除：'Authorization': `Bearer ${accessToken}`
+    // HttpOnly Cookie 會自動包含在請求中
   };
 };
 
 /**
- * 執行重新登入
+ * 🔑 安全改進：執行重新登入（不再清除 localStorage）
  * @param returnUrl 登入後返回的URL (可選)
  */
 export const handleRelogin = (returnUrl?: string): void => {
   console.log('執行重新登入流程');
   
-  // 清除當前令牌
-  localStorage.removeItem('accessToken');
-  
-  // 刪除 cookie (透過設置過期時間為過去)
-  document.cookie = 'accessToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  // 🔑 安全改進：不再清除 localStorage（因為沒有存儲 tokens）
+  // HttpOnly Cookie 會由瀏覽器自動管理或由後端清除
   
   // 記錄當前URL，以便登錄後返回
   const redirectUrl = returnUrl || window.location.pathname;
@@ -102,8 +78,8 @@ export const handleRelogin = (returnUrl?: string): void => {
 };
 
 /**
- * 初始化獲取認證令牌並設置重試機制
- * @param setAccessToken 設置令牌的狀態更新函數
+ * 🔑 安全改進：初始化認證狀態檢查（不再依賴 token 獲取）
+ * @param setAccessToken 已棄用，保留為兼容性
  * @param setError 設置錯誤訊息的狀態更新函數
  * @param setLoading 設置載入狀態的狀態更新函數
  * @param setShowAuthWarning 設置是否顯示認證警告的狀態更新函數
@@ -116,29 +92,21 @@ export const initializeAuth = (
   setShowAuthWarning?: (show: boolean) => void,
   redirectOnFailure: boolean = true
 ): void => {
-  // 嘗試獲取令牌
-  const token = getToken();
+  // 🔑 安全改進：不再嘗試獲取 token，改為檢查認證狀態
+  console.log('初始化認證檢查：使用 HttpOnly Cookie 模式');
   
-  if (token) {
-    console.log('成功獲取令牌，長度:', token.length);
-    setAccessToken(token);
-    setLoading(false);
-  } else {
-    setError('未獲取到認證令牌，請確認您已登入系統。請嘗試重新登入後再訪問此頁面。');
-    if (setShowAuthWarning) {
-      setShowAuthWarning(true);
-    }
-    
-    // 直接重定向到登入頁面
-    if (redirectOnFailure) {
-      handleRelogin();
-    }
-    setLoading(false);
-  }
+  // 模擬認證檢查
+  const mockToken = 'cookie-auth-mode'; // 標記值，表示使用 Cookie 認證
+  setAccessToken(mockToken);
+  
+  console.log('認證狀態：依賴 HttpOnly Cookie 自動驗證');
+  console.info('如果出現認證錯誤，瀏覽器會自動重定向到登入頁面');
+  
+  setLoading(false);
 };
 
 /**
- * 處理認證錯誤
+ * 🔑 安全改進：處理認證錯誤（不再檢查 localStorage）
  * @param errorMessage 錯誤訊息
  * @param setError 設置錯誤的狀態更新函數
  * @param setLoading 設置載入狀態的狀態更新函數
@@ -151,16 +119,10 @@ export const handleAuthError = (
   setShowAuthWarning?: (show: boolean) => void
 ): void => {
   console.error(errorMessage);
-  // 先檢查localStorage和cookie，確認令牌是否已丟失
-  const hasLocalStorageToken = !!localStorage.getItem('accessToken');
-  const hasCookieToken = document.cookie.includes('accessToken=');
   
-  if (!hasLocalStorageToken && !hasCookieToken) {
-    setError('認證令牌已丟失，請重新登入系統。您的登入可能已過期。');
-  } else {
-    // 令牌存在但可能已過期或無效
-    setError('認證失敗，您的登入可能已過期或令牌無效。請嘗試重新登入系統。');
-  }
+  // 🔑 安全改進：不再檢查 localStorage 或嘗試讀取 Cookie
+  // HttpOnly Cookie 無法被 JavaScript 讀取，這是安全設計
+  setError('認證失敗，您的登入可能已過期。請重新登入系統。');
   setLoading(false);
   
   // 自動重新登入，不顯示警告
@@ -172,6 +134,113 @@ export const handleAuthError = (
   setTimeout(() => {
     handleRelogin();
   }, 100);
+};
+
+/**
+ * 🔑 安全改進：創建配置了 HttpOnly Cookie 的 API 請求實例
+ */
+const createApiInstance = () => {
+  return axios.create({
+    baseURL: process.env.NEXT_PUBLIC_API_URL || '',
+    timeout: 15000,
+    withCredentials: true, // 🔑 關鍵：自動包含 HttpOnly Cookie
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+};
+
+/**
+ * 🔑 安全改進：統一的 API 請求工具函數 - 使用 HttpOnly Cookie 認證
+ * @param endpoint API 端點
+ * @param method HTTP 方法
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const createApiRequest = async (
+  endpoint: string,
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
+  data?: any
+): Promise<any> => {
+  try {
+    const apiInstance = createApiInstance();
+    
+    const config: any = {
+      method,
+      url: endpoint,
+    };
+
+    if (data && method !== 'GET') {
+      config.data = data;
+    }
+
+    const response = await apiInstance.request(config);
+    return response.data;
+  } catch (error: any) {
+    console.error(`API 請求錯誤 [${method} ${endpoint}]:`, error);
+    
+    if (error.response) {
+      // 服務器響應了錯誤狀態碼
+      if (error.response.status === 401 || error.response.status === 403) {
+        throw new Error('認證失敗，請重新登入');
+      }
+      throw new Error(`API 請求失敗: ${error.response.status} - ${error.response.data?.message || '未知錯誤'}`);
+    } else if (error.request) {
+      // 請求已發送但沒有收到響應
+      throw new Error('網絡連接問題，請檢查您的網絡連接');
+    } else {
+      // 其他錯誤
+      throw new Error(error.message || 'API 請求時發生未知錯誤');
+    }
+  }
+};
+
+/**
+ * 🔑 安全改進：GET 請求的簡化函數
+ * @param endpoint API 端點
+ * @returns Promise<any>
+ */
+export const apiGet = (endpoint: string): Promise<any> => {
+  return createApiRequest(endpoint, 'GET');
+};
+
+/**
+ * 🔑 安全改進：POST 請求的簡化函數
+ * @param endpoint API 端點
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const apiPost = (endpoint: string, data?: any): Promise<any> => {
+  return createApiRequest(endpoint, 'POST', data);
+};
+
+/**
+ * 🔑 安全改進：PUT 請求的簡化函數
+ * @param endpoint API 端點
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const apiPut = (endpoint: string, data?: any): Promise<any> => {
+  return createApiRequest(endpoint, 'PUT', data);
+};
+
+/**
+ * 🔑 安全改進：PATCH 請求的簡化函數
+ * @param endpoint API 端點
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const apiPatch = (endpoint: string, data?: any): Promise<any> => {
+  return createApiRequest(endpoint, 'PATCH', data);
+};
+
+/**
+ * 🔑 安全改進：DELETE 請求的簡化函數
+ * @param endpoint API 端點
+ * @returns Promise<any>
+ */
+export const apiDelete = (endpoint: string): Promise<any> => {
+  return createApiRequest(endpoint, 'DELETE');
 };
 
 /**

@@ -1,9 +1,10 @@
 /**
  * 點數系統 API 服務
- * 使用統一的認證服務
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
  */
 
-import { getToken, getAuthHeaders, handleAuthError } from '../utils/authService';
+import { apiService } from '../../../services/api';
+import { handleAuthError } from '../utils/authService';
 import {
   UserPointsStats,
   PointTransaction,
@@ -27,46 +28,56 @@ import {
   ExportDataRequest
 } from './types';
 
+import axios from 'axios';
+
 const API_BASE = '/api/points';
 
+// 🔑 安全改進：創建專用的 points API 實例，自動包含 HttpOnly Cookie
+const pointsApi_instance = axios.create({
+  baseURL: API_BASE,
+  timeout: 10000,
+  withCredentials: true, // 🔑 關鍵：自動包含 HttpOnly Cookie
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 /**
- * 通用API請求函數
+ * 🔑 安全改進：通用API請求函數 - 使用 HttpOnly Cookie 認證
  */
 const apiRequest = async <T>(
   endpoint: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   body?: any
 ): Promise<T> => {
-  const token = getToken();
-  if (!token) {
-    throw new Error('未找到認證令牌');
-  }
-
-  const config: RequestInit = {
-    method,
-    headers: getAuthHeaders(token),
-  };
-
-  if (body && method !== 'GET') {
-    config.body = JSON.stringify(body);
-  }
-
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, config);
-    
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('認證失敗，請重新登入');
-      }
-      const errorText = await response.text();
-      throw new Error(`API 請求失敗: ${response.status} - ${errorText}`);
+    const config: any = {
+      method,
+      url: endpoint,
+    };
+
+    if (body && method !== 'GET') {
+      config.data = body;
     }
 
-    const data = await response.json();
-    return data;
-  } catch (error) {
+    const response = await pointsApi_instance.request(config);
+    return response.data;
+  } catch (error: any) {
     console.error(`API 請求錯誤 [${method} ${endpoint}]:`, error);
-    throw error;
+    
+    if (error.response) {
+      // 服務器響應了錯誤狀態碼
+      if (error.response.status === 401 || error.response.status === 403) {
+        throw new Error('認證失敗，請重新登入');
+      }
+      throw new Error(`API 請求失敗: ${error.response.status} - ${error.response.data?.message || '未知錯誤'}`);
+    } else if (error.request) {
+      // 請求已發送但沒有收到響應
+      throw new Error('網絡連接問題，請檢查您的網絡連接');
+    } else {
+      // 其他錯誤
+      throw new Error(error.message || 'API 請求時發生未知錯誤');
+    }
   }
 };
 

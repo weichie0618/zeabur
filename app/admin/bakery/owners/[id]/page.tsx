@@ -4,10 +4,11 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiDelete
 } from '../../utils/authService';
 
 // 定義業主類型
@@ -77,25 +78,8 @@ export default function OwnerDetails() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/customers/${id}`, {
-        method: 'GET',
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        handleAuthErrorLocal('獲取業主詳情時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('找不到此業主');
-        }
-        throw new Error(`無法獲取業主資料: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(`api/customers/${id}`);
       setOwner(data);
     } catch (err) {
       console.error('獲取業主詳情錯誤:', err);
@@ -134,21 +118,8 @@ export default function OwnerDetails() {
       setIsDeleting(true);
       setDeleteError(null);
       
-              const response = await fetch(`/api/customers/${id}`, {
-          method: 'DELETE',
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include',
-        });
-      
-      if (response.status === 401) {
-        handleAuthErrorLocal('刪除業主時認證失敗');
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '刪除業主失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      await apiDelete(`api/customers/${id}`);
       
       // 成功刪除，導航到列表頁
       router.push('/admin/bakery/owners');

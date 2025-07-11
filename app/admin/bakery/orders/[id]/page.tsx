@@ -28,7 +28,6 @@ import {
   setupAuthWarningAutoHide,
   formatCurrency,
   formatDate,
-  getAuthHeaders,
   formatOrderData
 } from '../utils';
 

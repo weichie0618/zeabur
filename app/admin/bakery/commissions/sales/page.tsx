@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   initializeAuth, 
-  getAuthHeaders,
+  apiGet,
+  apiPut,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide
@@ -74,44 +75,31 @@ const SalespersonManagementPage: React.FC = () => {
     try {
       setLoading(true);
       
-      if (!accessToken) {
-        setAuthWarning('請先登入');
-        return;
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      try {
+        // 並行獲取數據
+        const [salespersonsData, plansData] = await Promise.all([
+          apiGet('/api/admin/customers/salespersons'),
+          apiGet('/api/admin/commission-plans')
+        ]);
+
+        if (salespersonsData && salespersonsData.success && salespersonsData.data) {
+          setSalespersons(salespersonsData.data);
+        }
+
+        if (plansData && plansData.success && plansData.data) {
+          setCommissionPlans(plansData.data);
+        }
+
+        setError(null);
+      } catch (err: any) {
+        console.error('獲取數據錯誤:', err);
+        if (err.message && err.message.includes('認證')) {
+          handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+        } else {
+          setError(err.message || '獲取數據失敗');
+        }
       }
-
-      const headers = getAuthHeaders(accessToken);
-
-      // 並行獲取數據
-      const [salespersonsRes, plansRes] = await Promise.all([
-        fetch('/api/admin/customers/salespersons', { headers }),
-        fetch('/api/admin/commission-plans', { headers })
-      ]);
-
-      if (salespersonsRes.status === 401 || plansRes.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      if (!salespersonsRes.ok) {
-        throw new Error(`獲取業務員列表失敗: ${salespersonsRes.statusText}`);
-      }
-
-      if (!plansRes.ok) {
-        throw new Error(`獲取佣金專案失敗: ${plansRes.statusText}`);
-      }
-
-      const salespersonsData = await salespersonsRes.json();
-      const plansData = await plansRes.json();
-
-      if (salespersonsData.success && salespersonsData.data) {
-        setSalespersons(salespersonsData.data);
-      }
-
-      if (plansData.success && plansData.data) {
-        setCommissionPlans(plansData.data);
-      }
-
-      setError(null);
     } catch (err: any) {
       console.error('獲取數據錯誤:', err);
       setError(err.message || '獲取數據失敗');
@@ -133,42 +121,25 @@ const SalespersonManagementPage: React.FC = () => {
 
   const submitAssignment = async () => {
     try {
-      if (!accessToken) {
-        setAuthWarning('請先登入');
-        return;
-      }
-
-      const response = await fetch(`/api/admin/customers/${assignmentForm.customer_id}/commission-plan`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(accessToken),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          commission_plan_id: assignmentForm.commission_plan_id || null,
-          contract_start_date: assignmentForm.contract_start_date || null,
-          contract_end_date: assignmentForm.contract_end_date || null
-        })
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const result = await apiPut(`/api/admin/customers/${assignmentForm.customer_id}/commission-plan`, {
+        commission_plan_id: assignmentForm.commission_plan_id || null,
+        contract_start_date: assignmentForm.contract_start_date || null,
+        contract_end_date: assignmentForm.contract_end_date || null
       });
 
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('更新佣金專案分配失敗');
-      }
-
-      const result = await response.json();
-      if (result.success) {
+      if (result && result.success) {
         setShowAssignModal(false);
         fetchData(); // 重新獲取數據
         setError(null);
       }
     } catch (err: any) {
       console.error('更新分配錯誤:', err);
-      setError(err.message || '更新分配失敗');
+      if (err.message && err.message.includes('認證')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err.message || '更新分配失敗');
+      }
     }
   };
 

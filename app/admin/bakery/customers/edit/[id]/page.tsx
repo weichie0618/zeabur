@@ -5,10 +5,11 @@ import { useParams, useRouter } from 'next/navigation';
 import { toast, Toaster } from 'react-hot-toast'; // 引入 toast 通知和 Toaster 元件
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiPut
 } from '../../../utils/authService';
 
 // 定義客戶表單類型
@@ -141,22 +142,8 @@ export default function EditCustomer() {
         setLoadError(null);
         
         // 直接使用lineId獲取完整LINE用戶數據
-        const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include'
-        });
-        
-        // 處理認證錯誤
-        if (response.status === 401) {
-          handleAuthErrorLocal('獲取客戶資料時認證失敗');
-          return;
-        }
-        
-        if (!response.ok) {
-          throw new Error(`無法獲取LINE用戶資料: ${response.status}`);
-        }
-        
-        const responseData: ApiResponse = await response.json();
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
+        const responseData: ApiResponse = await apiGet(`api/customer/admin/lineusers/${lineId}`);
         
         if (responseData.status !== 'success') {
           throw new Error(responseData.message || '獲取LINE用戶資料失敗');
@@ -288,24 +275,8 @@ export default function EditCustomer() {
       const submitData = prepareSubmitData();
       
       // 使用lineId更新LINE用戶
-      const response = await fetch(`/api/customer/admin/lineusers/${lineId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include',
-        body: JSON.stringify(submitData),
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthErrorLocal('更新客戶資料時認證失敗');
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '更新LINE用戶失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPut(`api/customer/admin/lineusers/${lineId}`, submitData);
       
       // 提交成功
       setSubmitSuccess(true);

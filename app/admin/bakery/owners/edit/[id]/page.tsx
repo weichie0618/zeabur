@@ -4,10 +4,11 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
   initializeAuth, 
-  getAuthHeaders,
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  apiGet,
+  apiPut
 } from '../../../utils/authService';
 
 interface Owner {
@@ -86,25 +87,8 @@ export default function EditOwner() {
         setLoading(true);
         setFetchError(null);
         
-        const response = await fetch(`/api/customers/${id}`, {
-          method: 'GET',
-          headers: getAuthHeaders(accessToken),
-          credentials: 'include',
-        });
-        
-        if (response.status === 401) {
-          handleAuthErrorLocal('獲取業主詳情時認證失敗');
-          return;
-        }
-        
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('找不到此業主');
-          }
-          throw new Error(`無法獲取業主資料: ${response.status}`);
-        }
-        
-        const data = await response.json();
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
+        const data = await apiGet(`api/customers/${id}`);
         
         // 確保所有字段都不為 null，用空字符串替代
         const safeData = {
@@ -190,27 +174,11 @@ export default function EditOwner() {
     try {
       setIsSubmitting(true);
       
-      const response = await fetch(`/api/customers/${id}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify(formData),
-        credentials: 'include',
-      });
-      
-      if (response.status === 401) {
-        setApiError('認證失敗，請重新登入');
-        setShowAuthWarning(true);
-        return;
-      }
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || '更新業主失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPut(`api/customers/${id}`, formData);
       
       // 成功更新，導航到詳情頁
-      router.push(`/admin/bakery/owners/${id}`);
+      router.push(`api/admin/bakery/owners/${id}`);
       
     } catch (err) {
       console.error('更新業主錯誤:', err);

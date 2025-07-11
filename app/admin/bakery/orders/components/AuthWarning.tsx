@@ -1,6 +1,8 @@
 'use client';
-// @ts-nocheck
-//認證警告組件
+/**
+ * 認證警告組件
+ * 🔑 安全改進：使用 HttpOnly Cookie 認證
+ */
 import React from 'react';
 import { handleRelogin } from '../../utils/authService';
 

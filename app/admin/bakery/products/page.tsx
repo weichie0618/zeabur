@@ -4,7 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { 
   initializeAuth, 
-  getAuthHeaders, 
+  apiGet,
+  apiDelete,
   handleAuthError,
   handleRelogin,
   setupAuthWarningAutoHide
@@ -122,6 +123,14 @@ export default function ProductsManagement() {
     const cleanup = setupAuthWarningAutoHide(error, setShowAuthWarning);
     return cleanup;
   }, [error]);
+  
+  // 🔑 安全改進：當認證準備就緒時載入資料
+  useEffect(() => {
+    if (accessToken) {
+      fetchCategories();
+      fetchProducts();
+    }
+  }, [accessToken]);
 
   // 獲取分類列表
   const fetchCategories = async () => {
@@ -130,23 +139,9 @@ export default function ProductsManagement() {
       console.log('開始獲取分類列表');
       console.log('當前 accessToken 狀態:', accessToken ? '已設置' : '未設置');
       
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
       const timestamp = Date.now();
-      const response = await fetch(`/api/categories?t=${timestamp}`, {
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-      
-      if (response.status === 401) {
-        handleAuthError('獲取分類時認證失敗', setError, setLoading, setShowAuthWarning);
-        setLoadingCategories(false);
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error('無法獲取分類資料');
-      }
-      
-      const data = await response.json();
+      const data = await apiGet(`/api/categories?t=${timestamp}`);
       
       // 處理兩種可能的API回傳格式
       // 1. data可能是直接的分類數組 [{id:1, name:'xxx'}, ...]
@@ -161,6 +156,9 @@ export default function ProductsManagement() {
       setCategories(categoriesArray);
     } catch (err) {
       console.error('獲取分類失敗:', err);
+      if (err instanceof Error && err.message.includes('認證')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      }
       // 發生錯誤時設置為空數組
       setCategories([]);
     } finally {
@@ -191,35 +189,8 @@ export default function ProductsManagement() {
       const apiUrl = `/api/products?${queryParams.toString()}`;
       console.log('發送請求到:', apiUrl);
       
-      // 發送GET請求獲取所有產品
-      const response = await fetch(apiUrl, {
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-      
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthError('獲取產品資料時認證失敗', setError, setLoading, setShowAuthWarning);
-        setLoading(false);
-        return;
-      }
-      
-      console.log('獲得回應狀態:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API錯誤響應:', errorText);
-        throw new Error(`無法獲取產品資料: ${response.status} ${errorText}`);
-      }
-      
-      // 解析API回應
-      let data;
-      try {
-        data = await response.json();
-      } catch (parseError) {
-        console.error('JSON解析錯誤:', parseError);
-        throw new Error('無法解析API回應');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(apiUrl);
       
       // 處理不同格式的回應，保存所有產品
       let productsData: Product[] = [];
@@ -240,7 +211,11 @@ export default function ProductsManagement() {
       applyFiltersLocally(productsData);
     } catch (err) {
       console.error('獲取產品錯誤:', err);
-      setError(err instanceof Error ? err.message : '發生錯誤');
+      if (err instanceof Error && err.message.includes('認證')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(err instanceof Error ? err.message : '發生錯誤');
+      }
       setAllProducts([]);
       setFilteredProducts([]);
       setProducts([]);
@@ -434,30 +409,8 @@ export default function ProductsManagement() {
       setIsDeleting(true);
       setDeleteError(null);
       
-      // 檢查令牌是否存在
-      if (!accessToken) {
-        handleAuthError('刪除產品時缺少認證令牌', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-      
-      const response = await fetch(`/api/products/${deletingProductId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(accessToken),
-        credentials: 'include'
-      });
-
-      // 處理認證錯誤
-      if (response.status === 401) {
-        handleAuthError('刪除產品時認證失敗', setError, setLoading, setShowAuthWarning);
-        setShowDeleteConfirm(false);
-        setDeletingProductId(null);
-        return;
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || '刪除產品失敗');
-      }
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      await apiDelete(`/api/products/${deletingProductId}`);
 
       // 更新產品列表
       setProducts(prevProducts => prevProducts.filter(product => product.id !== deletingProductId));
@@ -474,7 +427,14 @@ export default function ProductsManagement() {
         setDeleteSuccess(null);
       }, 3000);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : '刪除產品時發生錯誤');
+      console.error('刪除產品失敗:', err);
+      if (err instanceof Error && err.message.includes('認證')) {
+        handleAuthError(err.message, setError, setLoading, setShowAuthWarning);
+        setShowDeleteConfirm(false);
+        setDeletingProductId(null);
+      } else {
+        setDeleteError(err instanceof Error ? err.message : '刪除產品時發生錯誤');
+      }
     } finally {
       setIsDeleting(false);
     }

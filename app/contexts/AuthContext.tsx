@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 添加請求狀態控制，防止重複請求
   const isCheckingAuth = useRef(false);
   const hasInitiallyChecked = useRef(false);
+  const authCheckPromise = useRef<Promise<void> | null>(null);
 
   // 檢查用戶是否已經登入
   useEffect(() => {
@@ -47,50 +48,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // 如果已經有正在進行的檢查，等待它完成
+      if (authCheckPromise.current) {
+        authDebugger.log('auth_check', '等待現有的認證檢查完成', 'AuthContext');
+        return authCheckPromise.current;
+      }
+
       authDebugger.log('auth_check', '開始初始認證檢查', 'AuthContext');
       isCheckingAuth.current = true;
       setIsLoading(true);
       
-      try {
-        const accessToken = localStorage.getItem('accessToken');
-        if (!accessToken) {
-          authDebugger.log('auth_check', '沒有accessToken，設置為未登入狀態', 'AuthContext');
+      // 創建檢查 Promise
+      authCheckPromise.current = (async () => {
+        try {
+          // 🔑 安全改進：直接檢查 /api/auth/me，Cookie 會自動包含
+          authDebugger.log('api_request', '驗證Cookie有效性 -> /api/auth/me', 'AuthContext');
+          
+          const response = await apiService.getCurrentUser();
+          if (response.data.success) {
+            authDebugger.log('auth_check', 'Cookie有效，設置用戶數據', 'AuthContext');
+            setUser(response.data.data);
+          } else {
+            authDebugger.log('auth_check', 'Cookie無效，設置為未登入狀態', 'AuthContext');
+            setUser(null);
+          }
+        } catch (error) {
+          authDebugger.log('auth_check', `身份驗證檢查錯誤: ${error}`, 'AuthContext');
+          if (isDev) console.error('AuthContext: 身份驗證檢查錯誤:', error);
           setUser(null);
+        } finally {
           setIsLoading(false);
+          isCheckingAuth.current = false;
           hasInitiallyChecked.current = true;
-          return;
+          authCheckPromise.current = null;
+          authDebugger.log('auth_check', '初始認證檢查完成', 'AuthContext');
         }
+      })();
 
-        authDebugger.log('api_request', '驗證token有效性 -> /api/auth/me', 'AuthContext');
-        // 驗證token有效性
-        const response = await apiService.getCurrentUser();
-        if (response.data.success) {
-          authDebugger.log('auth_check', 'token有效，設置用戶數據', 'AuthContext');
-          setUser(response.data.data);
-        } else {
-          authDebugger.log('auth_check', 'token無效，清除認證信息', 'AuthContext');
-          setUser(null);
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          // 清除cookie
-          document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-          document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        }
-      } catch (error) {
-        authDebugger.log('auth_check', `身份驗證檢查錯誤: ${error}`, 'AuthContext');
-        if (isDev) console.error('AuthContext: 身份驗證檢查錯誤:', error);
-        setUser(null);
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        // 清除cookie
-        document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-      } finally {
-        setIsLoading(false);
-        isCheckingAuth.current = false;
-        hasInitiallyChecked.current = true;
-        authDebugger.log('auth_check', '初始認證檢查完成', 'AuthContext');
-      }
+      return authCheckPromise.current;
     };
 
     checkAuth();
@@ -117,69 +112,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authDebugger.log('login', `開始登入: ${email}`, 'AuthContext');
       const response = await apiService.login(email, password);
       
-      // 注意: 由於改用fetch，response結構已經改變，不再需要 .data 層級
       if (response.success && response.data) {
-        // 存儲token到localStorage
-        const { accessToken, refreshToken } = response.data.tokens || response.data;
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', refreshToken);
-        
-        // 同時也設置到cookie，讓中間件可以讀取
-        try {
-          // 使用更新的方式設置cookie
-          const now = new Date();
-          const accessExpiry = new Date(now.getTime() + 86400 * 1000); // 24小時
-          const refreshExpiry = new Date(now.getTime() + 7 * 86400 * 1000); // 7天
-          
-          // 使用正確的方式設置cookie
-          document.cookie = `accessToken=${accessToken}; path=/; expires=${accessExpiry.toUTCString()}`;
-          document.cookie = `refreshToken=${refreshToken}; path=/; expires=${refreshExpiry.toUTCString()}`;
-          
-          authDebugger.log('login', '已設置token到Cookie和localStorage', 'AuthContext');
-          
-          // 驗證cookie是否正確設置 - 僅開發環境
-          if (isDev) {
-            const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-              const [name, value] = cookie.trim().split('=');
-              if (name && value) acc[name] = value;
-              return acc;
-            }, {} as Record<string, string>);
-            
-            console.log(
-              'Cookie狀態:\n' +
-              `- accessToken: ${cookies.accessToken ? '存在 (' + cookies.accessToken.substring(0, 10) + '...)' : '不存在!'}\n` +
-              `- refreshToken: ${cookies.refreshToken ? '存在 (' + cookies.refreshToken.substring(0, 10) + '...)' : '不存在!'}`
-            );
-            
-            // 如果本地storage中沒有token但cookie中有，則重新檢查一次
-            if (!cookies.accessToken || !cookies.refreshToken) {
-              console.log('重新檢查一次');
-              document.cookie = `accessToken=${accessToken}`;
-              document.cookie = `refreshToken=${refreshToken}`;
-              
-              // 重新檢查一次
-              const recheckedCookies = document.cookie.split(';').reduce((acc, cookie) => {
-                const [name, value] = cookie.trim().split('=');
-                if (name && value) acc[name] = value;
-                return acc;
-              }, {} as Record<string, string>);
-              
-              console.log(
-                '重新檢查一次Cookie狀態:\n' +
-                `- accessToken: ${recheckedCookies.accessToken ? '存在' : '不存在!'}\n` +
-                `- refreshToken: ${recheckedCookies.refreshToken ? '存在' : '不存在!'}`
-              );
-            }
-          }
-        } catch (cookieError) {
-          if (isDev) console.error('設置Cookie失敗:', cookieError);
-          authDebugger.log('login', `設置Cookie失敗: ${cookieError}`, 'AuthContext');
-        }
+        // 🔑 安全改進：不再存儲 tokens 到 localStorage
+        // HttpOnly Cookie 由後端自動設置，前端無需處理
+        authDebugger.log('login', '後端已設置 HttpOnly Cookie，前端無需處理 tokens', 'AuthContext');
         
         // 設置用戶信息並重置認證檢查狀態
         setUser(response.data.user);
         hasInitiallyChecked.current = true; // 重置狀態
         authDebugger.log('login', '登入成功，用戶狀態已設置', 'AuthContext');
+        
+        // 添加小延遲確保 Cookie 設置完成
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         return { 
           success: true, 
@@ -211,36 +155,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authDebugger.log('logout', `登出錯誤: ${error}`, 'AuthContext');
       if (isDev) console.error('登出錯誤:', error);
     } finally {
-      // 清除本地存儲數據
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      
-      // 清除cookie中的令牌 - 使用正確的方式設置過期時間
-      document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-      document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-      
-      // 重新檢查一次cookies是否已經過期 - 僅開發環境
-      if (isDev) {
-        const cookies = document.cookie.split(';').reduce((acc, cookie) => {
-          const [name, value] = cookie.trim().split('=');
-          if (name && value) acc[name] = value;
-          return acc;
-        }, {} as Record<string, string>);
-        
-        console.log(
-          '登出後Cookie狀態:\n' +
-          `- accessToken: ${cookies.accessToken ? '依然存在!' : '已清除'}\n` +
-          `- refreshToken: ${cookies.refreshToken ? '依然存在!' : '已清除'}`
-        );
-        
-        console.log('已清除所有本地授權信息');
-      }
+      // 🔑 安全改進：不再清除 localStorage（因為沒有存儲 tokens）
+      // HttpOnly Cookie 由後端清除
+      authDebugger.log('logout', '後端會清除 HttpOnly Cookie', 'AuthContext');
       
       setUser(null);
       // 重置認證檢查狀態
       hasInitiallyChecked.current = false;
       isCheckingAuth.current = false;
-      authDebugger.log('logout', '登出完成，已清除所有認證狀態', 'AuthContext');
+      authDebugger.log('logout', '登出完成，已清除認證狀態', 'AuthContext');
       
       // 保存當前頁面路徑，登入後可以返回
       const currentPath = window.location.pathname;
@@ -255,13 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 清除身份驗證狀態函數
   const clearAuth = () => {
-    // 清除本地存儲數據
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    
-    // 清除cookie中的令牌
-    document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-    document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    // 🔑 安全改進：不再清除 localStorage（因為沒有存儲 tokens）
+    // HttpOnly Cookie 由後端或瀏覽器管理
     
     // 清除用戶狀態
     setUser(null);
@@ -270,10 +188,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     hasInitiallyChecked.current = false;
     isCheckingAuth.current = false;
     
-    authDebugger.log('auth_check', '已清除所有身份驗證狀態 (clearAuth)', 'AuthContext');
+    authDebugger.log('auth_check', '已清除身份驗證狀態 (clearAuth)', 'AuthContext');
     
     if (isDev) {
-      console.log('已清除所有身份驗證狀態 (clearAuth)');
+      console.log('已清除身份驗證狀態 (clearAuth)');
     }
   };
 

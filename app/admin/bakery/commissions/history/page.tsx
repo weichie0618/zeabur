@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { 
   initializeAuth, 
-  getAuthHeaders, 
+  apiGet,
+  apiPut,
+  apiPost,
   handleAuthError,
   setupAuthWarningAutoHide 
 } from '../../utils/authService';
@@ -153,29 +155,22 @@ export default function CommissionHistoryPage() {
         if (value) params.append(key, value.toString());
       });
 
-      const response = await fetch(`/api/admin/commissions/history?${params}`, {
-        headers: getAuthHeaders(accessToken)
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(`/api/admin/commissions/history?${params}`);
 
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error('載入佣金記錄失敗');
-      }
-
-      const data = await response.json();
-      if (data.success) {
+      if (data && data.success) {
         setRecords(data.data);
         setTotalRecords(data.pagination.total);
       } else {
-        throw new Error(data.message || '載入佣金記錄失敗');
+        throw new Error(data?.message || '載入佣金記錄失敗');
       }
     } catch (error) {
       console.error('載入佣金記錄錯誤:', error);
-      setError('載入佣金記錄失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError('載入佣金記錄失敗');
+      }
     }
   };
 
@@ -183,25 +178,18 @@ export default function CommissionHistoryPage() {
     if (!accessToken) return;
 
     try {
-      const [salespersonsRes, plansRes] = await Promise.all([
-        fetch('/api/admin/customers/salespersons', { headers: getAuthHeaders(accessToken) }),
-        fetch('/api/admin/commission-plans', { headers: getAuthHeaders(accessToken) })
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const [salespersonsData, plansData] = await Promise.all([
+        apiGet('/api/admin/customers/salespersons'),
+        apiGet('/api/admin/commission-plans')
       ]);
 
-      if (salespersonsRes.status === 401 || plansRes.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      const salespersonsData = await salespersonsRes.json();
-      const plansData = await plansRes.json();
-
-      if (salespersonsData.success && salespersonsData.data) {
+      if (salespersonsData && salespersonsData.success && salespersonsData.data) {
         setSalespersons(salespersonsData.data.map((c: any) => ({ id: c.id, name: c.name })));
       }
       
       // 修正 plans 資料處理邏輯
-      if (plansData.success && plansData.data) {
+      if (plansData && plansData.success && plansData.data) {
         // 檢查 data.salespeople 是否存在（新 API 結構）
         if (plansData.data.salespeople) {
           const uniquePlans = new Map();
@@ -222,7 +210,11 @@ export default function CommissionHistoryPage() {
       }
     } catch (error) {
       console.error('載入篩選數據錯誤:', error);
-      setError('載入篩選數據失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError('載入篩選數據失敗');
+      }
     }
   };
 
@@ -243,28 +235,24 @@ export default function CommissionHistoryPage() {
     if (!accessToken) return;
 
     try {
-      const response = await fetch(`/api/admin/commissions/${recordId}/status`, {
-        method: 'PUT',
-        headers: getAuthHeaders(accessToken),
-        body: JSON.stringify({ status: newStatus })
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPut(`/api/admin/commissions/${recordId}/status`, { 
+        status: newStatus 
       });
 
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
+      if (data && data.success) {
         loadRecords();
         alert('佣金狀態更新成功！');
       } else {
-        throw new Error(data.message || '更新失敗');
+        throw new Error(data?.message || '更新失敗');
       }
     } catch (error) {
       console.error('更新佣金狀態錯誤:', error);
-      alert(error instanceof Error ? error.message : '更新失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        alert(error instanceof Error ? error.message : '更新失敗');
+      }
     }
   };
 
@@ -279,26 +267,41 @@ export default function CommissionHistoryPage() {
         }
       });
 
-      const response = await fetch(`/api/admin/commissions/export?${params}`, {
-        headers: getAuthHeaders(accessToken)
-      });
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證 - 文件下載需要特殊處理
+      try {
+        const response = await fetch(`/api/admin/commissions/export?${params}`, {
+          method: 'GET',
+          credentials: 'include' // 只需要帶上 HttpOnly Cookie
+        });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `commission-history-${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        throw new Error('匯出失敗');
+        if (response.status === 401) {
+          handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
+          return;
+        }
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `commission-history-${new Date().toISOString().split('T')[0]}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } else {
+          throw new Error('匯出失敗');
+        }
+      } catch (fetchError) {
+        throw fetchError;
       }
     } catch (error) {
       console.error('匯出佣金記錄錯誤:', error);
-      alert(error instanceof Error ? error.message : '匯出失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        alert(error instanceof Error ? error.message : '匯出失敗');
+      }
     }
   };
 
@@ -332,17 +335,10 @@ export default function CommissionHistoryPage() {
         params.append('salespersonId', batchForm.salesperson_id);
       }
 
-      const response = await fetch(`/api/admin/commissions/history?${params}`, {
-        headers: getAuthHeaders(accessToken)
-      });
-
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.success && data.data) {
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiGet(`/api/admin/commissions/history?${params}`);
+      
+      if (data && data.success && data.data) {
         const calculatedCommissions = data.data;
         
         // 按業務員進行彙總
@@ -394,11 +390,15 @@ export default function CommissionHistoryPage() {
         setShowBatchModal(false);
         setShowBatchPreview(true);
       } else {
-        throw new Error(data.message || '無法找到符合條件的已計算佣金記錄');
+        throw new Error(data?.message || '無法找到符合條件的已計算佣金記錄');
       }
     } catch (error) {
       console.error('批量彙總錯誤:', error);
-      setError(error instanceof Error ? error.message : '批量彙總失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(error instanceof Error ? error.message : '批量彙總失敗');
+      }
     } finally {
       setIsCalculating(false);
     }
@@ -410,27 +410,15 @@ export default function CommissionHistoryPage() {
 
     try {
       setIsProcessing(true);
-      const response = await fetch(`/api/admin/commission/records/${selectedRecord.id}/status`, {
-        method: 'PUT',
-        headers: {
-          ...getAuthHeaders(accessToken),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          status: 'paid',
-          payment_reference: paymentForm.payment_reference,
-          payment_method: paymentForm.payment_method,
-          notes: paymentForm.notes
-        })
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證
+      const data = await apiPut(`/api/admin/commission/records/${selectedRecord.id}/status`, {
+        status: 'paid',
+        payment_reference: paymentForm.payment_reference,
+        payment_method: paymentForm.payment_method,
+        notes: paymentForm.notes
       });
 
-      if (response.status === 401) {
-        handleAuthError('認證失敗，請重新登入', setError, setLoading, setShowAuthWarning);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.success) {
+      if (data && data.success) {
         alert('佣金支付成功！');
         loadRecords();
         setShowPaymentModal(false);
@@ -441,11 +429,15 @@ export default function CommissionHistoryPage() {
           notes: ''
         });
       } else {
-        throw new Error(data.message || '支付處理失敗');
+        throw new Error(data?.message || '支付處理失敗');
       }
     } catch (error) {
       console.error('支付處理錯誤:', error);
-      setError(error instanceof Error ? error.message : '支付處理失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(error instanceof Error ? error.message : '支付處理失敗');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -462,17 +454,11 @@ export default function CommissionHistoryPage() {
     try {
       setIsProcessing(true);
       const promises = selectedRecords.map(recordId => 
-        fetch(`/api/admin/commission/records/${recordId}/status`, {
-          method: 'PUT',
-          headers: {
-            ...getAuthHeaders(accessToken),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            status: 'paid',
-            notes: `批量支付 - ${new Date().toLocaleDateString()}`
-          })
-        }).then(res => res.json())
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
+        apiPut(`/api/admin/commission/records/${recordId}/status`, {
+          status: 'paid',
+          notes: `批量支付 - ${new Date().toLocaleDateString()}`
+        })
       );
 
       const results = await Promise.all(promises);
@@ -489,7 +475,11 @@ export default function CommissionHistoryPage() {
       }
     } catch (error) {
       console.error('批量支付錯誤:', error);
-      setError('批量支付失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError('批量支付失敗');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -569,17 +559,11 @@ export default function CommissionHistoryPage() {
 
       // 批量標記為已支付
       const paymentPromises = selectedCommissions.map((record: CommissionRecord) => 
-        fetch(`/api/admin/commission/records/${record.id}/status`, {
-          method: 'PUT',
-          headers: {
-            ...getAuthHeaders(accessToken),
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            status: 'paid',
-            notes: `批量結算支付 - ${new Date().toLocaleDateString()}`
-          })
-        }).then(res => res.json())
+        // 🔑 安全改進：使用 HttpOnly Cookie 認證
+        apiPut(`/api/admin/commission/records/${record.id}/status`, {
+          status: 'paid',
+          notes: `批量結算支付 - ${new Date().toLocaleDateString()}`
+        })
       );
 
       const paymentResults = await Promise.all(paymentPromises);
@@ -608,7 +592,11 @@ export default function CommissionHistoryPage() {
 
     } catch (error) {
       console.error('確認批量支付錯誤:', error);
-      setError(error instanceof Error ? error.message : '確認批量支付失敗');
+      if (error instanceof Error && error.message.includes('認證')) {
+        handleAuthError(error.message, setError, setLoading, setShowAuthWarning);
+      } else {
+        setError(error instanceof Error ? error.message : '確認批量支付失敗');
+      }
     } finally {
       setIsConfirming(false);
     }

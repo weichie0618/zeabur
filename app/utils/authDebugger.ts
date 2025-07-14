@@ -47,15 +47,23 @@ class AuthDebugger {
    * 檢查重複請求
    */
   private checkForDuplicateRequests() {
+    const now = Date.now();
     const recentEvents = this.events.filter(e => 
-      Date.now() - e.timestamp < 5000 && // 最近5秒
+      now - e.timestamp < 3000 && // 減少到3秒內
       e.type === 'api_request' && 
       e.details.includes('/api/auth/me')
     );
 
-    if (recentEvents.length >= 3) {
+    // 🔑 優化：減少警告閾值，正常情況下初始認證檢查只需要1次
+    if (recentEvents.length >= 2) {
       console.warn('⚠️ 檢測到 /api/auth/me 重複請求:', recentEvents.length, '次');
-      this.printRecentEvents();
+      console.warn('📋 重複請求來源:', recentEvents.map(e => e.source));
+      console.warn('💡 提示：這可能是由於 React StrictMode 或組件重新渲染導致');
+      
+      // 只在重複請求超過2次時才顯示詳細事件
+      if (recentEvents.length > 2) {
+        this.printRecentEvents();
+      }
     }
   }
 

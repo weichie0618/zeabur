@@ -42,9 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 檢查用戶是否已經登入
   useEffect(() => {
     const checkAuth = async () => {
-      // 防止重複檢查
-      if (isCheckingAuth.current || hasInitiallyChecked.current) {
-        authDebugger.log('auth_check', '跳過重複認證檢查', 'AuthContext');
+      // 🔑 強化防重複檢查：多層防護
+      if (isCheckingAuth.current) {
+        authDebugger.log('auth_check', '認證檢查進行中，跳過重複請求', 'AuthContext');
+        return;
+      }
+
+      if (hasInitiallyChecked.current) {
+        authDebugger.log('auth_check', '已完成初始認證檢查，跳過重複請求', 'AuthContext');
         return;
       }
 
@@ -95,7 +100,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return authCheckPromise.current;
     };
 
-    checkAuth();
+    // 🔑 防止 React StrictMode 重複執行：添加延遲檢查
+    const timeoutId = setTimeout(() => {
+      checkAuth();
+    }, 50); // 50ms 延遲，避免快速重複調用
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, []); // 移除所有依賴項，只在組件掛載時執行一次
 
   // 刷新用戶信息

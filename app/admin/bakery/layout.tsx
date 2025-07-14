@@ -67,6 +67,7 @@ export default function AdminLayout({
     } catch (error) {
       console.error('載入待處理購買記錄失敗:', error);
       // 靜默失敗，不影響主要功能
+      setPendingPurchasesCount(0); // 設置為0，避免顯示錯誤的數量
     }
   };
 
@@ -74,17 +75,35 @@ export default function AdminLayout({
   const loadPendingOrdersCount = async () => {
     if (!user) return;
     
-    const accessToken = localStorage.getItem('accessToken');
-    if (!accessToken) return;
-    
     try {
-      const count = await fetchPendingOrdersCount(accessToken);
+      // 🔑 安全改進：使用 HttpOnly Cookie 認證，不再需要 localStorage token
+      const count = await fetchPendingOrdersCount(''); // 空字符串，函數內部會使用 HttpOnly Cookie
       setPendingOrdersCount(count);
     } catch (error) {
       console.error('載入待處理訂單失敗:', error);
       // 靜默失敗，不影響主要功能
+      setPendingOrdersCount(0); // 設置為0，避免顯示錯誤的數量
     }
   };
+
+  // 🔑 調試函數：手動測試警示功能
+  const testAlertSystem = async () => {
+    console.log('🔴 測試警示系統...');
+    console.log('當前用戶:', user?.name);
+    console.log('待處理訂單數量:', pendingOrdersCount);
+    console.log('待處理購買記錄數量:', pendingPurchasesCount);
+    
+    // 重新載入數據
+    await Promise.all([
+      loadPendingOrdersCount(),
+      loadPendingPurchasesCount()
+    ]);
+    
+    console.log('🔴 警示系統測試完成');
+  };
+
+  // 開發環境添加測試按鈕
+  const isDev = process.env.NODE_ENV === 'development';
 
   // 定期更新待處理記錄數量
   useEffect(() => {
@@ -195,6 +214,17 @@ export default function AdminLayout({
               </span>
               烘焙坊管理
             </Link>
+            
+            {/* 開發環境：警示系統測試按鈕 */}
+            {isDev && (
+              <button
+                onClick={testAlertSystem}
+                className="mt-2 text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded"
+                title="測試警示系統"
+              >
+                🔴 測試警示
+              </button>
+            )}
           </div>
           
           {/* 可滾動的導航區域 */}
@@ -213,7 +243,12 @@ export default function AdminLayout({
                   </GroupIcon>
                   <span className="flex items-center gap-2">
                     <span>主要功能</span>
-                    {pendingOrdersCount > 0 && <span className="text-red-500">🔴</span>}
+                    {/* 🔑 改進：更明顯的警示徽章 */}
+                    {pendingOrdersCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+                        {pendingOrdersCount > 9 ? '9+' : pendingOrdersCount}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <CollapseIcon isExpanded={expandedGroup === 'main'} />
@@ -295,7 +330,12 @@ export default function AdminLayout({
                   </GroupIcon>
                   <span className="flex items-center gap-2">
                     <span>點數系統</span>
-                    {pendingPurchasesCount > 0 && <span className="text-red-500">🔴</span>}
+                    {/* 🔑 改進：更明顯的警示徽章 */}
+                    {pendingPurchasesCount > 0 && (
+                      <span className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+                        {pendingPurchasesCount > 9 ? '9+' : pendingPurchasesCount}
+                      </span>
+                    )}
                   </span>
                 </span>
                 <CollapseIcon isExpanded={expandedGroup === 'points'} />
@@ -464,6 +504,14 @@ export default function AdminLayout({
             <div className="flex justify-between items-center px-6 py-3">
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold text-gray-800 ml-4">烘焙坊管理系統</h1>
+                {/* 開發環境：警示狀態顯示 */}
+                {isDev && (
+                  <div className="ml-4 text-sm text-gray-600">
+                    <span className="bg-gray-100 px-2 py-1 rounded">
+                      🔴 訂單: {pendingOrdersCount} | 購買: {pendingPurchasesCount}
+                    </span>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center">

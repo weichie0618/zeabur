@@ -10,6 +10,19 @@ if (isDev && !API_BASE_URL) {
   console.warn('警告: NEXT_PUBLIC_API_URL 環境變數未設置，API請求可能會失敗');
 }
 
+// 🔑 跨域檢查函數
+const isCrossDomain = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const currentOrigin = window.location.origin;
+  const apiOrigin = API_BASE_URL;
+  
+  // 如果 API_BASE_URL 是相對路徑，則不是跨域
+  if (!apiOrigin.startsWith('http')) return false;
+  
+  return currentOrigin !== apiOrigin;
+};
+
 // 🔑 安全改進：移除 Token 接口，不再在前端管理 tokens
 // interface AuthTokens {
 //   accessToken: string;
@@ -24,20 +37,28 @@ interface RefreshResponse {
   message?: string;
 }
 
-// 創建Axios實例 - 確保baseURL設置正確，自動包含Cookie
+// 🔑 跨域 Cookie 支持：創建 Axios 實例，強化跨域配置
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
-  withCredentials: true, // 🔑 關鍵：自動包含 HttpOnly Cookie
+  withCredentials: true, // 🔑 關鍵：自動包含 HttpOnly Cookie，支持跨域
   headers: {
     'Content-Type': 'application/json',
+    // 🔑 跨域支持：添加必要的 headers
+    'Accept': 'application/json',
   },
 });
 
-// 移除生產環境中的調試日誌
+// 在開發環境中輸出跨域配置信息
 if (isDev) {
-  console.log('API基礎URL設置為:', API_BASE_URL || '(空)');
-  console.log('當API路徑以斜線開頭時，會基於當前主機名處理');
+  const crossDomain = isCrossDomain();
+  console.log('API 跨域配置檢查:', {
+    API_BASE_URL: API_BASE_URL || '(相對路徑)',
+    currentOrigin: typeof window !== 'undefined' ? window.location.origin : 'SSR',
+    isCrossDomain: crossDomain,
+    withCredentials: true,
+    note: crossDomain ? '跨域模式：Cookie 需要 SameSite=none, Secure=true' : '同域模式：Cookie 可使用 SameSite=lax'
+  });
   
   // 檢查API_URL是否使用localhost，提供警告和建議
   if (API_BASE_URL.includes('localhost')) {
@@ -65,9 +86,10 @@ const clearLegacyTokens = (): void => {
 const refreshApi = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
-  withCredentials: true,
+  withCredentials: true, // 🔑 關鍵：refresh 請求也需要包含 Cookie
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
 });
 
@@ -125,9 +147,21 @@ setInterval(() => {
 // 🔑 安全改進：移除手動添加 Authorization 頭
 // HttpOnly Cookie 會自動包含在請求中，無需手動處理
 api.interceptors.request.use((config) => {
-  // 記錄API請求
+  // 🔑 跨域支持：記錄請求信息，便於調試
   if (config.url) {
-    authDebugger.log('api_request', `${config.method?.toUpperCase()} ${config.url}`, 'axios.request');
+    const crossDomain = isCrossDomain();
+    authDebugger.log('api_request', `${config.method?.toUpperCase()} ${config.url} [跨域: ${crossDomain}]`, 'axios.request');
+    
+    // 在開發環境中輸出跨域請求詳情
+    if (isDev && crossDomain) {
+      console.log('跨域請求詳情:', {
+        url: config.url,
+        method: config.method,
+        withCredentials: config.withCredentials,
+        headers: config.headers,
+        note: 'Cookie 應該自動包含在跨域請求中'
+      });
+    }
   }
   return config;
 });
@@ -189,7 +223,7 @@ setInterval(() => {
   }
 }, 5000);
 
-// 回應攔截器 - 處理token過期
+// 🔑 跨域支持：增強的回應攔截器 - 處理token過期和跨域錯誤
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -201,11 +235,21 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     
-    // 如果是401錯誤且未嘗試過重新整理token
+    // 🔑 跨域支持：特殊處理跨域相關錯誤
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       
-      authDebugger.log('auth_check', `收到401錯誤，原始請求: ${originalRequest.url}`, 'axios.interceptor');
+      const crossDomain = isCrossDomain();
+      authDebugger.log('auth_check', `收到401錯誤，原始請求: ${originalRequest.url} [跨域: ${crossDomain}]`, 'axios.interceptor');
+      
+      // 在開發環境中輸出跨域調試信息
+      if (isDev && crossDomain) {
+        console.log('跨域401錯誤調試:', {
+          url: originalRequest.url,
+          cookies: document.cookie,
+          note: '檢查後端是否正確設置了 SameSite=none 和 Secure=true'
+        });
+      }
       
       try {
         // 嘗試刷新token
@@ -293,6 +337,7 @@ const createAlternativeApiInstance = () => {
     withCredentials: true, // 🔑 Cookie會自動包含
     headers: {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     },
   });
   
@@ -360,18 +405,23 @@ interface UserData {
   [key: string]: any; // 允許其他未指定的屬性
 }
 
-// API調用方法 - 使用通用的錯誤處理函數
+// 🔑 跨域支持：API調用方法 - 使用通用的錯誤處理函數
 export const apiService = {
   login: async (email: string, password: string) => {
     authDebugger.log('login', `發送登入請求: ${email}`, 'apiService.login');
     if (isDev) {
       console.log(`發送登入請求: ${email}`);
+      console.log('跨域登入配置:', {
+        withCredentials: true,
+        crossDomain: isCrossDomain(),
+        note: '登入成功後，HttpOnly Cookie 將自動設置'
+      });
     }
     
     try {
       const response = await handleApiRequest(() => 
         api.post('/api/auth/login', { email, password }, {
-          // withCredentials: true, // 🔧 移除：已在全局 axios 實例中設置
+          withCredentials: true, // 🔑 關鍵：包含cookies，等同於 credentials: 'include'
           timeout: 15000 // 15秒超時，比默認的10秒稍長
         })
       );
@@ -387,6 +437,14 @@ export const apiService = {
         redirectCount = 0;
         redirectHistory.length = 0;
         authDebugger.log('login', '登入成功，已重置重定向計數', 'apiService.login');
+        
+        // 🔑 跨域支持：在開發環境中輸出 Cookie 狀態
+        if (isDev) {
+          console.log('登入成功，Cookie 狀態:', {
+            documentCookie: document.cookie,
+            note: 'HttpOnly Cookie 不會出現在 document.cookie 中（這是正常的）'
+          });
+        }
       }
 
       return result;
@@ -415,7 +473,7 @@ export const apiService = {
     try {
       const response = await handleApiRequest(() => 
         api.post('/api/auth/logout', {}, {
-          // withCredentials: true, // 🔧 移除：已在全局 axios 實例中設置
+          withCredentials: true, // 🔑 關鍵：包含cookies
           timeout: 10000 // 10秒超時
         })
       );
@@ -450,8 +508,7 @@ export const apiService = {
   getCurrentUser: async () => {
     authDebugger.log('api_request', 'getCurrentUser -> /api/auth/me', 'apiService.getCurrentUser');
     return handleApiRequest(() => 
-      api.get('/api/auth/me')
-      // withCredentials: true 已在全局 axios 實例中設置
+      api.get('/api/auth/me', { withCredentials: true })
     );
   },
   

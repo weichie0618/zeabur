@@ -9,9 +9,10 @@ function SearchParamsHandler({ onParamsProcessed }: {
   onParamsProcessed: (expired: boolean, redirectPath: string | null, reason: string | null) => void 
 }) {
   const searchParams = useSearchParams();
+  const hasProcessed = useRef(false);
   
   useEffect(() => {
-    if (searchParams) {
+    if (searchParams && !hasProcessed.current) {
       // 檢查是否有令牌過期參數
       const expired = searchParams.get('expired') === 'true';
       // 保存重定向路徑
@@ -19,19 +20,22 @@ function SearchParamsHandler({ onParamsProcessed }: {
       // 獲取錯誤原因
       const reason = searchParams.get('reason');
       
-      // 調用回調函數傳遞參數
-      onParamsProcessed(expired, redirect, reason);
-      
-      // 清除URL參數，避免瀏覽器重新整理時再次觸發
-      if ((expired || redirect || reason) && typeof window !== 'undefined') {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('expired');
-        url.searchParams.delete('redirect');
-        url.searchParams.delete('reason');
-        window.history.replaceState({}, '', url.toString());
+      // 只在有參數時才調用回調函數
+      if (expired || redirect || reason) {
+        hasProcessed.current = true; // 標記已處理
+        onParamsProcessed(expired, redirect, reason);
+        
+        // 清除URL參數，避免瀏覽器重新整理時再次觸發
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('expired');
+          url.searchParams.delete('redirect');
+          url.searchParams.delete('reason');
+          window.history.replaceState({}, '', url.toString());
+        }
       }
     }
-  }, [searchParams, onParamsProcessed]);
+  }, [searchParams]); // 移除 onParamsProcessed 依賴，避免重複執行
   
   return null; // 不渲染任何內容
 }
@@ -52,6 +56,13 @@ export default function LoginPage() {
   // 添加導航狀態控制，防止重複導航
   const isNavigating = useRef(false);
   const hasNavigated = useRef(false);
+
+  // 統一添加調試信息的函數
+  const addDebugInfo = useCallback((info: string) => {
+    if (isDev) {
+      setDebugInfo(prev => prev ? `${prev}\n${info}` : info);
+    }
+  }, [isDev]);
 
   // 處理搜尋參數回調
   const handleParamsProcessed = useCallback((expired: boolean, redirect: string | null, reason: string | null) => {
@@ -96,14 +107,7 @@ export default function LoginPage() {
       setRedirectPath(redirect);
       addDebugInfo(`儲存重定向路徑: ${redirect}`);
     }
-  }, [clearAuth]);
-
-  // 統一添加調試信息的函數
-  const addDebugInfo = (info: string) => {
-    if (isDev) {
-      setDebugInfo(prev => prev ? `${prev}\n${info}` : info);
-    }
-  };
+  }, [clearAuth, addDebugInfo]);
 
   // 統一處理基於角色的導航邏輯 - 使用 useMemo 來穩定函數
   const navigateBasedOnRole = useCallback((userData: any) => {

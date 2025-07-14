@@ -61,6 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // 創建檢查 Promise
       authCheckPromise.current = (async () => {
         try {
+          // 🔑 優化：如果當前在登入頁面，跳過初始認證檢查
+          if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+            authDebugger.log('auth_check', '在登入頁面，跳過初始認證檢查', 'AuthContext');
+            setUser(null);
+            return;
+          }
+          
           // 🔑 安全改進：直接檢查 /api/auth/me，Cookie 會自動包含
           authDebugger.log('api_request', '驗證Cookie有效性 -> /api/auth/me', 'AuthContext');
           

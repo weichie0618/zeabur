@@ -61,16 +61,46 @@ const clearLegacyTokens = (): void => {
 // 🔑 安全改進：移除前端 token 刷新邏輯
 // 現在 token 刷新完全由後端和瀏覽器自動處理（HttpOnly Cookie）
 
-// 保留刷新端點調用，但簡化邏輯
+// 🔑 修復循環調用問題：創建獨立的 refresh API 實例，不使用攔截器
+const refreshApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// 🔑 添加 refresh token 重試限制
+let refreshTokenRetryCount = 0;
+const MAX_REFRESH_RETRIES = 2;
+const REFRESH_RETRY_COOLDOWN = 60000; // 1分鐘冷卻期
+
+// 重置重試計數器
+const resetRefreshRetryCount = () => {
+  refreshTokenRetryCount = 0;
+};
+
+// 保留刷新端點調用，但使用獨立的API實例避免攔截器循環
 const refreshAuthToken = async (): Promise<boolean> => {
+  // 🔑 檢查重試次數限制
+  if (refreshTokenRetryCount >= MAX_REFRESH_RETRIES) {
+    authDebugger.log('token_refresh', `已達到最大重試次數 (${MAX_REFRESH_RETRIES})，跳過刷新`, 'apiService');
+    return false;
+  }
+  
+  refreshTokenRetryCount++;
+  
   try {
-    authDebugger.log('token_refresh', '嘗試刷新accessToken（Cookie模式）', 'apiService');
+    authDebugger.log('token_refresh', `嘗試刷新accessToken（Cookie模式）- 重試次數: ${refreshTokenRetryCount}`, 'apiService');
     
-    // Cookie 會自動包含 refreshToken，無需手動發送
-    const response = await api.post<RefreshResponse>('/api/auth/refresh-token');
+    // 🔑 使用獨立的 refresh API 實例，避免觸發攔截器
+    const response = await refreshApi.post<RefreshResponse>('/api/auth/refresh-token');
     
     if (response.data.success) {
       authDebugger.log('token_refresh', '刷新accessToken成功', 'apiService');
+      // 成功後重置重試計數
+      resetRefreshRetryCount();
       return true;
     }
     
@@ -83,6 +113,14 @@ const refreshAuthToken = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// 定期重置重試計數器
+setInterval(() => {
+  if (refreshTokenRetryCount > 0) {
+    authDebugger.log('token_refresh', '定期重置refresh token重試計數器', 'apiService');
+    resetRefreshRetryCount();
+  }
+}, REFRESH_RETRY_COOLDOWN);
 
 // 🔑 安全改進：移除手動添加 Authorization 頭
 // HttpOnly Cookie 會自動包含在請求中，無需手動處理
@@ -156,6 +194,12 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    
+    // 🔑 防止對 refresh-token 端點的循環調用
+    if (originalRequest.url?.includes('/api/auth/refresh-token')) {
+      authDebugger.log('auth_check', '跳過對refresh-token端點的攔截器處理', 'axios.interceptor');
+      return Promise.reject(error);
+    }
     
     // 如果是401錯誤且未嘗試過重新整理token
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -327,7 +371,7 @@ export const apiService = {
     try {
       const response = await handleApiRequest(() => 
         api.post('/api/auth/login', { email, password }, {
-          withCredentials: true, // 包含cookies，等同於 credentials: 'include'
+          // withCredentials: true, // 🔧 移除：已在全局 axios 實例中設置
           timeout: 15000 // 15秒超時，比默認的10秒稍長
         })
       );
@@ -371,7 +415,7 @@ export const apiService = {
     try {
       const response = await handleApiRequest(() => 
         api.post('/api/auth/logout', {}, {
-          withCredentials: true, // 包含cookies
+          // withCredentials: true, // 🔧 移除：已在全局 axios 實例中設置
           timeout: 10000 // 10秒超時
         })
       );
@@ -406,7 +450,8 @@ export const apiService = {
   getCurrentUser: async () => {
     authDebugger.log('api_request', 'getCurrentUser -> /api/auth/me', 'apiService.getCurrentUser');
     return handleApiRequest(() => 
-      api.get('/api/auth/me', { withCredentials: true })
+      api.get('/api/auth/me')
+      // withCredentials: true 已在全局 axios 實例中設置
     );
   },
   

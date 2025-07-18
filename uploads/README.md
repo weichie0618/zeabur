@@ -5,15 +5,20 @@
 ## 目錄結構
 
 - `/uploads/bakery` - 麵包店產品圖片
+- `/uploads/contracts` - 分潤合約圖片
 
 ## 注意事項
 
 1. 此目錄在應用程式啟動時自動創建（透過 `npm run init-uploads` 腳本）
-2. 上傳的圖片可以通過 API 訪問：`/api/images/bakery/圖片名稱.jpg`
+2. 上傳的圖片可以通過 API 訪問：
+   - 產品圖片：`/api/images/bakery/圖片名稱.jpg`
+   - 合約圖片：`/api/images/contracts/contract_姓名_時間戳.jpg`
 3. 請確保此目錄在部署環境中具有適當的寫入權限
 4. 如果部署到生產環境，建議考慮使用 S3 或其他雲存儲服務代替本地存儲
 
 ## 維護
 
 - 此目錄中的文件不會自動清理，如有需要請手動管理舊文件
-- 文件命名格式為：`產品名稱-產品ID.jpg` 
+- 文件命名格式：
+  - 產品圖片：`產品名稱-產品ID.jpg`
+  - 合約圖片：`contract_簽署人_時間戳.jpg` 

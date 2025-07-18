@@ -5,8 +5,65 @@ import {
   initializeAuth, 
   handleAuthError,
   handleRelogin,
-  setupAuthWarningAutoHide
+  setupAuthWarningAutoHide,
+  fetchGet
 } from './utils/authService';
+
+// 定義數據類型
+interface Stat {
+  title: string;
+  value: string;
+  change: string;
+  changeType: 'positive' | 'negative';
+}
+
+interface RecentOrder {
+  id: string;
+  customer: string;
+  date: string;
+  amount: string;
+  status: string;
+  salesPerson: string;
+}
+
+interface TopProduct {
+  name: string;
+  sold: number;
+  revenue: string;
+  growth: string;
+}
+
+interface SalesPerson {
+  id: string;
+  name: string;
+  sales: string;
+  orders: number;
+  customers: number;
+  achievement: string;
+}
+
+// API 服務函數 - 使用 authService 統一認證
+const apiService = {
+  async getStats(): Promise<Stat[]> {
+    const data = await fetchGet('/api/admin/dashboard/stats');
+    return data.data;
+  },
+
+  async getRecentOrders(): Promise<RecentOrder[]> {
+    const data = await fetchGet('/api/admin/dashboard/recent-orders');
+    return data.data;
+  },
+
+  async getTopProducts(): Promise<TopProduct[]> {
+    const data = await fetchGet('/api/admin/dashboard/top-products');
+    return data.data;
+  },
+
+  async getSalesPerformance(): Promise<SalesPerson[]> {
+    const data = await fetchGet('/api/admin/dashboard/sales-performance');
+    return data.data;
+  }
+};
 
 export default function AdminDashboard() {
   // 認證相關狀態
@@ -14,6 +71,14 @@ export default function AdminDashboard() {
   const [showAuthWarning, setShowAuthWarning] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  
+  // 數據狀態
+  const [stats, setStats] = useState<Stat[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [salesPeople, setSalesPeople] = useState<SalesPerson[]>([]);
+  const [dataLoading, setDataLoading] = useState<boolean>(true);
+  const [dataError, setDataError] = useState<string | null>(null);
   
   // 初始化認證
   useEffect(() => {
@@ -31,46 +96,49 @@ export default function AdminDashboard() {
     return cleanup;
   }, [error]);
   
-  // 模擬數據
-  const stats = [
-    { title: '今日銷售額', value: '$0', change: '0%', changeType: 'positive' },
-    { title: '本月訂單數', value: '0', change: '0%', changeType: 'positive' },
-    { title: '平均客單價', value: '$0', change: '0%', changeType: 'negative' },
-    { title: '新客戶數', value: '0', change: '0%', changeType: 'positive' },
-  ];
-
-  // 模擬最近訂單
-  const recentOrders = [
-    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
-    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
-    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
-    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
-    { id: '', customer: '', date: '', amount: '$0', status: '', salesPerson: '' },
-  ];
-
-  // 模擬熱門產品
-  const topProducts = [
-    { name: '', sold: 0, revenue: '$0', growth: '0%' },
-    { name: '', sold: 0, revenue: '$0', growth: '0%' },
-    { name: '', sold: 0, revenue: '$0', growth: '0%' },
-    { name: '', sold: 0, revenue: '$0', growth: '0%' },
-    { name: '', sold: 0, revenue: '$0', growth: '0%' },
-  ];
-
-  // 模擬庫存警告
-  const lowStockItems = [
-    { name: '', stock: 0, minStock: 0 },
-    { name: '', stock: 0, minStock: 0 },
-    { name: '', stock: 0, minStock: 0 },
-  ];
-
-  // 模擬業務表現數據
-  const salesPeople = [
-    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
-    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
-    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
-    { id: '', name: '', sales: '$0', orders: 0, customers: 0, achievement: '0%' },
-  ];
+  // 獲取儀表板數據
+  const fetchDashboardData = async () => {
+    try {
+      setDataLoading(true);
+      setDataError(null);
+      
+      const [statsData, ordersData, productsData, salesData] = await Promise.all([
+        apiService.getStats(),
+        apiService.getRecentOrders(),
+        apiService.getTopProducts(),
+        apiService.getSalesPerformance()
+      ]);
+      
+      setStats(statsData);
+      setRecentOrders(ordersData);
+      setTopProducts(productsData);
+      setSalesPeople(salesData);
+    } catch (error) {
+      console.error('獲取儀表板數據失敗:', error);
+      const errorMessage = error instanceof Error ? error.message : '獲取數據失敗';
+      
+      // 如果是認證錯誤，使用 authService 的錯誤處理
+      if (errorMessage.includes('認證失敗')) {
+        handleAuthError(
+          errorMessage,
+          setError,
+          setLoading,
+          setShowAuthWarning
+        );
+      } else {
+        setDataError(errorMessage);
+      }
+    } finally {
+      setDataLoading(false);
+    }
+  };
+  
+  // 在認證完成後獲取數據
+  useEffect(() => {
+    if (accessToken && !loading) {
+      fetchDashboardData();
+    }
+  }, [accessToken, loading]);
 
   return (
     <div className="space-y-6">
@@ -116,20 +184,72 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 統計卡片區 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="bg-white rounded-lg shadow-sm p-6">
-            <p className="text-sm text-gray-500">{stat.title}</p>
-            <p className="text-2xl font-bold mt-2">{stat.value}</p>
-            <div className="flex items-center mt-2">
-              <span className={`text-sm ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
-                {stat.change}
-              </span>
-              <span className="text-gray-500 text-sm ml-1">較上期</span>
+      {/* 數據錯誤 */}
+      {dataError && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                數據載入失敗：{dataError}
+                <button 
+                  onClick={fetchDashboardData}
+                  className="ml-2 font-medium text-red-700 underline"
+                >
+                  重新載入
+                </button>
+              </p>
             </div>
           </div>
-        ))}
+        </div>
+      )}
+
+      {/* 數據載入中 */}
+      {dataLoading && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="animate-spin h-5 w-5 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-blue-700">正在載入儀表板數據...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 統計卡片區 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {!dataLoading && stats.length > 0 ? (
+          stats.map((stat, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm p-6">
+              <p className="text-sm text-gray-500">{stat.title}</p>
+              <p className="text-2xl font-bold mt-2">{stat.value}</p>
+              <div className="flex items-center mt-2">
+                <span className={`text-sm ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>
+                  {stat.change}
+                </span>
+                <span className="text-gray-500 text-sm ml-1">較上期</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          // 載入中或無數據時的佔位符
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="bg-white rounded-lg shadow-sm p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded mb-2"></div>
+              <div className="h-8 bg-gray-200 rounded mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* 圖表和數據區 */}
@@ -198,38 +318,70 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {salesPeople.map((person, index) => (
-                <tr key={`sales-person-${index}`} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
-                    <Link href={`/admin/bakery/sales-people/${person.id}`}>
-                      {person.id}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {person.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {person.sales}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {person.orders}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {person.customers}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center">
-                      <span className="mr-2">{person.achievement}</span>
-                      <div className="w-24 bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-amber-600 h-2 rounded-full" 
-                          style={{ width: person.achievement }}
-                        ></div>
+              {!dataLoading && salesPeople.length > 0 ? (
+                salesPeople.map((person, index) => (
+                  <tr key={`sales-person-${index}`} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
+                      <Link href={`/admin/bakery/sales-people/${person.id}`}>
+                        {person.id}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {person.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {person.sales}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {person.orders}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {person.customers}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center">
+                        <span className="mr-2">{person.achievement}</span>
+                        <div className="w-24 bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-amber-600 h-2 rounded-full" 
+                            style={{ width: person.achievement }}
+                          ></div>
+                        </div>
                       </div>
-                    </div>
+                    </td>
+                  </tr>
+                ))
+              ) : dataLoading ? (
+                // 載入中的佔位符
+                Array.from({ length: 4 }).map((_, index) => (
+                  <tr key={`loading-${index}`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    暫無業務表現數據
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -270,36 +422,68 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {recentOrders.map((order, index) => (
-                  <tr key={`order-${index}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
-                      <Link href={`/admin/bakery/orders/${order.id}`}>
-                        {order.id}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {order.customer}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {order.date}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {order.amount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {order.salesPerson}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        order.status === '已完成' ? 'bg-green-100 text-green-800' :
-                        order.status === '待出貨' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {order.status}
-                      </span>
+                {!dataLoading && recentOrders.length > 0 ? (
+                  recentOrders.map((order, index) => (
+                    <tr key={`order-${index}`} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-amber-600">
+                        <Link href={`/admin/bakery/orders/${order.id}`}>
+                          {order.id}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.customer}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {order.date}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.amount}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.salesPerson}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          order.status === '已完成' ? 'bg-green-100 text-green-800' :
+                          order.status === '待出貨' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : dataLoading ? (
+                  // 載入中的佔位符
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={`loading-order-${index}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                      暫無最近訂單
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -332,24 +516,50 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {topProducts.map((product, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {product.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {product.sold} 件
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {product.revenue}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`${product.growth.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                        {product.growth}
-                      </span>
+                {!dataLoading && topProducts.length > 0 ? (
+                  topProducts.map((product, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {product.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {product.sold} 件
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {product.revenue}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`${product.growth.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                          {product.growth}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : dataLoading ? (
+                  // 載入中的佔位符
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <tr key={`loading-product-${index}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-4 text-center text-gray-500">
+                      暫無熱門產品數據
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

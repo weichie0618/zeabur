@@ -142,30 +142,21 @@ export default function AssignmentsPage() {
     if (!accessToken) return;
 
     try {
-      const data = await apiGet('/api/admin/commission-plans');
+      // 使用 /list API 端點，不分頁載入所有專案
+      const queryParams = new URLSearchParams({
+        limit: '1000', // 設定較大的限制以獲取所有專案
+        status: 'active' // 只載入啟用的專案
+      });
+
+      const data = await apiGet(`/api/admin/commission-plans/list?${queryParams}`);
       
-      // 檢查並處理新的 API 回傳格式
-      if (data.success) {
-        // 從所有業務員的 commission_plan 中提取不重複的計畫
-        const uniquePlans = new Map();
+      if (data.success && data.data && data.data.plans) {
+        // 只選擇狀態為 active 的專案
+        const activePlans = data.data.plans.filter((plan: CommissionPlan) => 
+          plan.status === 'active'
+        );
         
-        if (data.data.salespeople) {
-          // 新 API 格式
-          data.data.salespeople.forEach((salesperson: Salesperson) => {
-            if (salesperson.commission_plan && salesperson.commission_plan.status === 'active') {
-              uniquePlans.set(salesperson.commission_plan.id, salesperson.commission_plan);
-            }
-          });
-        } else if (Array.isArray(data.data)) {
-          // 舊 API 格式
-          data.data.forEach((plan: CommissionPlan) => {
-            if (plan.status === 'active') {
-              uniquePlans.set(plan.id, plan);
-            }
-          });
-        }
-        
-        setPlans(Array.from(uniquePlans.values()));
+        setPlans(activePlans);
       } else {
         throw new Error(data.message || '載入佣金專案失敗');
       }
@@ -333,7 +324,7 @@ export default function AssignmentsPage() {
 
   // 新增: 處理全選/取消全選
   const handleSelectAll = () => {
-    if (selectedCustomers.length === salespeople.length) {
+    if (selectedCustomers.length === salespeople.length && salespeople.length > 0) {
       setSelectedCustomers([]);
     } else {
       setSelectedCustomers(salespeople.map(c => c.id));
@@ -617,9 +608,10 @@ export default function AssignmentsPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               <input
                                 type="checkbox"
-                                checked={selectedCustomers.length === salespeople.length}
+                                checked={selectedCustomers.length === salespeople.length && salespeople.length > 0}
                                 onChange={handleSelectAll}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                disabled={salespeople.length === 0}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                               />
                             </th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -750,34 +742,35 @@ export default function AssignmentsPage() {
           </div>
 
           {/* 分頁控制 */}
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                上一頁
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.total_pages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                下一頁
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  顯示第 <span className="font-medium">{(pagination.page - 1) * pagination.limit + 1}</span> 到{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.page * pagination.limit, pagination.total)}
-                  </span>{' '}
-                  筆，共{' '}
-                  <span className="font-medium">{pagination.total}</span> 筆結果
-                </p>
+          {pagination.total > 0 && (
+            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  上一頁
+                </button>
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.total_pages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  下一頁
+                </button>
               </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    顯示第 <span className="font-medium">{pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}</span> 到{' '}
+                    <span className="font-medium">
+                      {Math.min(pagination.page * pagination.limit, pagination.total)}
+                    </span>{' '}
+                    筆，共{' '}
+                    <span className="font-medium">{pagination.total}</span> 筆結果
+                  </p>
+                </div>
               <div>
                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                   <button
@@ -802,25 +795,39 @@ export default function AssignmentsPage() {
                     </svg>
                   </button>
                   {/* 頁碼按鈕 */}
-                  {Array.from({ length: Math.min(5, pagination.total_pages) }, (_, i) => {
-                    const pageNumber = pagination.page + i - 2;
-                    if (pageNumber > 0 && pageNumber <= pagination.total_pages) {
-                      return (
+                  {(() => {
+                    const currentPage = pagination.page;
+                    const totalPages = pagination.total_pages;
+                    const maxVisiblePages = 5;
+                    
+                    // 計算起始頁碼
+                    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                    
+                    // 如果結束頁碼不足 maxVisiblePages，調整起始頁碼
+                    if (endPage - startPage + 1 < maxVisiblePages) {
+                      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                    }
+                    
+                    const pages = [];
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
                         <button
-                          key={pageNumber}
-                          onClick={() => handlePageChange(pageNumber)}
+                          key={i}
+                          onClick={() => handlePageChange(i)}
                           className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            pageNumber === pagination.page
+                            i === currentPage
                               ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                               : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
                           }`}
                         >
-                          {pageNumber}
+                          {i}
                         </button>
                       );
                     }
-                    return null;
-                  })}
+                    
+                    return pages;
+                  })()}
                   <button
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.total_pages}
@@ -846,6 +853,7 @@ export default function AssignmentsPage() {
               </div>
             </div>
           </div>
+          )}
 
           {/* 新增: 批次操作按鈕 */}
           <div className="bg-white shadow rounded-lg p-4">
@@ -853,9 +861,10 @@ export default function AssignmentsPage() {
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
-                  checked={selectedCustomers.length === salespeople.length}
+                  checked={selectedCustomers.length === salespeople.length && salespeople.length > 0}
                   onChange={handleSelectAll}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  disabled={salespeople.length === 0}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                 />
                 <span className="text-sm text-gray-600">
                   已選擇 {selectedCustomers.length} 個業務員

@@ -42,6 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 檢查用戶是否已經登入
   useEffect(() => {
     const checkAuth = async () => {
+      // 只在管理員頁面檢查認證狀態
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin')) {
+        setIsLoading(false);
+        return;
+      }
+
       // 🔑 強化防重複檢查：多層防護
       if (isCheckingAuth.current) {
         authDebugger.log('auth_check', '認證檢查進行中，跳過重複請求', 'AuthContext');

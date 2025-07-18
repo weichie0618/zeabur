@@ -243,6 +243,9 @@ export default function OwnersManagement() {
       setIsDeleting(true);
       setDeleteError(null);
       
+      // 立即隱藏 modal 防止重複操作
+      setShowDeleteConfirm(false);
+      
       // 🔑 安全改進：使用 HttpOnly Cookie 認證
       const data = await apiDelete(`api/customers/${deletingOwnerId}`);
       setDeleteSuccess(data.message || '業主已成功刪除');
@@ -250,9 +253,8 @@ export default function OwnersManagement() {
       // 重新獲取業主列表
       fetchOwners(meta.page);
       
-      // 3秒後清除成功訊息
+      // 3秒後清除成功訊息和重置狀態
       setTimeout(() => {
-        setShowDeleteConfirm(false);
         setDeleteSuccess(null);
         setDeletingOwnerId(null);
       }, 3000);
@@ -260,6 +262,12 @@ export default function OwnersManagement() {
     } catch (err) {
       console.error('刪除業主錯誤:', err);
       setDeleteError(err instanceof Error ? err.message : '刪除業主時發生錯誤');
+      
+      // 如果刪除失敗，顯示錯誤訊息3秒後清除
+      setTimeout(() => {
+        setDeleteError(null);
+        setDeletingOwnerId(null);
+      }, 3000);
     } finally {
       setIsDeleting(false);
     }

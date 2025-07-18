@@ -11,37 +11,35 @@ import {
   UserIcon
 } from '@heroicons/react/24/outline';
 import html2canvas from 'html2canvas';
-// 🔧 新增：引入LIFF相關功能
-import { useLiff } from './SimpleLiffProvider';
+// 引入LIFF相關功能
+import { useLiff } from '../SimpleLiffProvider';
 import { sendLineMessages } from '@/app/services/lineService';
 import { createImageMessage, createTextMessage } from '@/app/services/lineMessageTemplates';
 
-interface ContractData {
+interface BreadContractData {
   storeName: string;        // 門市名稱
   companyName: string;      // 公司名稱
   taxId: string;            // 統一編號
   representativeName: string; // 負責人姓名
   representativeId: string;   // 負責人身分證號
   address: string;          // 地址
-  commissionRate: string;
   signatureData: string;
   signDate: string;
   contractImage?: string;
-  contractImageUrl?: string; // 🔧 新增：伺服器上的合約圖片URL
-  lineUserId?: string;      // 🔧 新增：LINE用戶ID
-  account?: string;         // 🔧 新增：門市帳號（用於檢查客戶是否存在）
+  contractImageUrl?: string; // 伺服器上的合約圖片URL
+  lineUserId?: string;      // LINE用戶ID
 }
 
-export default function OnlineContractPage() {
+export default function BreadContractPage() {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  // 🔧 新增：LIFF相關狀態
+  // LIFF相關狀態
   const { liff, profile, isLoggedIn, isInClient, isLoading: liffLoading, error: liffError } = useLiff();
   
-  // 🔧 新增：動態設置頁面標題
+  // 動態設置頁面標題
   useEffect(() => {
-    document.title = '分潤合約申請 - 城市漢堡';
+    document.title = '麵包販售合作協議 - 城市漢堡';
   }, []);
   
   const [isDrawing, setIsDrawing] = useState(false);
@@ -51,21 +49,20 @@ export default function OnlineContractPage() {
   const [hasReadContract, setHasReadContract] = useState(false);
   const contractContentRef = useRef<HTMLDivElement>(null);
 
-  const [contractData, setContractData] = useState<ContractData>({
+  const [contractData, setContractData] = useState<BreadContractData>({
     storeName: '',
     companyName: '',
     taxId: '',
     representativeName: '',
     representativeId: '',
     address: '',
-    commissionRate: '', // 🔧 修改：預設為空白，讓用戶必須選擇
     signatureData: '',
     signDate: '',
     lineUserId: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  // 🔧 新增：LINE訊息發送相關狀態
+  // LINE訊息發送相關狀態
   const [messageSent, setMessageSent] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
 
@@ -82,7 +79,7 @@ export default function OnlineContractPage() {
     }
   }, []);
 
-  // 🔧 修改：LIFF初始化和用戶資料預填
+  // LIFF初始化和用戶資料預填
   useEffect(() => {
     if (!liffLoading) {
       if (!isLoggedIn && liff) {
@@ -130,21 +127,18 @@ export default function OnlineContractPage() {
       console.log('門市資訊API回應:', result);
       
       if (result.isValid && result.data) {
-        const { account, companyName, storeName, address, taxId } = result.data;
+        const { companyName, storeName, address, taxId } = result.data;
         
-        // 儲存account供後續檢查使用
+        // 只預填門市相關資料，不包括負責人姓名、身分證號
         setContractData(prev => ({
           ...prev,
           companyName: companyName || '',
           storeName: storeName || '',
           address: address || '',
-          taxId: taxId || '',
-          // 儲存account供後續檢查
-          account: account || ''
+          taxId: taxId || ''
         }));
         
         console.log('門市資訊預填成功:', {
-          account,
           companyName,
           storeName, 
           address,
@@ -241,11 +235,7 @@ export default function OnlineContractPage() {
     }
   };
 
-  const handlePrevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+
 
   // 上傳合約圖片到伺服器
   const uploadContractImage = async (imageDataUrl: string) => {
@@ -276,7 +266,7 @@ export default function OnlineContractPage() {
       }
       
       // 生成檔案名稱
-      const fileName = `contract_${contractData.storeName}_${contractData.representativeName}_${Date.now()}.jpg`;
+      const fileName = `bread_contract_${contractData.storeName}_${contractData.representativeName}_${Date.now()}.jpg`;
       
       console.log('📤 準備上傳，檔案名稱:', fileName);
       
@@ -312,29 +302,29 @@ export default function OnlineContractPage() {
     const tempDiv = document.createElement('div');
     tempDiv.className = 'contract-template';
     tempDiv.style.width = '794px';  // 210mm = 794px @ 96dpi
-    tempDiv.style.height = '1123px'; // 🔧 設定固定高度，確保填滿A4
-    tempDiv.style.padding = '15px';  // 🔧 增加padding讓內容更飽滿
+    tempDiv.style.height = '1123px'; // 設定固定高度，確保填滿A4
+    tempDiv.style.padding = '15px';  // 增加padding讓內容更飽滿
     tempDiv.style.background = 'white';
     tempDiv.style.boxSizing = 'border-box';
     tempDiv.style.position = 'relative';
     tempDiv.style.margin = '0 auto';
-    tempDiv.style.overflow = 'hidden'; // 🔧 防止內容溢出
+    tempDiv.style.overflow = 'hidden'; // 防止內容溢出
     
-    // 🔧 修復：在HTML中直接嵌入簽名圖片，然後一起截圖，大幅增強顯示效果
+    // 在HTML中直接嵌入簽名圖片，然後一起截圖
     const signatureImageHtml = contractData.signatureData 
       ? `<img src="${contractData.signatureData}" style="height: 60px; max-width: 200px; object-fit: contain; filter: contrast(300%) brightness(60%) saturate(200%) invert(0%) sepia(0%) hue-rotate(0deg) drop-shadow(0 0 1px #000000); background: white;" />` 
       : '';
     
     tempDiv.innerHTML = `
       <div style="font-family: Arial, sans-serif; font-size: 9px; line-height: 1.4; width: 100%; height: 100%; display: flex; flex-direction: column;">
-        <!-- 🔧 合約標題 - h2樣式，增加margin-bottom -->
+        <!-- 合約標題 -->
         <div style="text-align: center; margin-bottom: 25px;">
-          <h2 style="font-size:25px; margin: 0; font-weight: bold; color: #000; line-height: 1.3;">
-            城市漢堡加盟主參與分潤計畫協議書
+          <h2 style="font-size: 25px; margin: 0; font-weight: bold; color: #000; line-height: 1.3;">
+            城市漢堡門市販售麵包合作附加協議書
           </h2>
         </div>
         
-        <!-- 左右分頁內容區域 - 使用flex填滿剩餘空間 -->
+        <!-- 左右分頁內容區域 -->
         <div style="display: flex; width: 100%; flex: 1; min-height: 0;">
           <!-- 左頁 -->
           <div style="width: 50%; padding: 15px; border-right: 2px solid #000; height: 100%; display: flex; flex-direction: column;">
@@ -354,102 +344,52 @@ export default function OnlineContractPage() {
             </div>
 
             <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第一條 目的</h2>
-              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">為推動城市漢堡品牌線上訂購銷售，提升加盟門市附加收入，雙方同意乙方參與總部所推動之【分潤計畫】，並依本協議書約定條款執行。</p>
+              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第一條｜合作目的</h2>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">為提升門市商品多樣性及整體營業額，乙方同意依本協議規定於門市內販售由甲方提供之麵包產品，並遵守甲方所訂定之各項規範。</p>
             </div>
 
             <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第二條 計畫內容</h2>
-              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                <li style="margin-bottom: 4px;">乙方透過總部核發之專屬 QR Code 或推廣連結，推廣總部指定之線上商品（以下簡稱「推廣商品」）。</li>
-                <li>消費者於推廣連結完成訂購並完成付款，訂單即認列為有效訂單。</li>
+              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第二條｜麵包供應與銷售方式</h2>
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 供應來源：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 8px;">乙方所販售麵包商品，須全數由甲方指定之供應商提供，乙方不得擅自採購、製作或更換商品來源。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 價格規範與限制：</strong></p>
+              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 8px; font-size: 8px; line-height: 1.4;">
+                <li style="margin-bottom: 3px;">所有麵包商品之售價，須依甲方公告之「公版建議售價」販售。</li>
+                <li style="margin-bottom: 3px;">乙方不得擅自調降售價，亦不得以低於建議售價販售商品。</li>
+                <li style="margin-bottom: 3px;">若有促銷需求，須以「期間限定促銷」、「加價購」、「組合優惠」等方式回饋顧客，並須經甲方核准後實施。</li>
+                <li style="margin-bottom: 3px;">若乙方擅自調降價格販售，甲方有權即時中止其麵包販售權益，並得終止本附加協議，乙方不得異議。</li>
               </ol>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>3. 銷售區域限制：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">麵包商品僅限於乙方門市販售，不得於其他平台、通路、批發、網路等販售，除非經甲方另行書面授權。</p>
             </div>
 
             <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第三條 分潤方案與簽約費用</h2>
-              <p style="margin-bottom: 6px; text-indent: 1em; font-size: 9px;">乙方選擇 ${contractData.commissionRate} 分潤方案，簽約費用：${
-                contractData.commissionRate === '5%' ? '免簽約費' :
-                contractData.commissionRate === '10%' ? 'NT$5,000' :
-                contractData.commissionRate === '15%' ? 'NT$10,000' :
-                'NT$15,000'
-              }</p>
-              <p style="margin-bottom: 6px; font-size: 9px;">分潤方案說明：</p>
-              <!-- 🔧 增加表格高度 -->
-              <table style="width: 100%; margin: 6px 0; border-collapse: collapse; font-size: 8px;">
-                <tr>
-                  <th style="padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; background-color: #f5f5f5;">比例</th>
-                  <th style="padding: 8px; text-align: center; font-weight: bold; border: 1px solid #000; background-color: #f5f5f5;">簽約費</th>
-                </tr>
-                <tr style="${contractData.commissionRate === '5%' ? 'background-color: #f8f9fa;' : ''}">
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">5%</td>
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">免費</td>
-                </tr>
-                <tr style="${contractData.commissionRate === '10%' ? 'background-color: #f8f9fa;' : ''}">
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">10%</td>
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">NT$5,000</td>
-                </tr>
-                <tr style="${contractData.commissionRate === '15%' ? 'background-color: #f8f9fa;' : ''}">
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">15%</td>
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">NT$10,000</td>
-                </tr>
-                <tr style="${contractData.commissionRate === '20%' ? 'background-color: #f8f9fa;' : ''}">
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">20%</td>
-                  <td style="padding: 8px; text-align: center; border: 1px solid #000;">NT$15,000</td>
-                </tr>
-              </table>
-              <div style="font-size: 8px; line-height: 1.3;">
-                <p style="margin: 2px 0;">1. 乙方一經選定後，分潤比例及簽約費不得變更或退還。</p>
-                <p style="margin: 2px 0;">2. 簽約費須於簽署後7日內繳清。</p>
-                <p style="margin: 2px 0;">3. 分潤於每月結算，次月底前撥付。</p>
-                <p style="margin: 2px 0;">4. 計算基準扣除運費、稅金5%。</p>
-              </div>
+              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第三條｜產品品質與保存規範</h2>
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 保存與庫存管理：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">乙方須依甲方提供之保存條件進行冷藏／常溫／定期盤點，確保商品品質。並落實先進先出原則。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 效期與新鮮度控管：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">鑑於麵包商品有效期短、易受環境影響，乙方每日須清查商品效期與狀況，不得販售過期、變質、不新鮮之商品。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>3. 過期商品責任：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">若乙方販售過期或不新鮮麵包，造成顧客抱怨、食安問題或商譽損害，乙方應負全部責任，包含賠償顧客損失、主管機關裁罰、媒體處理與法律責任，甲方不負任何連帶賠償。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>4. 商品擺放與標示：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">商品須於清潔衛生之專區陳列，並附上清楚的品名、成份、保存期限與保存方式說明。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>5. 退貨處理：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">乙方如於收貨時發現商品有異常，應於24小時內拍照並提出書面通知，否則視為驗收無誤，後續不得要求退換貨。</p>
             </div>
 
             <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第四條 權利義務</h2>
-              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                <li style="margin-bottom: 3px;">乙方須依總部規範使用文宣及推廣素材。</li>
-                <li style="margin-bottom: 3px;">不得將QR Code提供給第三方平台進行非授權商業用途。</li>
-                <li style="margin-bottom: 3px;">所有訂單由總部統一處理及出貨。</li>
-                <li>乙方應配合總部要求，協助推廣培訓。</li>
-              </ol>
-            </div>
-
-            <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第五條 保密義務</h2>
-              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">乙方不得向第三人洩露任何與本計畫有關之商業機密、行銷策略、顧客資料及任何未公開資訊。</p>
-            </div>
-
-            <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第七條 計畫變更與終止</h2>
-              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 4px; font-size: 9px; line-height: 1.4;">
-                <li style="margin-bottom: 3px;">總部有權依市場需求調整推廣內容、分潤比例，並以書面通知乙方後生效。</li>
-                <li style="margin-bottom: 3px;">若乙方有下列情形，總部得隨時終止本協議：
-                  <ul style="list-style-type: disc; margin-left: 1em; margin-top: 2px; font-size: 8px;">
-                    <li>違反規範或影響品牌商譽</li>
-                    <li>逾期或拒絕提供結算資料</li>
-                    <li>涉嫌違法行為</li>
-                  </ul>
-                </li>
-                <li>雙方可提前30日書面通知終止本協議。</li>
-              </ol>
-            </div>
-
-            <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第六條 知識產權</h2>
-              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                <li style="margin-bottom: 3px;">所有推廣素材、文宣、QR Code之智慧財產權歸總部所有。</li>
-                <li>乙方僅有非專屬、不可轉讓之使用權。</li>
-              </ol>
-            </div>
-
-            <div style="margin-bottom: 12px;">
-              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第八條 免責條款</h2>
-              <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                <li style="margin-bottom: 3px;">總部對於消費者糾紛、退貨、退款等，保有最終處理權。</li>
-                <li>因不可抗力導致訂單或分潤延遲，總部不負損害賠償責任。</li>
-              </ol>
+              <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第四條｜品牌與宣傳規範</h2>
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 品牌授權使用：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">乙方不得擅自以城市漢堡品牌或LOGO製作麵包商品包裝、社群貼文、宣傳物料，相關視覺與文案須由甲方審核與授權。</p>
+              
+              <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 社群與廣告：</strong></p>
+              <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">麵包商品若進行任何線上、實體之促銷或曝光，乙方須將文案與圖像資料送交甲方審核，經核准後方可發布。</p>
             </div>
           </div>
           
@@ -457,122 +397,49 @@ export default function OnlineContractPage() {
           <div style="width: 50%; padding: 15px; height: 100%; display: flex; flex-direction: column;">
             <div style="flex: 1;">
               <div style="margin-bottom: 12px;">
-                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第九條 準據法與管轄</h2>
-                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">本協議書依中華民國法律解釋，若有爭議，以總部所在地法院為管轄法院。</p>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第十條 其他</h2>
-                <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                  <li style="margin-bottom: 3px;">本協議未盡事宜，雙方得另以書面補充約定。</li>
-                  <li>本協議一式二份，雙方各執一份為憑。</li>
-                </ol>
-              </div>
-
-              <div style="margin-bottom: 12px;">
-                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第十一條 關聯性及自動失效條款</h2>
-                <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 0; font-size: 9px; line-height: 1.4;">
-                  <li style="margin-bottom: 3px;">本協議為《加盟合約書》之附加協議，須依附原合約存在。</li>
-                  <li>當《加盟合約書》終止後，本協議亦自動失效。</li>
-                </ol>
-              </div>
-
-              <div style="margin-bottom: 15px;">
-                <h2 style="font-size: 10px; margin-bottom: 8px; font-weight: bold;">附件一：分潤計算說明</h2>
+                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第五條｜責任歸屬與違約處理</h2>
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 商品風險歸屬：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">所有麵包商品自乙方簽收後，風險轉移至乙方。保管不當所致之損失、報廢，甲方不負責任。</p>
                 
-                <div style="margin-bottom: 8px;">
-                  <h3 style="font-size: 9px; margin-bottom: 4px; font-weight: bold;">💡 分潤計算基準說明</h3>
-                  <ul style="list-style-type: none; margin-left: 0; font-size: 8px; line-height: 1.3;">
-                    <li style="margin-bottom: 2px;">• 訂單金額採「實際付款金額」為基礎</li>
-                    <li style="margin-bottom: 2px;">• 需先扣除運費、稅金（5%）再計算分潤</li>
-                    <li style="margin-bottom: 2px;">• 分潤金額依加盟主所選擇之方案比例計算</li>
-                  </ul>
-                  <div style="border-bottom: 1px solid #ddd; margin: 8px 0;"></div>
-                </div>
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 食品安全事故：</strong></p>
+                <ol style="list-style-type: decimal; margin-left: 1em; margin-bottom: 8px; font-size: 8px; line-height: 1.4;">
+                  <li style="margin-bottom: 3px;">若因甲方製造過程導致食品安全事件，甲方負責處理與賠償。</li>
+                  <li style="margin-bottom: 3px;">若因乙方保存不當、過期販售或販售非授權麵包，導致顧客受害或媒體報導，應由乙方負完全責任，並賠償甲方因此受損之商譽與營業損失。</li>
+                </ol>
+                
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>3. 違約處理：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">若乙方違反本協議任何條款，甲方得書面通知並限期改善，未於期限內改善者，甲方得立即終止合作並保留法律追訴與損害賠償權利。</p>
+              </div>
 
-                <div style="margin-bottom: 8px;">
-                  <h3 style="font-size: 9px; margin-bottom: 4px; font-weight: bold;">💰 範例說明</h3>
-                  <div style="margin-bottom: 6px;">
-                    <h4 style="font-size: 8px; margin-bottom: 3px; font-weight: bold;">✅ 假設情境</h4>
-                    <ul style="list-style-type: none; margin-left: 0; font-size: 7px; line-height: 1.3;">
-                      <li style="margin-bottom: 1px;">• 單月總訂單金額（含稅含運費）：NT$50,000</li>
-                      <li style="margin-bottom: 1px;">• 其中運費：NT$3,000</li>
-                      <li style="margin-bottom: 1px;">• 稅金（5%）：NT$2,500</li>
-                    </ul>
-                    <div style="border-bottom: 1px solid #ddd; margin: 6px 0;"></div>
-                  </div>
+              <div style="margin-bottom: 12px;">
+                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第六條｜協議期間與終止</h2>
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 效期連動條款：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">本附加協議之有效期間與乙方原加盟合約相同；若加盟合約終止、屆滿、撤銷或不續約，本協議亦自動終止，雙方不再負有履約義務。</p>
+                
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 提前終止：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">若乙方有重大違約、影響品牌聲譽、或違反價格與食品安全規定，甲方有權不經通知逕行終止本附加協議，且不負補償責任。</p>
+              </div>
 
-                  <div style="margin-bottom: 6px;">
-                    <h4 style="font-size: 8px; margin-bottom: 3px; font-weight: bold;">✅ 計算流程</h4>
-                    <div style="font-size: 7px; line-height: 1.3;">
-                      <p style="margin-bottom: 2px;">1️⃣ 扣除運費</p>
-                      <p style="margin-bottom: 2px; margin-left: 10px;">NT$50,000 − NT$3,000 ＝ NT$47,000</p>
-                      <p style="margin-bottom: 2px;">2️⃣ 再扣除稅金 5%</p>
-                      <p style="margin-bottom: 2px; margin-left: 10px;">NT$47,000 × 0.95 ＝ NT$44,650（為分潤基礎金額）</p>
-                    </div>
-                    <div style="border-bottom: 1px solid #ddd; margin: 6px 0;"></div>
-                  </div>
-
-                  <div style="margin-bottom: 6px;">
-                    <h4 style="font-size: 8px; margin-bottom: 3px; font-weight: bold;">✅ 分潤計算</h4>
-                    <table style="width: 100%; margin: 4px 0; border-collapse: collapse; font-size: 6px;">
-                      <tr>
-                        <th style="padding: 4px; text-align: center; border: 1px solid #000; background-color: #f5f5f5; font-weight: bold;">分潤方案</th>
-                        <th style="padding: 4px; text-align: center; border: 1px solid #000; background-color: #f5f5f5; font-weight: bold;">分潤比例</th>
-                        <th style="padding: 4px; text-align: center; border: 1px solid #000; background-color: #f5f5f5; font-weight: bold;">分潤金額 (NT$)</th>
-                      </tr>
-                      <tr>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">5%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">5%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">NT$44,650 × 5% = NT$2,232</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">10%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">10%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">NT$44,650 × 10% = NT$4,465</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">15%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">15%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">NT$44,650 × 15% = NT$6,698</td>
-                      </tr>
-                      <tr>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">20%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">20%</td>
-                        <td style="padding: 4px; text-align: center; border: 1px solid #000;">NT$44,650 × 20% = NT$8,930</td>
-                      </tr>
-                    </table>
-                    <div style="border-bottom: 1px solid #ddd; margin: 6px 0;"></div>
-                  </div>
-
-                  <div style="margin-bottom: 6px;">
-                    <h4 style="font-size: 8px; margin-bottom: 3px; font-weight: bold;">✅ 結論（以20%方案為例）</h4>
-                    <ul style="list-style-type: none; margin-left: 0; font-size: 7px; line-height: 1.3;">
-                      <li style="margin-bottom: 1px;">• 單月總訂單：NT$50,000</li>
-                      <li style="margin-bottom: 1px;">• 最終實拿分潤：約 NT$8,930</li>
-                    </ul>
-                    <div style="border-bottom: 1px solid #ddd; margin: 6px 0;"></div>
-                  </div>
-                </div>
-
-                <div style="margin-bottom: 8px;">
-                  <h3 style="font-size: 8px; margin-bottom: 3px; font-weight: bold;">🟢 ⚖️ 重要提醒</h3>
-                  <ul style="list-style-type: none; margin-left: 0; font-size: 7px; line-height: 1.3;">
-                    <li style="margin-bottom: 2px;">• 若發生退款或取消，將於後續月份分潤中扣回</li>
-                    <li>• 每月結算後，於次月底前撥款給加盟主</li>
-                  </ul>
-                </div>
+              <div style="margin-bottom: 12px;">
+                <h2 style="font-size: 11px; margin-bottom: 6px; font-weight: bold;">第七條｜其他約定</h2>
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>1. 附屬性：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">本附加協議為乙方加盟合約之延伸條款，效力與加盟合約相同，並與之構成不可分割之一部分。</p>
+                
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>2. 未盡事宜補充：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4; margin-bottom: 6px;">如有未盡事宜，雙方得以書面協議補充之，並具同等法律效力。</p>
+                
+                <p style="margin-bottom: 6px; font-size: 9px;"><strong>3. 自動更新條款：</strong></p>
+                <p style="text-indent: 1em; font-size: 9px; line-height: 1.4;">為配合商品、營運政策及品牌策略之彈性調整，甲方得隨時更新或調整本附加協議內容。乙方同意後續若有協議內容之修訂、增補或更新，甲方得於內部公告系統或門市通知平台發布後即視為生效，無須個別另行通知，乙方應自動遵守。</p>
               </div>
             </div>
 
-            <!-- 🔧 簽名區 - 放置右下方，上下排列 -->
+            <!-- 簽名區 - 放置右下方，上下排列 -->
             <div style="margin-top: auto; padding-top: 15px; border-top: 2px solid #000;">
               <!-- 甲方簽名區 -->
               <div style="margin-bottom: 20px;">
                 <p style="font-size: 10px; margin-bottom: 3px; font-weight: bold;">甲方</p>
                 <p style="font-size: 9px; margin-bottom: 2px;">屹澧股份有限公司</p>
                 <p style="font-size: 9px; margin-bottom: 10px;">統編：54938525</p>
-               
               </div>
               
               <!-- 乙方簽名區 -->
@@ -594,7 +461,7 @@ export default function OnlineContractPage() {
           </div>
         </div>
 
-        <!-- 🔧 日期區 - 最下方，不受左右分頁限制，h3字體大小和增加字間距 -->
+        <!-- 日期區 - 最下方，不受左右分頁限制 -->
         <div style="text-align: center; margin-top: 15px; padding: 10px; border-top: 1px solid #ddd;">
           <h3 style="font-size: 14px; margin: 0; font-weight: bold; letter-spacing: 3px;">
             簽約日期：${new Date().toLocaleDateString('zh-TW')}
@@ -606,7 +473,7 @@ export default function OnlineContractPage() {
     document.body.appendChild(tempDiv);
 
     try {
-      // 🔧 等待圖片載入完成再截圖
+      // 等待圖片載入完成再截圖
       if (contractData.signatureData) {
         await new Promise((resolve) => {
           const img = tempDiv.querySelector('img');
@@ -655,7 +522,7 @@ export default function OnlineContractPage() {
     }
   };
 
-  // 🔧 改進：驗證圖片URL可用性的函數
+  // 驗證圖片URL可用性的函數
   const verifyImageAvailability = async (imageUrl: string, maxRetries: number = 3): Promise<boolean> => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -685,10 +552,10 @@ export default function OnlineContractPage() {
     return false;
   };
 
-  // 🔧 新增：發送合約簽署通知給管理員的函數
+  // 發送合約簽署通知給管理員的函數
   const sendContractNotification = async (storeName: string, representativeName: string) => {
     try {
-      console.log('📨 開始發送分潤合約簽署通知給管理員:', { storeName, representativeName });
+      console.log('📨 開始發送麵包合約簽署通知給管理員:', { storeName, representativeName });
       
       const response = await fetch('/api/line-message/send/contract-notification', {
         method: 'POST',
@@ -699,7 +566,7 @@ export default function OnlineContractPage() {
         body: JSON.stringify({
           storeName,
           representativeName,
-          contractType: '分潤合約'
+          contractType: '麵包合約'
         }),
         credentials: 'include'
       });
@@ -718,7 +585,7 @@ export default function OnlineContractPage() {
     }
   };
 
-  // 🔧 改進：發送LINE圖片訊息的函數（增加驗證和重試機制）
+  // 發送LINE圖片訊息的函數（增加驗證和重試機制）
   const sendContractImageToLine = async (imageUrl: string) => {
     if (!liff || !isInClient) {
       console.log('不在LINE環境中，跳過發送訊息');
@@ -735,7 +602,7 @@ export default function OnlineContractPage() {
 
       console.log('🖼️ 準備發送合約圖片:', fullImageUrl);
 
-      // 🔧 關鍵改進：驗證圖片URL在發送前確實可用
+      // 驗證圖片URL在發送前確實可用
       console.log('🔍 開始驗證圖片可用性...');
       const isImageAvailable = await verifyImageAvailability(fullImageUrl);
       
@@ -745,22 +612,8 @@ export default function OnlineContractPage() {
 
       console.log('✅ 圖片驗證通過，開始發送LINE訊息...');
 
-      // 創建文字訊息，根據分潤比例添加簽約費提醒
-      let messageText = '您的分潤合約已成功簽署！';
-      
-      // 只有付費方案才需要簽約費提醒
-      if (contractData.commissionRate !== '5%') {
-        const contractFee = 
-          contractData.commissionRate === '10%' ? 'NT$5,000' :
-          contractData.commissionRate === '15%' ? 'NT$10,000' :
-          contractData.commissionRate === '20%' ? 'NT$15,000' : '';
-        
-        if (contractFee) {
-          messageText += `\n\n提醒您：簽約費${contractFee}須於7日內付款`;
-        }
-      }
-      
-      const textMessage = createTextMessage(messageText);
+      // 創建文字訊息
+      const textMessage = createTextMessage('您的麵包販售合作協議已成功簽署！\n\n感謝您加入城市漢堡麵包販售計畫，後續將有專人與您聯繫相關細節。');
       
       // 創建圖片訊息
       const imageMessage = createImageMessage(fullImageUrl, fullImageUrl);
@@ -780,11 +633,11 @@ export default function OnlineContractPage() {
             liff.closeWindow();
           }
         }, 2000);
-              } else {
-          console.error('❌ 合約圖片發送失敗:', result.error);
-          const errorMsg = typeof result.error === 'string' ? result.error : '訊息發送失敗';
-          throw new Error(errorMsg);
-        }
+      } else {
+        console.error('❌ 合約圖片發送失敗:', result.error);
+        const errorMsg = typeof result.error === 'string' ? result.error : '訊息發送失敗';
+        throw new Error(errorMsg);
+      }
     } catch (error) {
       console.error('💥 發送合約圖片時發生錯誤:', error);
       
@@ -796,57 +649,13 @@ export default function OnlineContractPage() {
     }
   };
 
-    const generateContract = async () => {
+  const generateContract = async () => {
     setIsSubmitting(true);
     const startTime = Date.now();
     
     try {
       const signDate = new Date().toLocaleDateString('zh-TW');
       console.log('🚀 開始生成合約流程...');
-      
-      // 🔍 檢查客戶是否存在
-      if (contractData.account) {
-        console.log('🔍 檢查客戶是否存在:', contractData.account);
-        
-        try {
-          const checkResponse = await fetch('/api/customers/check-and-create', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              account: contractData.account,
-              representativeName: contractData.representativeName,
-              representativeId: contractData.representativeId,
-              storeName: contractData.storeName,
-              address: contractData.address,
-              commissionRate: contractData.commissionRate
-            }),
-            credentials: 'include'
-          });
-
-          if (!checkResponse.ok) {
-            throw new Error('檢查客戶資料失敗');
-          }
-
-          const checkResult = await checkResponse.json();
-          console.log('客戶檢查結果:', checkResult);
-
-          // 如果客戶已存在，顯示提示並停止流程
-          if (checkResult.exists) {
-            alert(checkResult.message);
-            setIsSubmitting(false);
-            return;
-          }
-
-          console.log('✅ 客戶資料檢查完成，可以繼續簽約流程');
-        } catch (error) {
-          console.error('❌ 檢查客戶資料時發生錯誤:', error);
-          alert('檢查客戶資料時發生錯誤，請稍後再試');
-          setIsSubmitting(false);
-          return;
-        }
-      }
       
       // 📄 步驟1：生成合約圖片
       console.log('📄 步驟1：開始生成合約圖片...');
@@ -941,7 +750,7 @@ export default function OnlineContractPage() {
 
   const downloadContract = async () => {
     try {
-      // 🔧 優先使用伺服器URL，如果沒有則使用本地base64圖片
+      // 優先使用伺服器URL，如果沒有則使用本地base64圖片
       const imageUrl = contractData.contractImageUrl || contractData.contractImage;
       
       if (!imageUrl) {
@@ -950,7 +759,7 @@ export default function OnlineContractPage() {
       }
       
       if (contractData.contractImageUrl) {
-        // 📥 從伺服器下載圖片
+        // 從伺服器下載圖片
         const response = await fetch(contractData.contractImageUrl);
         if (!response.ok) {
           throw new Error('無法從伺服器下載圖片');
@@ -961,7 +770,7 @@ export default function OnlineContractPage() {
         
         const link = document.createElement('a');
         link.href = url;
-        link.download = `分潤合約_${contractData.representativeName}_${contractData.signDate?.replace(/\//g, '-') || new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.jpg`;
+        link.download = `麵包販售合約_${contractData.representativeName}_${contractData.signDate?.replace(/\//g, '-') || new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -969,10 +778,10 @@ export default function OnlineContractPage() {
         // 清理臨時URL
         window.URL.revokeObjectURL(url);
       } else {
-        // 📥 使用本地base64圖片下載（備用方案）
+        // 使用本地base64圖片下載（備用方案）
         const link = document.createElement('a');
         link.href = contractData.contractImage!;
-        link.download = `分潤合約_${contractData.representativeName}_${contractData.signDate?.replace(/\//g, '-') || new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.jpg`;
+        link.download = `麵包販售合約_${contractData.representativeName}_${contractData.signDate?.replace(/\//g, '-') || new Date().toLocaleDateString('zh-TW').replace(/\//g, '-')}.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -982,12 +791,12 @@ export default function OnlineContractPage() {
     }
   };
 
-  // 🔧 新增：處理LIFF載入中的狀態
+  // 處理LIFF載入中的狀態
   if (liffLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
           <p className="text-gray-600">載入中...</p>
           <p className="text-sm text-gray-500 mt-2">正在初始化LINE服務...</p>
         </div>
@@ -995,7 +804,7 @@ export default function OnlineContractPage() {
     );
   }
 
-  // 🔧 新增：處理LIFF錯誤
+  // 處理LIFF錯誤
   if (liffError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
@@ -1005,7 +814,7 @@ export default function OnlineContractPage() {
             <p className="text-gray-600 mb-4">{liffError.message}</p>
             <button
               onClick={() => router.push('/')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700"
             >
               返回首頁
             </button>
@@ -1015,7 +824,7 @@ export default function OnlineContractPage() {
     );
   }
 
-{/* 合約簽屬完成 */}
+  // 合約簽屬完成
   if (isCompleted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-100 flex items-center justify-center p-4">
@@ -1030,16 +839,16 @@ export default function OnlineContractPage() {
           
           <div className="text-gray-600 mb-6 space-y-2">
             <p className="text-sm">
-              您的分潤合約已成功簽署！
+              您的麵包販售合約已成功簽署！
             </p>
             
             {/* LINE訊息發送狀態 */}
-            {isInClient && (
-              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                            {isInClient && (
+              <div className="mt-4 p-4 bg-amber-50 rounded-lg">
                 {sendingMessage ? (
                   <div className="flex items-center justify-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <p className="text-sm text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-600"></div>
+                    <p className="text-sm text-amber-600">
                       📱 正在發送合約圖片到LINE...
                     </p>
                   </div>
@@ -1076,7 +885,7 @@ export default function OnlineContractPage() {
               {!isInClient && (
                 <button
                   onClick={() => router.push('/')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-200"
                 >
                   返回首頁
                 </button>
@@ -1098,7 +907,7 @@ export default function OnlineContractPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-4 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 to-orange-100 py-4 px-4">
       <div className="max-w-md mx-auto md:max-w-2xl lg:max-w-4xl">
         {/* 進度條 */}
         <div className="mb-6">
@@ -1107,7 +916,7 @@ export default function OnlineContractPage() {
               {[1, 2, 3].map((step) => (
                 <div key={step} className="flex flex-col items-center relative">
                   <div className={`text-xs md:text-sm font-medium mb-2 whitespace-nowrap text-center ${
-                    step <= currentStep ? 'text-blue-600' : 'text-gray-500'
+                    step <= currentStep ? 'text-amber-600' : 'text-gray-500'
                   }`}>
                     {step === 1 && '填寫資料'}
                     {step === 2 && '審閱合約'}
@@ -1115,13 +924,13 @@ export default function OnlineContractPage() {
                   </div>
                   <div className="flex items-center relative">
                     <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center text-sm relative ${
-                      step <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
+                      step <= currentStep ? 'bg-amber-600 text-white' : 'bg-gray-200 text-gray-500'
                     }`}>
                       {step}
                     </div>
                     {step < 3 && (
                       <div className={`absolute left-full top-1/2 -translate-y-1/2 w-12 md:w-16 h-0.5 md:h-1 ${
-                        step < currentStep ? 'bg-blue-600' : 'bg-gray-200'
+                        step < currentStep ? 'bg-amber-600' : 'bg-gray-200'
                       }`} style={{ marginLeft: '0.5rem' }} />
                     )}
                   </div>
@@ -1136,8 +945,8 @@ export default function OnlineContractPage() {
           {currentStep === 1 && (
             <div className="p-6 md:p-8">
               <div className="text-center mb-6">
-                <div className="mx-auto flex items-center justify-center h-12 w-12 md:h-16 md:w-16 rounded-full bg-blue-100 mb-4">
-                  <UserIcon className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
+                <div className="mx-auto flex items-center justify-center h-12 w-12 md:h-16 md:w-16 rounded-full bg-amber-100 mb-4">
+                  <UserIcon className="h-6 w-6 md:h-8 md:w-8 text-amber-600" />
                 </div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                   填寫合約資料
@@ -1159,7 +968,7 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.storeName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入門市名稱"
                     />
                   </div>
@@ -1174,7 +983,7 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.companyName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入公司名稱"
                     />
                   </div>
@@ -1189,7 +998,7 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.taxId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入統一編號"
                       pattern="[0-9]{8}"
                       maxLength={8}
@@ -1206,7 +1015,7 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.representativeName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入負責人姓名"
                     />
                   </div>
@@ -1221,7 +1030,7 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.representativeId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入身分證號"
                       pattern="[A-Z][0-9]{9}"
                       maxLength={10}
@@ -1238,43 +1047,9 @@ export default function OnlineContractPage() {
                       required
                       value={contractData.address}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-base"
                       placeholder="請輸入完整地址"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      分潤比例 *
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="commissionRate"
-                        value={contractData.commissionRate}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base appearance-none bg-white pr-10"
-                        required
-                      >
-                      <option value="" disabled className="text-gray-500">
-                        請選擇分潤比例...
-                      </option>
-                      <option value="5%" className="text-gray-900">
-                        5% - 免簽約費
-                      </option>
-                      <option value="10%" className="text-gray-900">
-                        10% - NT$5,000
-                      </option>
-                      <option value="15%" className="text-gray-900">
-                        15% - NT$10,000
-                      </option>
-                      <option value="20%" className="text-gray-900">
-                        20% - NT$15,000
-                      </option>
-                    </select>
-                    
-                   </div>
-                   
-                   
                   </div>
                 </div>
               </form>
@@ -1282,8 +1057,8 @@ export default function OnlineContractPage() {
               <div className="flex justify-center mt-8">
                 <button
                   onClick={handleNextStep}
-                  disabled={!contractData.storeName.trim() || !contractData.companyName.trim() || !contractData.taxId.trim() || !contractData.representativeName.trim() || !contractData.representativeId.trim() || !contractData.address.trim() || !contractData.commissionRate}
-                  className="w-full max-w-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition duration-200"
+                  disabled={!contractData.storeName.trim() || !contractData.companyName.trim() || !contractData.taxId.trim() || !contractData.representativeName.trim() || !contractData.representativeId.trim() || !contractData.address.trim()}
+                  className="w-full max-w-xs bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition duration-200"
                 >
                   下一步
                 </button>
@@ -1317,7 +1092,7 @@ export default function OnlineContractPage() {
                 }}
               >
                 <div className="prose prose-sm md:prose-base max-w-none">
-                  <h3 className="text-xl md:text-2xl font-bold text-center mb-6 md:mb-8">城市漢堡<br />加盟主參與分潤計畫協議書</h3>
+                  <h3 className="text-xl md:text-2xl font-bold text-center mb-6 md:mb-8">城市漢堡門市販售麵包<br />合作附加協議書</h3>
                   
                   <div className="space-y-4 md:space-y-6 text-sm md:text-base">
                     <div>
@@ -1339,228 +1114,134 @@ export default function OnlineContractPage() {
                     </div>
                     
                     <div className="border-t pt-4 md:pt-6">
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第一條 目的</h4>
-                      <p>為推動城市漢堡品牌線上訂購銷售，提升加盟門市附加收入，雙方同意乙方參與總部所推動之【分潤計畫】，並依本協議書約定條款執行。</p>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第一條｜合作目的</h4>
+                      <p>為提升門市商品多樣性及整體營業額，乙方同意依本協議規定於門市內販售由甲方提供之麵包產品，並遵守甲方所訂定之各項規範。</p>
                     </div>
 
                     <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第二條 計畫內容</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>乙方透過總部核發之專屬 QR Code 或推廣連結，推廣總部指定之線上商品（以下簡稱「推廣商品」）。</li>
-                        <li>消費者於推廣連結完成訂購並完成付款，訂單即認列為有效訂單。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第三條 分潤方案與簽約費用</h4>
-                      <p>乙方選擇 {contractData.commissionRate} 分潤方案</p>
-                        <p>簽約費用：
-                      {contractData.commissionRate === '5%' && '免簽約費'}
-                      {contractData.commissionRate === '10%' && 'NT$5,000'}
-                      {contractData.commissionRate === '15%' && 'NT$10,000'}
-                      {contractData.commissionRate === '20%' && 'NT$15,000'}
-                      </p>
-                      <p className="mt-2">分潤方案說明：</p>
-                      <table className="min-w-full mt-2 mb-4">
-                        <thead>
-                          <tr>
-                            <th className="text-left py-2 px-4 bg-gray-50">分潤比例</th>
-                            <th className="text-left py-2 px-4 bg-gray-50">簽約費用 (一次性)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className={contractData.commissionRate === '5%' ? 'bg-blue-50' : ''}>
-                            <td className="py-2 px-4">5%</td>
-                            <td className="py-2 px-4">免簽約費</td>
-                          </tr>
-                          <tr className={contractData.commissionRate === '10%' ? 'bg-blue-50' : ''}>
-                            <td className="py-2 px-4">10%</td>
-                            <td className="py-2 px-4">NT$5,000</td>
-                          </tr>
-                          <tr className={contractData.commissionRate === '15%' ? 'bg-blue-50' : ''}>
-                            <td className="py-2 px-4">15%</td>
-                            <td className="py-2 px-4">NT$10,000</td>
-                          </tr>
-                          <tr className={contractData.commissionRate === '20%' ? 'bg-blue-50' : ''}>
-                            <td className="py-2 px-4">20%</td>
-                            <td className="py-2 px-4">NT$15,000</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>乙方一經選定後，分潤比例及簽約費不得變更或退還，除非經總部書面同意。</li>
-                        <li>簽約費須於本協議簽署後 7 日內一次繳清，逾期視同放棄優惠方案，並以 5% 方案為基準。</li>
-                        <li>分潤金額將於每月結算，並於次月底前匯入乙方指定帳戶（需提供公司戶或合法個人戶）。</li>
-                        <li>計算基準皆扣除運費、稅金5%。</li>
-                        <li>詳細計算方式依附件一說明為準。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第四條 權利義務</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>乙方須依總部規範使用文宣及推廣素材，不得自行修改或另行製作。</li>
-                        <li>推廣期間，乙方不得將總部 QR Code 或推廣連結提供給第三方平台進行非授權商業用途（例如轉售、投放廣告、代理分發等）。</li>
-                        <li>所有訂單由總部統一收款、處理及出貨，乙方不得干預或自行處理消費者訂單。</li>
-                        <li>乙方應配合總部要求，協助進行推廣培訓及必要資訊更新。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第五條 保密義務</h4>
-                      <p>乙方不得向第三人洩露任何與本計畫有關之商業機密、行銷策略、顧客資料及任何未公開資訊。</p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第七條 計畫變更與終止</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>總部有權依市場需求及經營策略，調整推廣內容、分潤比例、推廣商品或文宣素材，並以書面或電子方式通知乙方後生效。</li>
-                        <li>若乙方有下列情形之一，總部得隨時單方終止本協議，並不支付後續分潤：
-                          <ul className="list-disc list-inside ml-4 mt-2">
-                            <li>違反總部規範或影響品牌商譽</li>
-                            <li>逾期或拒絕提供正確結算資料</li>
-                            <li>涉嫌違法行為或損害消費者權益</li>
-                          </ul>
-                        </li>
-                        <li>雙方可提前 30 日以書面通知方式終止本協議，惟終止前之已完成訂單仍依約結算。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第八條 免責條款</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>總部對於消費者於推廣商品下單後產生之任何糾紛、退貨、退款或損害，保有最終處理及決策權，乙方不得異議。</li>
-                        <li>因不可抗力（如天災、疫情、法令變動等）導致訂單或分潤延遲，總部不負損害賠償責任。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第九條 準據法與管轄</h4>
-                      <p>本協議書依中華民國法律解釋與適用，若有訴訟爭議，雙方同意以總部所在地之地方法院為第一審管轄法院。</p>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第十條 其他</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>本協議未盡事宜，雙方得另以書面補充約定，並與本協議具同等效力。</li>
-                        <li>本協議一式二份，雙方各執一份為憑。</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <h4 className="text-lg md:text-xl font-semibold mb-3">第十一條 關聯性及自動失效條款</h4>
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>本協議書為乙方與甲方所簽訂之《加盟合約書》之附加協議，雙方同意本協議條款須依附於原加盟合約存在與履行。</li>
-                        <li>當《加盟合約書》因任何原因截止、終止或解除後，本附加協議亦將自動停止效力，雙方無需另行通知，且不得再主張任何後續分潤權利。</li>
-                      </ol>
-                    </div>
-
-                    <div className="mt-6 md:mt-8">
-                      <h4 className="text-lg md:text-xl font-semibold mb-4">附件一：分潤計算說明</h4>
-                      
-                      <div className="space-y-6">
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第二條｜麵包供應與銷售方式</h4>
+                      <div className="space-y-4">
                         <div>
-                          <h5 className="text-base md:text-lg font-semibold mb-3 flex items-center">
-                            💡 分潤計算基準說明
-                          </h5>
-                          <ul className="list-disc list-inside space-y-1 text-sm md:text-base ml-4">
-                            <li>訂單金額採「實際付款金額」為基礎</li>
-                            <li>需先扣除運費、稅金（5%）再計算分潤</li>
-                            <li>分潤金額依加盟主所選擇之方案比例計算</li>
-                          </ul>
-                          <hr className="my-4 border-gray-300" />
+                          <h5 className="font-semibold mb-2">1. 供應來源：</h5>
+                          <p className="pl-4">乙方所販售麵包商品，須全數由甲方指定之供應商提供，乙方不得擅自採購、製作或更換商品來源。</p>
                         </div>
-
+                        
                         <div>
-                          <h5 className="text-base md:text-lg font-semibold mb-3 flex items-center">
-                            💰 範例說明
-                          </h5>
-                          
-                          <div className="mb-4">
-                            <h6 className="text-sm md:text-base font-semibold mb-2 flex items-center">
-                              ✅ 假設情境
-                            </h6>
-                            <ul className="list-disc list-inside space-y-1 text-sm md:text-base ml-4">
-                              <li>單月總訂單金額（含稅含運費）：NT$50,000</li>
-                              <li>其中運費：NT$3,000</li>
-                              <li>稅金（5%）：NT$2,500</li>
-                            </ul>
-                            <hr className="my-4 border-gray-300" />
-                          </div>
+                          <h5 className="font-semibold mb-2">2. 價格規範與限制：</h5>
+                          <ol className="list-decimal list-inside space-y-2 pl-4">
+                            <li>所有麵包商品之售價，須依甲方公告之「公版建議售價」販售。</li>
+                            <li>乙方不得擅自調降售價，亦不得以低於建議售價販售商品。</li>
+                            <li>若有促銷需求，須以「期間限定促銷」、「加價購」、「組合優惠」等方式回饋顧客，並須經甲方核准後實施。</li>
+                            <li>若乙方擅自調降價格販售，甲方有權即時中止其麵包販售權益，並得終止本附加協議，乙方不得異議。</li>
+                          </ol>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">3. 銷售區域限制：</h5>
+                          <p className="pl-4">麵包商品僅限於乙方門市販售，不得於其他平台、通路、批發、網路等販售，除非經甲方另行書面授權。</p>
+                        </div>
+                      </div>
+                    </div>
 
-                          <div className="mb-4">
-                            <h6 className="text-sm md:text-base font-semibold mb-2 flex items-center">
-                              ✅ 計算流程
-                            </h6>
-                            <div className="text-sm md:text-base space-y-2 ml-4">
-                              <p><strong>1️⃣ 扣除運費</strong></p>
-                              <p className="ml-4">NT$50,000 − NT$3,000 ＝ NT$47,000</p>
-                              <p><strong>2️⃣ 再扣除稅金 5%</strong></p>
-                              <p className="ml-4">NT$47,000 × 0.95 ＝ NT$44,650（為分潤基礎金額）</p>
-                            </div>
-                            <hr className="my-4 border-gray-300" />
-                          </div>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第三條｜產品品質與保存規範</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-semibold mb-2">1. 保存與庫存管理：</h5>
+                          <p className="pl-4">乙方須依甲方提供之保存條件進行冷藏／常溫／定期盤點，確保商品品質。並落實先進先出原則。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">2. 效期與新鮮度控管：</h5>
+                          <p className="pl-4">鑑於麵包商品有效期短、易受環境影響，乙方每日須清查商品效期與狀況，不得販售過期、變質、不新鮮之商品。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">3. 過期商品責任：</h5>
+                          <p className="pl-4">若乙方販售過期或不新鮮麵包，造成顧客抱怨、食安問題或商譽損害，乙方應負全部責任，包含賠償顧客損失、主管機關裁罰、媒體處理與法律責任，甲方不負任何連帶賠償。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">4. 商品擺放與標示：</h5>
+                          <p className="pl-4">商品須於清潔衛生之專區陳列，並附上清楚的品名、成份、保存期限與保存方式說明。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">5. 退貨處理：</h5>
+                          <p className="pl-4">乙方如於收貨時發現商品有異常，應於24小時內拍照並提出書面通知，否則視為驗收無誤，後續不得要求退換貨。</p>
+                        </div>
+                      </div>
+                    </div>
 
-                          <div className="mb-4">
-                            <h6 className="text-sm md:text-base font-semibold mb-2 flex items-center">
-                              ✅ 分潤計算
-                            </h6>
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full mt-2 mb-4 text-sm">
-                                <thead>
-                                  <tr className="bg-gray-50">
-                                    <th className="text-left py-2 px-4 font-semibold">分潤方案</th>
-                                    <th className="text-left py-2 px-4 font-semibold">分潤比例</th>
-                                    <th className="text-left py-2 px-4 font-semibold">分潤金額 (NT$)</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  <tr className="border-b">
-                                    <td className="py-2 px-4">5%</td>
-                                    <td className="py-2 px-4">5%</td>
-                                    <td className="py-2 px-4">NT$44,650 × 5% = NT$2,232</td>
-                                  </tr>
-                                  <tr className="border-b">
-                                    <td className="py-2 px-4">10%</td>
-                                    <td className="py-2 px-4">10%</td>
-                                    <td className="py-2 px-4">NT$44,650 × 10% = NT$4,465</td>
-                                  </tr>
-                                  <tr className="border-b">
-                                    <td className="py-2 px-4">15%</td>
-                                    <td className="py-2 px-4">15%</td>
-                                    <td className="py-2 px-4">NT$44,650 × 15% = NT$6,698</td>
-                                  </tr>
-                                  <tr className="border-b">
-                                    <td className="py-2 px-4">20%</td>
-                                    <td className="py-2 px-4">20%</td>
-                                    <td className="py-2 px-4">NT$44,650 × 20% = NT$8,930</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                            <hr className="my-4 border-gray-300" />
-                          </div>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第四條｜品牌與宣傳規範</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-semibold mb-2">1. 品牌授權使用：</h5>
+                          <p className="pl-4">乙方不得擅自以城市漢堡品牌或LOGO製作麵包商品包裝、社群貼文、宣傳物料，相關視覺與文案須由甲方審核與授權。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">2. 社群與廣告：</h5>
+                          <p className="pl-4">麵包商品若進行任何線上、實體之促銷或曝光，乙方須將文案與圖像資料送交甲方審核，經核准後方可發布。</p>
+                        </div>
+                      </div>
+                    </div>
 
-                          <div className="mb-4">
-                            <h6 className="text-sm md:text-base font-semibold mb-2 flex items-center">
-                              ✅ 結論（以20%方案為例）
-                            </h6>
-                            <ul className="list-disc list-inside space-y-1 text-sm md:text-base ml-4">
-                              <li>單月總訂單：NT$50,000</li>
-                              <li>最終實拿分潤：約 NT$8,930</li>
-                            </ul>
-                            <hr className="my-4 border-gray-300" />
-                          </div>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第五條｜責任歸屬與違約處理</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-semibold mb-2">1. 商品風險歸屬：</h5>
+                          <p className="pl-4">所有麵包商品自乙方簽收後，風險轉移至乙方。保管不當所致之損失、報廢，甲方不負責任。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">2. 食品安全事故：</h5>
+                          <ol className="list-decimal list-inside space-y-2 pl-4">
+                            <li>若因甲方製造過程導致食品安全事件，甲方負責處理與賠償。</li>
+                            <li>若因乙方保存不當、過期販售或販售非授權麵包，導致顧客受害或媒體報導，應由乙方負完全責任，並賠償甲方因此受損之商譽與營業損失。</li>
+                          </ol>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">3. 違約處理：</h5>
+                          <p className="pl-4">若乙方違反本協議任何條款，甲方得書面通知並限期改善，未於期限內改善者，甲方得立即終止合作並保留法律追訴與損害賠償權利。</p>
+                        </div>
+                      </div>
+                    </div>
 
-                          <div>
-                            <h6 className="text-sm md:text-base font-semibold mb-2 flex items-center">
-                              🟢 ⚖️ 重要提醒
-                            </h6>
-                            <ul className="list-disc list-inside space-y-1 text-sm md:text-base ml-4">
-                              <li>若發生退款或取消，將於後續月份分潤中扣回</li>
-                              <li>每月結算後，於次月底前撥款給加盟主</li>
-                            </ul>
-                          </div>
+                    <div>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第六條｜協議期間與終止</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-semibold mb-2">1. 效期連動條款：</h5>
+                          <p className="pl-4">本附加協議之有效期間與乙方原加盟合約相同；若加盟合約終止、屆滿、撤銷或不續約，本協議亦自動終止，雙方不再負有履約義務。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">2. 提前終止：</h5>
+                          <p className="pl-4">若乙方有重大違約、影響品牌聲譽、或違反價格與食品安全規定，甲方有權不經通知逕行終止本附加協議，且不負補償責任。</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="text-lg md:text-xl font-semibold mb-3">第七條｜其他約定</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <h5 className="font-semibold mb-2">1. 附屬性：</h5>
+                          <p className="pl-4">本附加協議為乙方加盟合約之延伸條款，效力與加盟合約相同，並與之構成不可分割之一部分。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">2. 未盡事宜補充：</h5>
+                          <p className="pl-4">如有未盡事宜，雙方得以書面協議補充之，並具同等法律效力。</p>
+                        </div>
+                        
+                        <div>
+                          <h5 className="font-semibold mb-2">3. 自動更新條款：</h5>
+                          <p className="pl-4">為配合商品、營運政策及品牌策略之彈性調整，甲方得隨時更新或調整本附加協議內容。乙方同意後續若有協議內容之修訂、增補或更新，甲方得於內部公告系統或門市通知平台發布後即視為生效，無須個別另行通知，乙方應自動遵守。</p>
                         </div>
                       </div>
                     </div>
@@ -1568,11 +1249,11 @@ export default function OnlineContractPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end mt-6 md:mt-8">
+              <div className="flex justify-center mt-6 md:mt-8">
                 <button
                   onClick={handleNextStep}
                   disabled={!hasReadContract}
-                  className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
+                  className="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 flex items-center space-x-2"
                 >
                   <span>同意並繼續</span>
                   {!hasReadContract && (
@@ -1648,11 +1329,11 @@ export default function OnlineContractPage() {
                   簽名代表您已詳閱並同意上述合約條款
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-center">
                   <button
                     onClick={generateContract}
                     disabled={!contractData.signatureData || isSubmitting}
-                    className="w-full sm:w-auto bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 flex items-center justify-center space-x-2 text-base"
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-8 rounded-lg transition duration-200 flex items-center space-x-2 text-base"
                   >
                     {isSubmitting ? (
                       <>
@@ -1674,4 +1355,4 @@ export default function OnlineContractPage() {
       </div>
     </div>
   );
-} 
+}

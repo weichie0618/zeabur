@@ -151,6 +151,76 @@ const createApiInstance = () => {
 };
 
 /**
+ * 🔑 安全改進：使用 fetch API 的請求工具函數 - 支援 credentials: 'include'
+ * @param endpoint API 端點
+ * @param method HTTP 方法
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const createFetchRequest = async (
+  endpoint: string,
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
+  data?: any
+): Promise<any> => {
+  try {
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || '';
+    const url = `${baseURL}${endpoint}`;
+    
+    const config: RequestInit = {
+      method,
+      credentials: 'include', // 🔑 關鍵：包含 HttpOnly Cookie
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    if (data && method !== 'GET') {
+      config.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(url, config);
+    
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('認證失敗，請重新登入');
+      }
+      throw new Error(`API 請求失敗: ${response.status} - ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error: any) {
+    console.error(`API 請求錯誤 [${method} ${endpoint}]:`, error);
+    
+    if (error.message.includes('認證失敗')) {
+      throw error;
+    } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('網絡連接問題，請檢查您的網絡連接');
+    } else {
+      throw new Error(error.message || 'API 請求時發生未知錯誤');
+    }
+  }
+};
+
+/**
+ * 🔑 安全改進：GET 請求的 fetch 版本
+ * @param endpoint API 端點
+ * @returns Promise<any>
+ */
+export const fetchGet = (endpoint: string): Promise<any> => {
+  return createFetchRequest(endpoint, 'GET');
+};
+
+/**
+ * 🔑 安全改進：POST 請求的 fetch 版本
+ * @param endpoint API 端點
+ * @param data 請求數據
+ * @returns Promise<any>
+ */
+export const fetchPost = (endpoint: string, data?: any): Promise<any> => {
+  return createFetchRequest(endpoint, 'POST', data);
+};
+
+/**
  * 🔑 安全改進：統一的 API 請求工具函數 - 使用 HttpOnly Cookie 認證
  * @param endpoint API 端點
  * @param method HTTP 方法

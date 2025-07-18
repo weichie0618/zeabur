@@ -162,7 +162,7 @@ export default function LoginPage() {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 20000); // 20秒超時
           
-          const response = await fetch('https://line.cityburger.com.tw/gsa', {
+          const response = await fetch('/gsa', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

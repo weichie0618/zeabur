@@ -1,7 +1,7 @@
 // 獲取LIFF ID
 export function getLiffId(): string {
-  // 從環境變數中獲取LIFF ID
-  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
+  // 🔧 優先使用指定的LIFF ID，如果環境變數未設定則使用預設值
+  const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '2006372025-ZoXWrME5';
   
   // 確保LIFF ID不包含路徑部分
   // 如果包含斜杠，只取斜杠前的部分

@@ -154,19 +154,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 檢查檔案類型，只允許JPG
-    if (file.type !== 'image/jpeg') {
-      return NextResponse.json(
-        { success: false, message: '僅支援JPG圖片格式' },
-        { status: 400 }
-      );
+    // 🔧 根據目標目錄調整檔案類型檢查
+    const targetDestination = formData.get('destination') as string || 'uploads/bakery';
+    
+    if (targetDestination.includes('contracts')) {
+      // 合約圖片：允許更多格式 (JPEG, PNG)
+      if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        return NextResponse.json(
+          { success: false, message: '合約圖片僅支援JPG或PNG格式' },
+          { status: 400 }
+        );
+      }
+    } else {
+      // 產品圖片：僅允許JPG
+      if (file.type !== 'image/jpeg') {
+        return NextResponse.json(
+          { success: false, message: '產品圖片僅支援JPG格式' },
+          { status: 400 }
+        );
+      }
     }
     
     // 獲取目標目錄 - 從 public/bakery 改為 uploads/bakery
-    const destination = formData.get('destination') as string || 'uploads/bakery';
+    const destination = targetDestination;
     
     // 確保目錄存在
     const uploadDir = path.join(process.cwd(), destination);
+    
     try {
       await fs.access(uploadDir);
     } catch (error) {
@@ -178,19 +192,98 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
+    console.log(`📤 接收到檔案上傳請求:`, {
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+      bufferSize: buffer.length,
+      destination: destination
+    });
+    
+    // 驗證檔案內容不為空
+    if (buffer.length === 0) {
+      throw new Error('上傳的檔案內容為空');
+    }
+    
     // 獲取檔案名稱
     const fileName = file.name;
     const filePath = path.join(uploadDir, fileName);
     
-    // 寫入檔案
-    await fs.writeFile(filePath, buffer);
+    console.log(`📝 準備寫入檔案: ${filePath}`);
     
-    // 修改返回的路徑，使用 API 路徑而不是靜態文件路徑
-    // 使用 /api/images 路徑訪問上傳的圖片
+    // 寫入檔案 - 使用同步方式確保完整寫入
+    try {
+      await fs.writeFile(filePath, buffer, { 
+        mode: 0o644, // 設定檔案權限
+        flag: 'w'    // 完全覆寫模式
+      });
+      
+      console.log(`✍️ 檔案寫入完成，開始驗證...`);
+      
+      // 立即驗證文件是否正確寫入
+      const stats = await fs.stat(filePath);
+      console.log(`📊 檔案狀態檢查:`, {
+        exists: true,
+        size: stats.size,
+        expectedSize: buffer.length,
+        isFile: stats.isFile(),
+        mode: stats.mode.toString(8)
+      });
+      
+      if (stats.size === 0) {
+        throw new Error('檔案寫入後大小為0');
+      }
+      
+      if (stats.size !== buffer.length) {
+        console.warn(`⚠️ 檔案大小不匹配: 期望 ${buffer.length}, 實際 ${stats.size}`);
+        // 不要立即失敗，可能是檔案系統的緩衝問題
+      }
+      
+      // 嘗試讀取檔案驗證內容完整性
+      const readBuffer = await fs.readFile(filePath);
+      if (readBuffer.length === 0) {
+        throw new Error('檔案讀取結果為空');
+      }
+      
+      if (readBuffer.length !== buffer.length) {
+        console.warn(`⚠️ 讀取檔案大小不匹配: 原始 ${buffer.length}, 讀取 ${readBuffer.length}`);
+      }
+      
+      // 延遲確保檔案系統同步
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      console.log(`✅ 檔案上傳並驗證完成: ${fileName} (${stats.size} bytes)`);
+      
+    } catch (writeError) {
+      console.error('❌ 檔案寫入失敗:', writeError);
+      
+      // 清理可能的部分寫入檔案
+      try {
+        await fs.unlink(filePath);
+      } catch (cleanupError) {
+        console.error('清理失敗檔案時出錯:', cleanupError);
+      }
+      
+      throw new Error(`檔案寫入失敗: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+    }
+    
+    // 🔧 修改返回的路徑，根據destination動態生成正確的API路徑
+    let apiPath = '';
+    if (destination.includes('contracts')) {
+      // 合約圖片使用 /api/images/contracts/ 路徑
+      apiPath = `/api/images/contracts/${fileName}`;
+    } else {
+      // 烘焙產品圖片使用 /api/images/bakery/ 路徑
+      apiPath = `/api/images/bakery/${fileName}`;
+    }
+    
     return NextResponse.json({
       success: true,
       message: '檔案上傳成功',
-      filePath: `/api/images/bakery/${fileName}`
+      filePath: apiPath,
+      url: apiPath, // 🔧 添加url字段保持向後兼容
+      fileSize: buffer.length, // 🔧 添加文件大小信息用於調試
+      timestamp: new Date().toISOString() // 🔧 添加時間戳用於調試
     });
   } catch (error) {
     console.error('檔案上傳失敗:', error);

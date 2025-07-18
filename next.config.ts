@@ -16,11 +16,12 @@ const nextConfig: NextConfig = {
     optimizeServerReact: true
   },
   // 路由重寫配置
-  async rewrites() {
-    const isDev = process.env.NODE_ENV === 'development';
-    const backendUrl = isDev ? 'http://localhost:4000' : 'https://joinmeet.sunnyhausbakery.com.tw';
+   // 路由重寫配置
+   async rewrites() {
+    const backendUrl = 'http://localhost:4000';
     
     return [
+      
       {
         source: "/api/upload",
         destination: "/api/upload",
@@ -37,11 +38,32 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: `${backendUrl}/api/:path*`,
       },
+      {
+        source: "/get-store-info",
+        destination: `http://localhost:3000/get-store-info`,
+      },
+      {
+        source: "/gsa",
+        destination: `http://localhost:3000/gsa`,
+      },
     ];
   },
   // 圖片域名配置
   images: {
-    domains: ["sunnyhausbakery.com.tw","down-tw.img.susercontent.com"],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'sunnyhausbakery.com.tw',
+        port: '',
+        pathname: '/**'
+      },
+      {
+        protocol: 'https',
+        hostname: 'down-tw.img.susercontent.com',
+        port: '',
+        pathname: '/**'
+      }
+    ],
     minimumCacheTTL: 60,
     // 啟用圖片格式優化
     formats: ['image/webp']

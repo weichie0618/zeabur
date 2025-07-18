@@ -365,7 +365,7 @@ export default function DashboardPage() {
           <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-3 sm:p-4 shadow-sm">
             <p className="text-xs sm:text-sm text-purple-600 mb-1">商品銷售額</p>
             <p className="text-lg sm:text-2xl font-bold text-purple-700">
-              {formatCurrency(dashboardData.monthly.subtotal_sum)}
+              {formatCurrency(dashboardData.monthly.subtotal_sum*0.95)}
             </p>
             <p className="text-xs text-purple-600 mt-1">分潤計算基準</p>
           </div>

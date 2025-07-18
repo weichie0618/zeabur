@@ -51,6 +51,7 @@ export default function CommissionPlansPage() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingPlan, setEditingPlan] = useState<CommissionPlan | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string>(''); // 模態框內的錯誤信息
 
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -72,41 +73,10 @@ export default function CommissionPlansPage() {
     if (!accessToken) return;
 
     try {
-      const data = await apiGet('/api/admin/commission-plans');
+      const data = await apiGet('/api/admin/commission-plans/list');
       
-      if (data.success) {
-        // 從所有業務員的 commission_plan 中提取不重複的計畫
-        const uniquePlans = new Map();
-        
-        if (data.data.salespeople) {
-          // 新 API 格式：從業務員資料中提取佣金計畫
-          data.data.salespeople.forEach((salesperson: any) => {
-            if (salesperson.commission_plan) {
-              const plan = salesperson.commission_plan;
-              if (!uniquePlans.has(plan.id)) {
-                // 添加使用此計畫的業務員資訊
-                plan.customer_count = plan.customer_count || 0;
-                plan.customers = plan.customers || [];
-                if (!plan.customers.find((c: any) => c.id === salesperson.id)) {
-                  plan.customer_count++;
-                  plan.customers.push({
-                    id: salesperson.id,
-                    name: salesperson.name,
-                    contract_start_date: salesperson.contract_start_date,
-                    contract_end_date: salesperson.contract_end_date
-                  });
-                }
-                uniquePlans.set(plan.id, plan);
-              }
-            }
-          });
-          setPlans(Array.from(uniquePlans.values()));
-        } else if (Array.isArray(data.data)) {
-          // 舊 API 格式：直接使用回傳的計畫列表
-          setPlans(data.data);
-        } else {
-          setPlans([]);
-        }
+      if (data.success && data.data && data.data.plans) {
+        setPlans(data.data.plans);
       } else {
         throw new Error(data.message || '載入佣金專案失敗');
       }
@@ -141,6 +111,7 @@ export default function CommissionPlansPage() {
       expiry_date: ''
     });
     setEditingPlan(null);
+    setModalError(''); // 清除模態框錯誤
   };
 
   // 打開新增/編輯模態框
@@ -174,7 +145,7 @@ export default function CommissionPlansPage() {
     if (!accessToken) return;
 
     setSubmitting(true);
-    setError('');
+    setModalError(''); // 清除之前的錯誤
 
     try {
       const url = editingPlan 
@@ -205,7 +176,7 @@ export default function CommissionPlansPage() {
       }
     } catch (error) {
       console.error('提交表單錯誤:', error);
-      setError(error instanceof Error ? error.message : '操作失敗');
+      setModalError(error instanceof Error ? error.message : '操作失敗');
     } finally {
       setSubmitting(false);
     }
@@ -411,6 +382,13 @@ export default function CommissionPlansPage() {
                 {editingPlan ? '編輯佣金專案' : '新增佣金專案'}
               </h3>
               
+              {/* 模態框內的錯誤訊息 */}
+              {modalError && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+                  <div className="text-red-800">{modalError}</div>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* 基本資訊 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -426,6 +404,9 @@ export default function CommissionPlansPage() {
                       className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2"
                       placeholder="例如：專案A"
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      專案名稱必須唯一，不能與現有專案重複
+                    </p>
                   </div>
                   
                   <div>

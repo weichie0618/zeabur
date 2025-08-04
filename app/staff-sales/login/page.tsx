@@ -143,7 +143,7 @@ export default function LoginPage() {
         try {
           if (window.liff) {
             await window.liff.init({
-              liffId: process.env.NEXT_PUBLIC_LINE_SALE_LIFF_ID || '2006372025-O5AZ25zL'
+              liffId: '2006231077-0rwQxNGX'
             });
             resolve(window.liff);
           } else {

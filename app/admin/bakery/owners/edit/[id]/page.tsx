@@ -178,7 +178,7 @@ export default function EditOwner() {
       const data = await apiPut(`api/customers/${id}`, formData);
       
       // 成功更新，導航到詳情頁
-      router.push(`api/admin/bakery/owners/${id}`);
+      router.push(`/admin/bakery/owners/${id}`);
       
     } catch (err) {
       console.error('更新業主錯誤:', err);

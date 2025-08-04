@@ -161,7 +161,7 @@ export default function BakeryLayout({
           </div>
         </header>
         
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <main className="flex-grow container mx-auto px-4 py-4">
           {children}
         </main>
         

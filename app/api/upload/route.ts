@@ -165,6 +165,14 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+    } else if (targetDestination.includes('qrcode')) {
+      // QR Code 圖片：允許 JPEG 格式
+      if (file.type !== 'image/jpeg') {
+        return NextResponse.json(
+          { success: false, message: 'QR Code 圖片僅支援JPG格式' },
+          { status: 400 }
+        );
+      }
     } else {
       // 產品圖片：僅允許JPG
       if (file.type !== 'image/jpeg') {
@@ -272,6 +280,9 @@ export async function POST(req: NextRequest) {
     if (destination.includes('contracts')) {
       // 合約圖片使用 /api/images/contracts/ 路徑
       apiPath = `/api/images/contracts/${fileName}`;
+    } else if (destination.includes('qrcode')) {
+      // QR Code 圖片使用 /api/images/qrcode/ 路徑
+      apiPath = `/api/images/qrcode/${fileName}`;
     } else {
       // 烘焙產品圖片使用 /api/images/bakery/ 路徑
       apiPath = `/api/images/bakery/${fileName}`;

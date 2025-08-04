@@ -8,7 +8,7 @@ export default function LoginFailedPage() {
   const router = useRouter();
 
   const handleBackToLogin = () => {
-    router.push('/city-sales/login');
+    router.push('/staff-sales/login');
   };
 
   const handleContactSupport = () => {

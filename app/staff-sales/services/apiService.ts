@@ -1,7 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosError } from 'axios';
 
 // API 基礎配置
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL + '/api' || 
+                    (process.env.NODE_ENV === 'development' 
+                      ? 'http://localhost:4000/api' 
+                      : 'http://localhost:4000/api');
 
 // 開發環境標識
 const isDev = process.env.NODE_ENV === 'development';
@@ -174,8 +177,8 @@ export interface CommissionRulesResponse {
 
 // 創建獨立的 city-sales axios 實例
 const citySalesApi: AxiosInstance = axios.create({
-  baseURL: "",
-  timeout: 10000,
+  baseURL: API_BASE_URL,
+  timeout: 30000, // 增加到 30 秒
   headers: {
     'Content-Type': 'application/json',
   },
@@ -242,8 +245,8 @@ citySalesApi.interceptors.response.use(
         localStorage.removeItem('salesperson');
         
         // 如果不在登入頁面，重定向到業務員登入頁
-        if (window.location.pathname !== '/user-sales/login') {
-          window.location.href = '/user-sales/login?reason=auth-error';
+        if (window.location.pathname !== '/staff-sales/login' && window.location.pathname !== '/city-sales/login') {
+          window.location.href = '/staff-sales/login?reason=auth-error';
         }
       }
     }
@@ -270,36 +273,30 @@ async function makeApiRequest<T>(
   }
 }
 
-// 定義業務員資料介面（用於登入回應）
-export interface SalespersonData {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  companyName: string;
-  commission_plan_id?: number;
-  contract_start_date?: string;
-  contract_end_date?: string;
-  commissionPlan?: CommissionPlan;
-}
-
 // 業務員 API 服務
 export const salespersonApi = {
-  // 業務員登入 - 使用 email 和 phone 認證
-  login: async (email: string, phone: string): Promise<ApiResponse<SalespersonData>> => {
+  // 獲取業務員儀表板數據
+  getDashboard: async (storeId: string): Promise<ApiResponse<DashboardData>> => {
     return makeApiRequest(() => 
-      citySalesApi.post('/api/salesperson/login', {
-        email,
-        phone
+      citySalesApi.get(`/salesperson/dashboard`, {
+        headers: { 'X-Salesperson-ID': storeId }
       })
     );
   },
 
-  // 獲取業務員儀表板數據
-  getDashboard: async (storeId: string): Promise<ApiResponse<{ salesperson: DashboardData['salesperson'] }>> => {
+  // 根據 LINE ID 查找員工
+  findEmployeeByLineId: async (lineId: string): Promise<ApiResponse<{ customer_id: string }>> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/dashboard`, {
-        headers: { 'X-Salesperson-ID': storeId }
+      citySalesApi.post('/customers/find-by-lineid', { lineid: lineId })
+    );
+  },
+
+  // 創建員工記錄
+  createEmployeeRecord: async (lineId: string, employeeId: string): Promise<ApiResponse<any>> => {
+    return makeApiRequest(() => 
+      citySalesApi.post('/customers/create-user-staff-sales', { 
+        lineid: lineId, 
+        customer_id: employeeId 
       })
     );
   },
@@ -320,7 +317,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/orders?${queryParams.toString()}`, {
+      citySalesApi.get(`/salesperson/orders?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -342,7 +339,7 @@ export const salespersonApi = {
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commissions?${queryParams.toString()}`, {
+      citySalesApi.get(`/salesperson/commissions?${queryParams.toString()}`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );
@@ -351,7 +348,7 @@ export const salespersonApi = {
   // 獲取業務員分潤規則
   getCommissionRules: async (storeId: string): Promise<CommissionRulesResponse> => {
     return makeApiRequest(() => 
-      citySalesApi.get(`/api/salesperson/commission-rules`, {
+      citySalesApi.get(`/salesperson/commission-rules`, {
         headers: { 'X-Salesperson-ID': storeId }
       })
     );

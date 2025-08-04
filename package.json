@@ -46,6 +46,7 @@
     "react-icons": "^5.5.0",
     "reflect-metadata": "^0.2.2",
     "sharp": "^0.34.1",
+    "swiper": "^11.2.10",
     "tailwind-merge": "^3.3.0",
     "typeorm": "^0.3.22",
     "xlsx": "^0.18.5"

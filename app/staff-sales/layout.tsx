@@ -96,8 +96,8 @@ function CitySalesLayoutInner({
 
   // 使用 useMemo 優化路由保護邏輯
   const isProtectedRoute = useMemo(() => {
-    return pathname !== '/city-sales/login' && 
-           pathname !== '/city-sales/commission-not-activated';
+    return pathname !== '/staff-sales/login' && 
+           pathname !== '/staff-sales/login-failed';
   }, [pathname]);
 
   // 背景遮罩點擊處理器
@@ -117,8 +117,8 @@ function CitySalesLayoutInner({
   // 使用 useMemo 優化導航項目
   const navigationItems = useMemo(() => [
     {
-      href: "/city-sales/dashboard",
-      active: pathname === '/city-sales/dashboard',
+      href: "/staff-sales/dashboard",
+      active: pathname === '/staff-sales/dashboard',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -127,8 +127,8 @@ function CitySalesLayoutInner({
       label: "業績儀表板"
     },
     {
-      href: "/city-sales/orders",
-      active: pathname.startsWith('/city-sales/orders'),
+      href: "/staff-sales/orders",
+      active: pathname.startsWith('/staff-sales/orders'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
@@ -137,8 +137,8 @@ function CitySalesLayoutInner({
       label: "訂單管理"
     },
     {
-      href: "/city-sales/commissions",
-      active: pathname.startsWith('/city-sales/commissions'),
+      href: "/staff-sales/commissions",
+      active: pathname.startsWith('/staff-sales/commissions'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -147,8 +147,8 @@ function CitySalesLayoutInner({
       label: "分潤記錄"
     },
     {
-      href: "/city-sales/qrcode",
-      active: pathname === '/city-sales/qrcode',
+      href: "/staff-sales/qrcode",
+      active: pathname === '/staff-sales/qrcode',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 16a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM16 3a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V3zM11 5h2M9 7h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m4 0h1m-6 2h1m6-4h2" />
@@ -187,7 +187,7 @@ function CitySalesLayoutInner({
     if (status === 'unauthenticated' || status === 'error') {
       // 使用 window.location 進行重定向，避免 React 渲染問題
       if (typeof window !== 'undefined') {
-        window.location.href = '/city-sales/login';
+        window.location.href = '/staff-sales/login';
       }
       return null;
     }

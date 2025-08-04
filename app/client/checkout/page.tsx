@@ -250,8 +250,8 @@ export default function CheckoutPage() {
       return 0;
     }
     
-    // 訂單金額超過3500免運費，否則運費200元
-    return subtotal >= 3500 ? 0 : 200;
+    // 訂單金額超過1500免運費，否則運費200元
+    return subtotal >= 1500 ? 0 : 200;
   }, [shippingMethod, subtotal]);
 
   // 計算折扣金額
@@ -786,7 +786,7 @@ export default function CheckoutPage() {
       })),
       customer_info: {
         name: formData.customerName,
-        email: formData.email || '123@example.com',
+        email: formData.email || '',
         phone: formData.phone
       },
       shipping_address: {
@@ -1458,7 +1458,7 @@ export default function CheckoutPage() {
                 <span className="font-medium">
                   
                   {shippingMethod !== 'pickup' && shippingFee > 0 && (
-                    <span className="text-xs text-gray-500 ml-2">（訂單需滿$3,500免運費）</span>
+                    <span className="text-xs text-gray-500 ml-2">（訂單需滿$1,500免運費）</span>
                   )}
                   {shippingMethod === 'pickup' ? '免運費' : (
                     shippingFee === 0 ? '免運費' : `$${shippingFee}`

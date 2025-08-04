@@ -4,6 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useSalesperson } from '../context/SalespersonContext';
 import { salespersonApi, CommissionRule, formatCurrency, SalespersonContract } from '../services/apiService';
 
+// 宣告LIFF類型
+declare global {
+  interface Window {
+    liff: any;
+  }
+}
+
 export default function ProfilePage() {
   const [commissionRules, setCommissionRules] = useState<CommissionRule[]>([]);
   const [contractInfo, setContractInfo] = useState<SalespersonContract>({
@@ -12,12 +19,35 @@ export default function ProfilePage() {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [liffReady, setLiffReady] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const { salesperson, storeId } = useSalesperson();
 
   useEffect(() => {
     if (storeId) {
       fetchCommissionRules();
     }
+    
+    // 初始化LIFF
+    if (typeof window !== 'undefined' && window.liff) {
+      setLiffReady(true);
+    }
+
+    // 檢測是否為手機模式
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    // 初始檢查
+    checkMobile();
+
+    // 監聽視窗大小變化
+    window.addEventListener('resize', checkMobile);
+
+    // 清理監聽器
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
   }, [storeId]);
 
   const fetchCommissionRules = async () => {
@@ -53,6 +83,92 @@ export default function ProfilePage() {
       ).join(', ');
     }
     return '未知規則類型';
+  };
+
+  const handleSendComputerPreview = async () => {
+    if (!liffReady || !window.liff) {
+      alert('LIFF 尚未準備就緒');
+      return;
+    }
+
+    try {
+      // 創建FLEX訊息格式
+      const flexMessage = {
+        type: 'flex',
+        altText: '電腦版預覽連結',
+        contents: {
+          type: 'bubble',
+          header: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: '💻 電腦版預覽',
+                weight: 'bold',
+                color: '#1DB446',
+                size: 'lg'
+              }
+            ],
+            paddingAll: 'lg',
+            backgroundColor: '#f0f8ff'
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: '點擊下方按鈕開啟電腦版預覽',
+                wrap: true,
+                color: '#666666',
+                size: 'sm'
+              },
+              {
+                type: 'separator',
+                margin: 'md'
+              },
+              {
+                type: 'button',
+                action: {
+                  type: 'uri',
+                  label: '開啟電腦版',
+                  uri: 'https://liff.line.me/2006372025-O5AZ25zL'
+                },
+                style: 'primary',
+                color: '#1DB446',
+                margin: 'md'
+              }
+            ],
+            spacing: 'sm'
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'text',
+                text: '建議使用電腦瀏覽器獲得最佳體驗',
+                size: 'xs',
+                color: '#999999',
+                align: 'center'
+              }
+            ],
+            paddingTop: 'sm'
+          }
+        }
+      };
+
+      // 發送FLEX訊息
+      await window.liff.sendMessages([flexMessage]);
+      
+      // 關閉LIFF
+      window.liff.closeWindow();
+      
+    } catch (error) {
+      console.error('發送訊息失敗:', error);
+      alert('發送訊息失敗，請稍後再試');
+    }
   };
 
   return (
@@ -235,8 +351,35 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* 操作按鈕 */}
-      
+      {/* 操作按鈕 - 只在手機模式顯示 */}
+      {isMobile && (
+        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">操作選項</h2>
+          
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <button
+              onClick={handleSendComputerPreview}
+              disabled={!liffReady}
+              className={`flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                liffReady
+                  ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              使用電腦預覽
+            </button>
+          </div>
+          
+          {!liffReady && (
+            <p className="text-xs text-gray-500 mt-2">
+              * 請在LINE應用程式中開啟此頁面以使用完整功能
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 } 

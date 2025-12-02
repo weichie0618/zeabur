@@ -1,0 +1,166 @@
+import { Metadata } from "next";
+import Link from "next/link";
+import { products, productsByCategory } from "@/app/data/products";
+import { ProductCard } from "@/app/components/cards/ProductCard";
+import { Navbar } from "@/app/components/sections/Navbar";
+import { Footer } from "@/components/layout/Footer";
+
+export const metadata: Metadata = {
+  title: "產品介紹 | 晴朗家烘焙",
+  description: "探索晴朗家烘焙的精選麵包產品，包括經典、健康、特色和日式系列",
+  keywords: ["麵包", "烘焙", "產品", "麵包系列"],
+};
+
+const categories = Object.keys(productsByCategory);
+
+export default function BakeryItemsPage() {
+  return (
+    <>
+      <Navbar />
+      <main>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-sunny-cream to-sunny-white py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center max-w-2xl mx-auto">
+            <p className="text-sm md:text-base font-semibold text-sunny-orange mb-4 uppercase tracking-wider">
+              產品介紹
+            </p>
+            <h1 className="text-4xl md:text-5xl font-bold text-sunny-dark mb-6">
+              我們的烘焙產品
+            </h1>
+            <p className="text-lg text-sunny-gray">
+              每一個麵包都是用心製作，以新鮮食材和傳統工藝呈現最佳風味
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Category Filter Section */}
+      <section className="py-12 bg-white border-b border-sunny-border">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/sunnyhaus/bakery-items">
+              <button className="px-6 py-2 rounded-full bg-sunny-orange text-white font-semibold hover:bg-sunny-gold transition-colors">
+                全部產品
+              </button>
+            </Link>
+            {categories.map((category) => (
+              <button
+                key={category}
+                className="px-6 py-2 rounded-full border-2 border-sunny-orange text-sunny-orange hover:bg-sunny-cream transition-colors font-semibold"
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Products Grid */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                description={product.description}
+                image={product.image}
+                imageAlt={product.imageAlt}
+                category={product.category}
+                price={product.price}
+                rating={4.5}
+                ratingCount={Math.floor(Math.random() * 300) + 50}
+                slug={product.slug}
+                featured={product.featured}
+              />
+            ))}
+          </div>
+
+          {/* View All CTA */}
+          <div className="text-center">
+            <p className="text-sunny-gray mb-6">
+              還有更多精選麵包等著您探索！
+            </p>
+            <button className="px-8 py-3 bg-sunny-orange text-white font-semibold rounded-lg hover:bg-sunny-gold transition-colors">
+              瀏覽更多產品
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20 bg-sunny-cream">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center text-sunny-dark mb-12">
+            為什麼選擇晴朗家麵包
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              {
+                title: "新鮮食材",
+                description: "嚴選優質食材，每日新鮮製作",
+                icon: "🌾",
+              },
+              {
+                title: "傳統工藝",
+                description: "傳承烘焙手藝，結合現代創新",
+                icon: "👨‍🍳",
+              },
+              {
+                title: "無添加",
+                description: "不使用人工香料和防腐劑",
+                icon: "✨",
+              },
+              {
+                title: "新鮮配送",
+                description: "確保品質，新鮮送到您的手中",
+                icon: "📦",
+              },
+            ].map((feature, index) => (
+              <div key={index} className="text-center">
+                <div className="text-5xl mb-4">{feature.icon}</div>
+                <h3 className="text-xl font-bold text-sunny-dark mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-sunny-gray">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Subscription Section */}
+      <section className="py-20 bg-sunny-orange text-white">
+        <div className="container mx-auto px-4 text-center max-w-2xl mx-auto">
+          <h2 className="text-3xl font-bold mb-6">
+            訂閱定期配送計劃
+          </h2>
+          <p className="text-lg mb-8">
+            每週都能享受新鮮出爐的麵包，並享受會員專屬優惠！
+          </p>
+
+          <form className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              placeholder="請輸入您的電子郵件"
+              className="flex-1 px-4 py-3 rounded-lg text-sunny-dark focus:outline-none"
+              required
+            />
+            <button
+              type="submit"
+              className="px-6 py-3 bg-sunny-gold text-sunny-dark font-semibold rounded-lg hover:bg-white transition-colors"
+            >
+              立即訂閱
+            </button>
+          </form>
+        </div>
+      </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+

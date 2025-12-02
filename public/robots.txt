@@ -1,0 +1,19 @@
+# Robots.txt for sunnyhausbakery.com.tw
+
+# Allow all robots
+User-agent: *
+Allow: /
+
+# Disallow private areas
+Disallow: /admin/
+Disallow: /private/
+Disallow: /*.json$
+Disallow: /*.xml$
+
+# Specific rules for Googlebot
+User-agent: Googlebot
+Allow: /
+
+# Sitemap
+Sitemap: https://sunnyhausbakery.com.tw/sitemap.xml
+

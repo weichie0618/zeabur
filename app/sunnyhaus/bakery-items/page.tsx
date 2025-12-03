@@ -3,7 +3,7 @@ import Link from "next/link";
 import { products, productsByCategory } from "@/app/data/products";
 import { ProductCard } from "@/app/components/cards/ProductCard";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "產品介紹 | 晴朗家烘焙",

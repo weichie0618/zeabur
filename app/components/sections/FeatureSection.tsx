@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/app/components/ui/Button';
 import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 
 // 產品資料

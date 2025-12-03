@@ -4,7 +4,7 @@ import { Button } from "@/app/components/ui/Button";
 import { Card } from "@/app/components/ui/Card";
 import { Briefcase, Package, Users } from "lucide-react";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "商業合作 | 晴朗家烘焙",

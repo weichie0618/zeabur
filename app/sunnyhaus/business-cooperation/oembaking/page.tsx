@@ -4,7 +4,7 @@ import { Button } from "@/app/components/ui/Button";
 import { InquiryForm } from "@/app/components/forms/InquiryForm";
 import { CheckCircle, Zap, Award } from "lucide-react";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "代工烘培 | 晴朗家烘焙",

@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/utils";
 import { ArrowLeft, Calendar, User, Share2 } from "lucide-react";
 import { Button } from "@/app/components/ui/Button";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 interface NewsDetailPageProps {
   params: {

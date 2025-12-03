@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/app/components/ui/Button';
 import { Play, Volume2, VolumeX, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 

@@ -28,7 +28,7 @@ export default function StoreLocatorSection() {
 
   return (
     <section 
-      className="py-20 relative bg-amber-50 overflow-hidden"
+      className="py-20 lg:py-40 relative bg-amber-50 overflow-hidden"
       style={{
         backgroundImage: 'url(https://sunnyhausbakery.com.tw/wp-content/uploads/2024/09/Untitled-design-3.png)',
         backgroundSize: 'cover',

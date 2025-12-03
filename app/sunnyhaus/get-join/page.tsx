@@ -4,7 +4,7 @@ import { Button } from "@/app/components/ui/Button";
 import { FranchiseForm } from "@/app/components/forms/FranchiseForm";
 import { Heart, TrendingUp, Users, Award } from "lucide-react";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "加盟表單 | 晴朗家烘焙",

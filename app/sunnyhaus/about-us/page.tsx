@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Button } from "@/app/components/ui/Button";
 import { Heart, Lightbulb, Users, Target } from "lucide-react";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "關於我們 | 晴朗家烘焙",

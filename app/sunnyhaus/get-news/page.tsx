@@ -3,7 +3,7 @@ import Link from "next/link";
 import { news } from "@/app/data/news";
 import { NewsCard } from "@/app/components/cards/NewsCard";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "最新消息 | 晴朗家烘焙",

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { stores, storesByCity } from "@/app/data/stores";
 import { StoreCard } from "@/app/components/cards/StoreCard";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "門市據點 | 晴朗家烘焙",

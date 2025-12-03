@@ -4,7 +4,7 @@ import { Button } from "@/app/components/ui/Button";
 import { InquiryForm } from "@/app/components/forms/InquiryForm";
 import { Truck, BarChart3, Headphones } from "lucide-react";
 import { Navbar } from "@/app/components/sections/Navbar";
-import { Footer } from "@/components/layout/Footer";
+import { Footer } from "@/app/components/layout/Footer";
 
 export const metadata: Metadata = {
   title: "企業採購 | 晴朗家烘焙",

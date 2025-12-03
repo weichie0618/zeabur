@@ -7,7 +7,7 @@ import FeatureSection from '@/app/components/sections/FeatureSection';
 import NewsSection from '@/app/components/sections/NewsSection';
 import StoreLocatorSection from '@/app/components/sections/StoreLocatorSection';
 import CTASection from '@/app/components/sections/CTASection';
-import { Footer } from '@/components/layout/Footer';
+import { Footer } from '@/app/components/layout/Footer';
 import { Wheat, Shield, Award, Sparkles, ChefHat, Clock } from 'lucide-react';
 
 export default function Home() {

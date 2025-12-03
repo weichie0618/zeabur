@@ -1,269 +1,160 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { useRef, useEffect, useState } from 'react';
 import { Navbar } from '@/app/components/sections/Navbar';
 import HeaderSection from '@/app/components/sections/HeaderSection';
 import FeatureSection from '@/app/components/sections/FeatureSection';
+import NewsSection from '@/app/components/sections/NewsSection';
+import StoreLocatorSection from '@/app/components/sections/StoreLocatorSection';
+import CTASection from '@/app/components/sections/CTASection';
 import { Footer } from '@/components/layout/Footer';
 import { Wheat, Shield, Award, Sparkles, ChefHat, Clock } from 'lucide-react';
 
 export default function Home() {
+  const headerRef = useRef<HTMLDivElement>(null);
+  const featureRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // 監聽滾動進度，用於視差效果
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!headerRef.current) return;
+      
+      const headerRect = headerRef.current.getBoundingClientRect();
+      const headerHeight = headerRect.height;
+      
+      // 計算滾動進度 (0-1)
+      // 當 header 完全在視口內時為 0，完全滾出時為 1
+      const progress = Math.max(0, Math.min(1, -headerRect.top / headerHeight));
+      setScrollProgress(progress);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <>
       <Navbar />
 
       <main>
-        {/* ==================== HERO SECTION ==================== */}
-        <HeaderSection />
+        {/* ==================== STICKY HERO CONTAINER ==================== */}
+        {/* 這個容器讓 HeaderSection 固定，FeatureSection 滑上覆蓋 */}
+        <div className="hero-sticky-container">
+          {/* ==================== HERO SECTION (Sticky Background) ==================== */}
+          <div 
+            ref={headerRef}
+            className="hero-sticky"
+            style={{
+              // 視差效果：Header 微微縮小和變暗
+              transform: `scale(${1 + scrollProgress * 0.05})`,
+              filter: `brightness(${1 - scrollProgress * 0.2})`,
+            }}
+          >
+          <HeaderSection />
+        </div>
 
-        {/* ==================== FEATURED PRODUCT SECTION ==================== */}
-        <FeatureSection />
-
-        {/* ==================== PRODUCTS CAROUSEL ==================== */}
-        <section className="py-20 bg-orange-50">
-          <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold text-center text-sunny-dark mb-12">
-              晴朗精選
-            </h2>
-
-            {/* Product Carousel */}
-            <div className="overflow-x-auto pb-6">
-              <div className="flex gap-6 min-w-max px-4">
-                {[
-                  { emoji: '🥐', name: '牛角麵包', desc: '法式牛角麵包' },
-                  { emoji: '🍞', name: '黑麥麵包', desc: '黑麥全麥麵包' },
-                  { emoji: '🧈', name: '鹹奶油麵包', desc: '法式鹹奶油麵包' },
-                  { emoji: '🥖', name: '長棍麵包', desc: '經典法式長棍' },
-                ].map((product, idx) => (
-                  <div key={idx} className="flex-shrink-0">
-                    <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-100 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                      <div className="text-5xl mb-2">{product.emoji}</div>
-                      <div className="text-center">
-                        <p className="font-bold text-sm text-sunny-dark">{product.name}</p>
-                        <p className="text-xs text-gray-600">{product.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* ==================== FEATURED PRODUCT SECTION (Slide-up Overlay) ==================== */}
+          <div 
+            ref={featureRef}
+            className="feature-slide-up"
+          >
+            <FeatureSection scrollProgress={scrollProgress} />
           </div>
+        </div>
 
-          {/* Wave Divider */}
-          <div className="mt-20">
-            <svg className="w-full h-24 md:h-32" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,50 Q300,100 600,50 T1200,50 L1200,0 L0,0 Z" fill="white"></path>
-              <path d="M0,70 Q300,30 600,70 T1200,70 L1200,0 L0,0 Z" fill="#FFF8F0" opacity="0.8"></path>
-            </svg>
-          </div>
-        </section>
+        {/* ==================== NEWS SECTION ==================== */}
+        <NewsSection />
 
-        {/* ==================== WHY CHOOSE US ==================== */}
-        <section className="py-20 bg-white">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-16 space-y-4">
-              <h2 className="text-4xl font-bold text-sunny-dark">為什麼選擇晴朗家？</h2>
-              <p className="text-lg text-gray-600">我們不只賣麵包，我們提供的是品質、信任和生活態度</p>
-            </div>
+        {/* 優化版 Wave Divider - 絕對定位，不佔據空間 */}
+      <div className="relative bottom-[-80px]">
+        {/* 波浪 SVG - 絕對定位，不佔據空間 */}
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+          {/* 漸層過渡層 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-50/20 to-amber-100/30 h-20" />
+          
+          <svg 
+            className="w-full h-24 md:h-32 relative z-10" 
+            viewBox="0 0 1200 120" 
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="newsWaveGradient1" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#F36C21" stopOpacity="0.12" />
+                <stop offset="50%" stopColor="#FFD700" stopOpacity="0.18" />
+                <stop offset="100%" stopColor="#FEF3C7" stopOpacity="0.25" />
+              </linearGradient>
+              <linearGradient id="newsWaveGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#FFD700" stopOpacity="0.1" />
+                <stop offset="50%" stopColor="#F36C21" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="#FEF9C3" stopOpacity="0.22" />
+              </linearGradient>
+            </defs>
+            {/* SVG 漸層定義 */}
+            
+            {/* 第一層波浪 - 更柔和的曲線，向下移動 */}
+            <path 
+              d="M0,70 Q300,120 600,70 T1200,70 L1200,0 L0,0 Z" 
+              fill="url(#newsWaveGradient1)"
+            />
+            {/* 第二層波浪 - 與 FeatureSection 漸層呼應，向下移動 */}
+            <path 
+              d="M0,90 Q300,50 600,90 T1200,90 L1200,0 L0,0 Z" 
+              fill="url(#newsWaveGradient2)"
+            />
+          </svg>
+        </div>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {[
-                {
-                  icon: '🌾',
-                  title: '嚴選食材',
-                  desc: '只選用最優質的麵粉、黃油和食材，確保每一個麵包都是最好的'
-                },
-                {
-                  icon: '🤝',
-                  title: '傳統工藝',
-                  desc: '結合傳統烘焙手藝與現代創意，打造獨特而美味的麵包'
-                },
-                {
-                  icon: '✨',
-                  title: '品質保證',
-                  desc: '每一款產品都經過嚴格檢測，堅持卓越品質'
-                }
-              ].map((item, idx) => (
-                <div key={idx} className="bg-gradient-to-br from-sunny-cream to-white p-8 rounded-2xl shadow-md hover:shadow-lg transition-all hover:-translate-y-2 text-center">
-                  <div className="text-5xl mb-4">{item.icon}</div>
-                  <h3 className="text-xl font-bold text-sunny-dark mb-3">{item.title}</h3>
-                  <p className="text-gray-600">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+       
 
-          {/* Wave Divider */}
-          <div className="mt-20">
-            <svg className="w-full h-24 md:h-32" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,50 Q300,100 600,50 T1200,50 L1200,0 L0,0 Z" fill="#1e40af" opacity="0.08"></path>
-              <path d="M0,70 Q300,30 600,70 T1200,70 L1200,0 L0,0 Z" fill="#1e40af" opacity="0.12"></path>
-            </svg>
-          </div>
-        </section>
-
-        {/* ==================== ABOUT US ==================== */}
-        <section className="py-20 bg-blue-50">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-              {/* Left Content */}
-              <div className="space-y-6">
-                <div className="inline-block px-4 py-2 bg-blue-100 rounded-full">
-                  <span className="text-sm font-semibold text-blue-800">ABOUT</span>
-                </div>
-                <h2 className="text-4xl font-bold text-sunny-dark">
-                  關於晴朗家
-                </h2>
-                <p className="text-lg text-gray-600 leading-relaxed">
-                  晴朗家烘焙成立於 2010 年，致力於為顧客帶來最美好的烘焙體驗。我們堅持每日新鮮製作，選用最優質的食材，融合傳統工藝與現代創意。
-                </p>
-                <div className="space-y-3">
-                  <div className="flex gap-3">
-                    <span className="text-2xl">📍</span>
-                    <div>
-                      <p className="font-bold text-sunny-dark">台灣新竹</p>
-                      <p className="text-sm text-gray-600">總店位於新竹市東區</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <span className="text-2xl">👨‍🍳</span>
-                    <div>
-                      <p className="font-bold text-sunny-dark">15+ 年烘焙經驗</p>
-                      <p className="text-sm text-gray-600">專業烘焙師傅團隊</p>
-                    </div>
-                  </div>
-                </div>
-                <Button size="lg" className="bg-sunny-orange hover:bg-orange-600 text-white">
-                  <Link href="/sunnyhaus/about-us">查看完整故事</Link>
-                </Button>
-              </div>
-
-              {/* Right Image */}
-              <div className="hidden md:block">
-                <div className="h-96 rounded-3xl bg-gradient-to-br from-blue-200 to-blue-100 flex items-center justify-center shadow-xl">
-                  <div className="text-center space-y-4">
-                    <div className="text-8xl">🏪</div>
-                    <p className="text-lg font-bold text-blue-900">晴朗家烘焙</p>
-                    <p className="text-sm text-blue-800">新竹旗艦店</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Wave Divider */}
-          <div className="mt-20">
-            <svg className="w-full h-24 md:h-32" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,50 Q300,100 600,50 T1200,50 L1200,0 L0,0 Z" fill="white"></path>
-            </svg>
-          </div>
-        </section>
-
-        {/* ==================== GALLERY SECTION ==================== */}
-        <section className="py-20 bg-white">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-sunny-dark mb-4">晴朗推薦</h2>
-              <p className="text-gray-600">顧客的真實分享</p>
-            </div>
-
-            {/* Image Gallery Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
-                <div key={idx} className="aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:scale-105">
-                  <div className="w-full h-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center">
-                    <div className="text-5xl">🥐</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Wave Divider */}
-          <div className="mt-20">
-            <svg className="w-full h-24 md:h-32" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,50 Q300,100 600,50 T1200,50 L1200,0 L0,0 Z" fill="#FFD700" opacity="0.1"></path>
-              <path d="M0,70 Q300,30 600,70 T1200,70 L1200,0 L0,0 Z" fill="#F36C21" opacity="0.1"></path>
-            </svg>
-          </div>
-        </section>
+       
 
         {/* ==================== STORE LOCATOR ==================== */}
-        <section className="py-20 bg-gradient-to-br from-blue-50 to-orange-50">
-          <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold text-center text-sunny-dark mb-12">
-              門市據點
-            </h2>
+        <StoreLocatorSection />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              {/* Map */}
-              <div className="h-96 rounded-3xl bg-gray-200 flex items-center justify-center shadow-lg">
-                <div className="text-center">
-                  <div className="text-6xl mb-4">🗺️</div>
-                  <p className="text-gray-600 font-semibold">台灣門市地圖</p>
-                  <p className="text-sm text-gray-500">新竹、台中、台北</p>
-                </div>
-              </div>
-
-              {/* Store Info */}
-              <div className="space-y-6">
-                {[
-                  { name: '新竹旗艦店', addr: '新竹市東區' },
-                  { name: '台中分店', addr: '台中市西屯區' },
-                  { name: '台北門市', addr: '台北市信義區' }
-                ].map((store, idx) => (
-                  <div key={idx} className="p-6 bg-white rounded-2xl shadow-md hover:shadow-lg transition-all">
-                    <h3 className="font-bold text-lg text-sunny-dark mb-2">{store.name}</h3>
-                    <p className="text-gray-600 text-sm mb-3">{store.addr}</p>
-                    <div className="flex gap-2 text-xs text-gray-500">
-                      <span>☎️ 02-XXXX-XXXX</span>
-                      <span>🕐 10:00-20:00</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Wave Divider */}
-          <div className="mt-20">
-            <svg className="w-full h-24 md:h-32" viewBox="0 0 1200 120" preserveAspectRatio="none">
-              <path d="M0,50 Q300,100 600,50 T1200,50 L1200,0 L0,0 Z" fill="#1e40af" opacity="0.15"></path>
-            </svg>
-          </div>
-        </section>
+         {/* 優化版 Wave Divider - Store 到 CTA 過渡，幾何三角形設計，絕對定位不佔據空間 */}
+      <div className="relative bottom-[-100px]">
+        {/* 幾何三角形 SVG - 絕對定位，不佔據空間 */}
+        <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+          {/* 漸層過渡層 - 從 amber 漸進到 CTA 的淺色背景 */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-200/40 to-orange-100/50 h-20" />
+          
+          <svg 
+            className="w-full h-28 md:h-36 relative z-10" 
+            viewBox="0 0 1200 120" 
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="storeToCtaGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#FCD34D" stopOpacity="0.5" />
+                <stop offset="50%" stopColor="#FED7AA" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#FCD34D" stopOpacity="0.5" />
+              </linearGradient>
+              <linearGradient id="storeToCtaGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#FED7AA" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#FEF3C7" stopOpacity="0.55" />
+              </linearGradient>
+            </defs>
+            {/* 幾何三角形圖案 - 上層 - 淺琥珀色，向下延伸 */}
+            <polygon
+              points="0,0 0,45 100,65 200,40 300,75 400,45 500,80 600,50 700,85 800,55 900,90 1000,60 1100,95 1200,70 1200,0"
+              fill="url(#storeToCtaGrad1)"
+            />
+            {/* 幾何三角形圖案 - 下層 - 淺橙色，向下延伸 */}
+            <polygon
+              points="0,0 0,25 150,45 300,20 450,50 600,25 750,55 900,30 1050,60 1200,40 1200,0"
+              fill="url(#storeToCtaGrad2)"
+            />
+            {/* 頂部裝飾線 - 使用更明顯的顏色 */}
+            <line x1="0" y1="15" x2="1200" y2="15" stroke="#FCD34D" strokeOpacity="0.4" strokeWidth="2" />
+            <line x1="0" y1="8" x2="1200" y2="8" stroke="#FED7AA" strokeOpacity="0.45" strokeWidth="1" />
+          </svg>
+        </div>
+      </div>
 
         {/* ==================== CTA SECTION ==================== */}
-        <section className="py-20 bg-gradient-to-r from-sunny-orange via-orange-500 to-sunny-gold text-white overflow-hidden relative">
-          {/* Background decoration */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-0 w-96 h-96 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/2 translate-y-1/2"></div>
-          </div>
-
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="text-center max-w-3xl mx-auto space-y-8">
-              <h2 className="text-5xl font-bold leading-tight">
-                加入晴朗家大家庭
-              </h2>
-              <p className="text-xl text-white/90 leading-relaxed">
-                無論是想開設自己的烘焙店，還是尋找高品質的企業採購夥伴，
-                <br />
-                晴朗家都歡迎與您合作。
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Button size="lg" className="bg-white hover:bg-gray-100 text-sunny-orange font-semibold shadow-lg">
-                  <Link href="/sunnyhaus/get-join">我要加盟 🚀</Link>
-                </Button>
-                <Button size="lg" variant="outline" className="border-2 border-white text-white hover:bg-white/20">
-                  <Link href="/sunnyhaus/business-cooperation">商業合作</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
+        <CTASection />
       </main>
 
       <Footer />

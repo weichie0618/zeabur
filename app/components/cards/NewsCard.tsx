@@ -93,12 +93,7 @@ export function NewsCard({
               <span>{formattedDate}</span>
             </div>
 
-            {author && (
-              <div className="flex items-center gap-2">
-                <User size={16} className="text-sunny-orange flex-shrink-0" />
-                <span>{author}</span>
-              </div>
-            )}
+            
           </div>
 
           {/* CTA */}

@@ -365,10 +365,172 @@ img {
   }
 }
 
+/* 組合動畫：先冒出來，然後持續浮動 */
+@keyframes pop-up-and-float {
+  0% {
+    opacity: 0;
+    transform: translateY(60px) scale(0.3) rotate(0deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-15px) scale(1.1) rotate(0deg);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  70% {
+    transform: translate(10px, -15px) scale(1) rotate(2deg);
+  }
+  80% {
+    transform: translate(-8px, -20px) scale(1) rotate(-1deg);
+  }
+  90% {
+    transform: translate(12px, -10px) scale(1) rotate(1deg);
+  }
+  100% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+}
+
 .animate-slow-drift {
   animation: slow-drift 20s ease-in-out infinite;
 }
 
 .animate-float-random {
   animation: float-random 6s ease-in-out infinite;
+}
+
+.animate-pop-up-and-float {
+  animation: 
+    pop-up 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    float-random 6s ease-in-out 1s infinite;
+  opacity: 0;
+}
+
+/* 冒出來動畫 - 從下方縮放並淡入 */
+@keyframes pop-up {
+  0% {
+    opacity: 0;
+    transform: translateY(60px) scale(0.3);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateY(-15px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-pop-up {
+  animation: pop-up 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+/* ==================== Sticky Hero + Slide-up 效果 ==================== */
+.hero-sticky-container {
+  position: relative;
+  /* 確保容器高度足夠讓 FeatureSection 滑上來 */
+}
+
+.hero-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.feature-slide-up {
+  position: relative;
+  bottom: -15px;
+  z-index: 10;
+  /* 圓角頂部 - 創造卡片感 */
+  border-radius: 2.5rem 2.5rem 0 0;
+  /* 頂部陰影 - 增加深度感 */
+  box-shadow: 
+    0 -20px 60px -15px rgba(0, 0, 0, 0.15),
+    0 -8px 30px -10px rgba(243, 108, 33, 0.1);
+  /* 確保背景不透明 */
+  background: linear-gradient(to bottom right, #fef3c7, #fff7ed, #fef9c3);
+  /* 平滑過渡 */
+  transition: box-shadow 0.3s ease;
+  /* 防止圓角內容溢出 */
+  overflow: hidden;
+  /* 負 margin 讓它往上疊到 Header */
+  /* margin-top: -2.5rem; */
+}
+
+/* 滾動時增強陰影效果 */
+.feature-slide-up:hover {
+  box-shadow: 
+    0 -25px 70px -15px rgba(0, 0, 0, 0.2),
+    0 -10px 40px -10px rgba(243, 108, 33, 0.15);
+}
+
+/* 手機版調整圓角 */
+@media (max-width: 768px) {
+  .feature-slide-up {
+    border-radius: 1.5rem 1.5rem 0 0;
+    margin-top: -0.5rem;
+  }
+}
+
+/* 圓角頂部裝飾線 - 已移至 React 組件中以便動態控制 */
+.feature-top-decoration-line {
+  position: absolute;
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--sunny-orange), var(--sunny-gold));
+  border-radius: 2px;
+  z-index: 20;
+  opacity: 0.7;
+}
+
+/* 視差滾動容器 */
+@keyframes parallax-hint {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.scroll-hint-arrow {
+  animation: parallax-hint 2s ease-in-out infinite;
+}
+
+/* ==================== Leaflet 地圖樣式 ==================== */
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-lg);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* 確保地圖容器正確顯示 */
+.leaflet-container {
+  z-index: 0;
+}
+
+.leaflet-control-container {
+  z-index: 1;
 }

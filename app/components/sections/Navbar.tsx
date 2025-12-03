@@ -147,7 +147,10 @@ export function Navbar() {
       >
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link 
+            href="/" 
+            className="flex items-center gap-3 group outline-none focus:outline-none focus-visible:outline-none"
+          >
             <div
               className={cn(
                 "relative transition-all group-hover:scale-105",
@@ -159,7 +162,7 @@ export function Navbar() {
                 alt="晴朗家烘焙"
                 width={isScrolled ? 120 : 150}
                 height={isScrolled ? 40 : 48}
-                className="h-full w-auto object-contain"
+                className="h-full w-auto object-contain border-0 outline-none select-none"
                 priority
                 unoptimized
               />

@@ -80,6 +80,12 @@
   box-sizing: border-box;
 }
 
+/* ==================== 堆疊上下文修復 ==================== */
+/* 確保根層不建立新的堆疊上下文，Navbar 保持最頂層 */
+html, body {
+  position: relative;
+}
+
 html {
   scroll-behavior: smooth;
   font-size: 16px;
@@ -182,7 +188,7 @@ input, textarea, select {
 
 @media (min-width: 1280px) {
   .container {
-    max-width: 1280px;
+    max-width: 1380px;
   }
 }
 
@@ -438,7 +444,7 @@ img {
 .hero-sticky {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 10;
   height: 100vh;
   overflow: hidden;
 }
@@ -533,4 +539,160 @@ img {
 
 .leaflet-control-container {
   z-index: 1;
+}
+
+/* ==================== 新聞內容樣式 ==================== */
+.news-content {
+  word-wrap: normal;
+  overflow-wrap: normal;
+  min-height: 600px;
+}
+
+.news-content p,
+.news-content div,
+.news-content span,
+.news-content h1,
+.news-content h2,
+.news-content h3,
+.news-content h4,
+.news-content h5,
+.news-content h6 {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  line-height: 1.8;
+}
+
+/* 段落間距 */
+.news-content p {
+  margin-top: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.news-content p:first-child {
+  margin-top: 0;
+}
+
+.news-content p:last-child {
+  margin-bottom: 0;
+}
+
+.news-content p + p {
+  margin-top: 0.25rem;
+}
+
+/* 圖片樣式 */
+.news-content img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+  border-radius: 8px;
+}
+
+/* WordPress 圖片對齊 */
+.news-content .alignleft {
+  float: left;
+  margin-right: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.news-content .alignright {
+  float: right;
+  margin-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.news-content .aligncenter {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 圖片說明文字 */
+.news-content figcaption,
+.news-content .wp-caption-text {
+  font-size: 0.875rem;
+  color: var(--sunny-gray);
+  text-align: center;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* 清除浮動 */
+.news-content::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* 響應式處理 */
+@media (max-width: 768px) {
+  .news-content .alignleft,
+  .news-content .alignright {
+    float: none;
+    margin: 1rem auto;
+    display: block;
+  }
+  
+  .news-content p,
+  .news-content div {
+    word-break: break-word;
+  }
+  
+  .news-content {
+    font-size: 0.875rem;
+    padding: 1rem;
+  }
+}
+
+/* Prose 樣式 */
+.prose {
+  max-width: none;
+  color: var(--text-primary);
+}
+
+.prose h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.prose h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.875rem;
+}
+
+.prose h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.prose a {
+  color: var(--sunny-orange);
+  text-decoration: underline;
+}
+
+.prose a:hover {
+  color: var(--sunny-gold);
+}
+
+@media (max-width: 768px) {
+  .prose {
+    font-size: 0.875rem;
+  }
+  
+  .prose h1 {
+    font-size: 1.3rem;
+  }
+  
+  .prose h2 {
+    font-size: 1.1rem;
+  }
+  
+  .prose h3 {
+    font-size: 1rem;
+  }
 }

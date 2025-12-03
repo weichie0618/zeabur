@@ -8,6 +8,26 @@ const nextConfig: NextConfig = {
         hostname: 'sunnyhausbakery.com.tw',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'wp.yilicorp.com.tw',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'wp.yilicorp.com.tw',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'yilicorp.com.tw',
+        pathname: '/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'yilicorp.com.tw',
+        pathname: '/**',
+      },
     ],
   },
 };

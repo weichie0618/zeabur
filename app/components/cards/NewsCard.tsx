@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/utils";
 import { CalendarDays, User } from "lucide-react";
 
 interface NewsCardProps {
-  id: string;
+  id: string | number;
   title: string;
   excerpt: string;
   image: string;
@@ -57,7 +57,7 @@ export function NewsCard({
         )}
       >
         {/* 圖片容器 */}
-        <div className="relative w-full h-48 md:h-56 overflow-hidden bg-gray-200">
+        <div className="relative w-full h-60 md:h-72  xl:h-96 overflow-hidden bg-gray-200">
           <Image
             src={image}
             alt={imageAlt}

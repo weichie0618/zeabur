@@ -137,7 +137,7 @@ export function StoreCard({
           </Button>
           <Button
             size="sm"
-            variant="primary"
+            variant="default"
             className="flex-1"
             onClick={() => window.location.href = `tel:${phone}`}
           >

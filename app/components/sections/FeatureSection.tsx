@@ -257,7 +257,7 @@ export default function FeatureSection({ scrollProgress = 0 }: FeatureSectionPro
       </div>
 
       {/* 主要內容 */}
-      <div className="relative h-full container mx-auto px-4 md:px-8 lg:px-32 flex items-center">
+      <div className="relative h-full container mx-auto px-4 md:px-8 lg:px-20 flex items-center">
         <div className="w-full grid grid-cols-2 max-[620px]:grid-cols-1 max-[620px]:flex max-[620px]:flex-col gap-6 max-[620px]:gap-4 lg:gap-12 items-center">
           
           {/* 左側 - 產品卡片 */}

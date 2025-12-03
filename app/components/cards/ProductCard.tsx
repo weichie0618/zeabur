@@ -131,7 +131,7 @@ export function ProductCard({
           {onAddToCart ? (
             <Button
               size="sm"
-              variant="primary"
+              variant="default"
               className="flex-1"
               onClick={onAddToCart}
             >
@@ -139,7 +139,7 @@ export function ProductCard({
             </Button>
           ) : (
             <Link href={href} className="flex-1">
-              <Button size="sm" variant="primary" className="w-full">
+              <Button size="sm" variant="default" className="w-full">
                 查看詳情
               </Button>
             </Link>

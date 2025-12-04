@@ -15,6 +15,33 @@ export default function Home() {
   const featureRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
 
+  // 首次載入時強制滾動到頂部（修復桌面版不在最上方的問題）
+  // 主要原因：sticky hero 容器的高度計算和瀏覽器的 scroll restoration 機制
+  useEffect(() => {
+    // 禁用瀏覽器的自動滾動恢復（主要原因之一）
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    
+    // 使用 requestAnimationFrame 確保在渲染後執行
+    const scrollToTop = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    };
+    
+    // 立即執行一次
+    scrollToTop();
+    
+    // 使用 requestAnimationFrame 確保在下一幀也執行
+    requestAnimationFrame(scrollToTop);
+    
+    return () => {
+      // 恢復預設行為（可選，保持禁用也可以）
+      // if ('scrollRestoration' in history) {
+      //   history.scrollRestoration = 'auto';
+      // }
+    };
+  }, []);
+
   // 監聽滾動進度，用於視差效果
   useEffect(() => {
     const handleScroll = () => {

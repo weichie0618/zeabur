@@ -193,157 +193,129 @@ export default async function NewsDetailPage({ params }: PageProps) {
         />
 
         <Navbar />
-        <main>
-          {/* Breadcrumb */}
-          <div className="bg-sunny-cream py-4">
-            <div className="container mx-auto px-4">
-              <div className="flex items-center gap-2 text-sm text-sunny-gray">
-                <Link href="/" className="hover:text-sunny-orange transition-colors">
-                  首頁
-                </Link>
-                <span>/</span>
-                <Link
-                  href="/sunnyhaus/get-news"
-                  className="hover:text-sunny-orange transition-colors"
-                >
-                  最新消息
-                </Link>
-                <span>/</span>
-                <span className="text-sunny-orange font-semibold truncate">
-                  {article.title}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Back Button */}
-          <div className="container mx-auto px-4 py-6">
-            <Link
-              href="/sunnyhaus/get-news"
-              className="inline-flex items-center gap-2 text-sunny-orange hover:text-sunny-gold transition-colors font-semibold"
-            >
-              <ArrowLeft size={20} />
-              返回消息列表
-            </Link>
-          </div>
-
-          {/* Hero Section */}
-          <section className="relative w-full h-96 md:h-[500px] bg-gray-200">
-            <Image
-              src={article.thumbnail || '/images/最新消息.jpg'}
-              alt={article.title}
-              fill
-              className="object-cover"
-              priority
+        <main className="font-sans">
+          {/* Hero Section - 溫暖漸層背景 */}
+          <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+            {/* 背景漸層 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100" />
+            
+            {/* 裝飾性圓形 */}
+            <div className="absolute top-20 right-10 w-64 h-64 bg-amber-200/30 rounded-full blur-3xl" />
+            <div className="absolute bottom-10 left-10 w-48 h-48 bg-orange-200/40 rounded-full blur-2xl" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-yellow-200/20 rounded-full blur-3xl" />
+            
+            {/* 麵包紋理疊加 */}
+            <div
+              className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23d97706' fillOpacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }}
             />
 
-            {/* Category Badge */}
-            <div className="absolute top-4 left-4 bg-sunny-orange text-white px-4 py-2 rounded-full text-sm font-semibold">
-              {article.category}
+            <div className="container mx-auto px-4 pt-16 xl:pt-24 relative z-10">
+              <div className="max-w-3xl mx-auto text-center">
+                {/* <span className="inline-block px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-full mb-6">
+                  {article.category}
+                </span> */}
+                <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-amber-900 mb-6 leading-tight">
+                  {article.title}
+                </h1>
+                {/* <p className="text-lg text-amber-800/70 mb-8 max-w-2xl mx-auto">{article.excerpt}</p> */}
+                <div className="flex items-center justify-center gap-2 text-amber-700">
+                  <Calendar size={18} />
+                  <span>{formatDate(article.date, 'YYYY年MM月DD日')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 波浪分隔 */}
+            <div className="absolute bottom-0 left-0 right-0">
+              <svg viewBox="0 0 1440 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full">
+                <path
+                  d="M0 120L60 110C120 100 240 80 360 70C480 60 600 60 720 65C840 70 960 80 1080 85C1200 90 1320 90 1380 90L1440 90V120H1380C1320 120 1200 120 1080 120C960 120 840 120 720 120C600 120 480 120 360 120C240 120 120 120 60 120H0Z"
+                  fill="white"
+                />
+              </svg>
             </div>
           </section>
 
           {/* Content Section */}
           <section className="py-12 md:py-20 bg-white">
             <article className="container mx-auto px-4 max-w-3xl">
-              {/* Header */}
-              <header className="mb-8">
-                <h1 className="text-4xl md:text-5xl font-bold text-sunny-dark mb-6">
-                  {article.title}
-                </h1>
-
-                {/* Meta Information */}
-                <div className="flex flex-wrap gap-6 text-sm text-sunny-light-gray border-b border-sunny-border pb-6">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={18} className="text-sunny-orange" />
-                    <span>{formatDate(article.date, 'YYYY年MM月DD日')}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <User size={18} className="text-sunny-orange" />
-                    <span>{article.author}</span>
-                  </div>
-                </div>
-              </header>
-
               {/* Content */}
-              <div 
-                className="prose prose-lg max-w-none mb-12 news-content"
-                dangerouslySetInnerHTML={{ __html: article.content || article.excerpt }}
-              />
+              <div className="prose prose-lg prose-amber max-w-none mb-12">
+                <div 
+                  className="news-content"
+                  dangerouslySetInnerHTML={{ __html: article.content || article.excerpt }}
+                />
+              </div>
 
               {/* Share Section */}
-              <div className="border-t border-sunny-border pt-8 mb-12">
+              <div className="border-t border-amber-100 pt-8 mb-12">
+                <p className="text-amber-800 font-medium mb-4">分享這篇文章</p>
                 <SocialShare 
                   title={article.title} 
                   url={`https://sunnyhausbakery.com.tw/sunnyhaus/get-news/${article.slug}`} 
                 />
               </div>
 
-              {/* Author Info */}
-              <div className="bg-sunny-cream p-6 rounded-lg mb-12">
-                <div className="flex gap-4">
-                  <div className="w-16 h-16 rounded-full bg-sunny-orange flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
-                    {article.author.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-sunny-dark">{article.author}</h3>
-                    <p className="text-sunny-gray">
-                      晴朗家烘焙官方帳號，分享最新的烘焙動態、產品資訊和優惠活動。
-                    </p>
-                  </div>
-                </div>
-              </div>
+              
 
               {/* Previous/Next Navigation */}
               {(prevArticle || nextArticle) && (
-                <div className="flex flex-col md:flex-row gap-4 md:gap-6 mb-12 border-t border-sunny-border pt-8">
-                  <div className="flex-1">
-                    {prevArticle ? (
-                      <Link 
-                        href={`/sunnyhaus/get-news/${prevArticle.slug}`}
-                        className="group flex items-center gap-2 p-3 md:p-4 rounded-lg transition-all duration-200 hover:shadow-md bg-sunny-cream"
-                      >
-                        <div className="flex-shrink-0">
-                          <ArrowLeft size={20} className="text-sunny-orange" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs md:text-sm mb-1 text-sunny-gray">上一篇</div>
-                          <div className="font-semibold line-clamp-2 text-sunny-dark group-hover:text-sunny-orange">
+                <div className="grid md:grid-cols-2 gap-4 mb-12">
+                  {prevArticle ? (
+                    <Link 
+                      href={`/sunnyhaus/get-news/${prevArticle.slug}`}
+                      className="p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <ArrowLeft size={20} className="text-amber-500" />
+                        <div>
+                          <p className="text-xs text-amber-600 mb-1">上一篇</p>
+                          <p className="font-semibold text-amber-900 group-hover:text-amber-700 line-clamp-2">
                             {prevArticle.title}
-                          </div>
+                          </p>
                         </div>
-                      </Link>
-                    ) : (
-                      <div className="p-3 md:p-4 rounded-lg opacity-50 bg-sunny-cream">
-                        <div className="text-xs md:text-sm mb-1 text-sunny-gray">上一篇</div>
-                        <div className="text-sm text-sunny-gray">沒有更多文章</div>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    {nextArticle ? (
-                      <Link 
-                        href={`/sunnyhaus/get-news/${nextArticle.slug}`}
-                        className="group flex items-center gap-2 p-3 md:p-4 rounded-lg transition-all duration-200 hover:shadow-md bg-sunny-cream md:text-right"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs md:text-sm mb-1 text-sunny-gray">下一篇</div>
-                          <div className="font-semibold line-clamp-2 text-sunny-dark group-hover:text-sunny-orange">
+                    </Link>
+                  ) : (
+                    <div className="p-4 bg-amber-50 rounded-xl opacity-50">
+                      <div className="flex items-center gap-3">
+                        <ArrowLeft size={20} className="text-amber-500" />
+                        <div>
+                          <p className="text-xs text-amber-600 mb-1">上一篇</p>
+                          <p className="text-sm text-amber-700">沒有更多文章</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {nextArticle ? (
+                    <Link 
+                      href={`/sunnyhaus/get-news/${nextArticle.slug}`}
+                      className="p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer group text-right"
+                    >
+                      <div className="flex items-center justify-end gap-3">
+                        <div>
+                          <p className="text-xs text-amber-600 mb-1">下一篇</p>
+                          <p className="font-semibold text-amber-900 group-hover:text-amber-700 line-clamp-2">
                             {nextArticle.title}
-                          </div>
+                          </p>
                         </div>
-                        <div className="flex-shrink-0">
-                          <ArrowLeft size={20} className="text-sunny-orange rotate-180" />
-                        </div>
-                      </Link>
-                    ) : (
-                      <div className="p-3 md:p-4 rounded-lg opacity-50 bg-sunny-cream md:text-right">
-                        <div className="text-xs md:text-sm mb-1 text-sunny-gray">下一篇</div>
-                        <div className="text-sm text-sunny-gray">沒有更多文章</div>
+                        <ArrowLeft size={20} className="text-amber-500 rotate-180" />
                       </div>
-                    )}
-                  </div>
+                    </Link>
+                  ) : (
+                    <div className="p-4 bg-amber-50 rounded-xl opacity-50 text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <div>
+                          <p className="text-xs text-amber-600 mb-1">下一篇</p>
+                          <p className="text-sm text-amber-700">沒有更多文章</p>
+                        </div>
+                        <ArrowLeft size={20} className="text-amber-500 rotate-180" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </article>
@@ -351,34 +323,31 @@ export default async function NewsDetailPage({ params }: PageProps) {
 
           {/* Related News Section */}
           {relatedNews.length > 0 && (
-            <section className="py-20 bg-sunny-cream">
+            <section className="py-20 bg-gradient-to-b from-amber-50 to-orange-50">
               <div className="container mx-auto px-4">
-                <h2 className="text-3xl font-bold text-sunny-dark mb-12">
-                  相關消息
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  {relatedNews.map((relatedItem) => (
+                <h2 className="text-3xl font-bold text-amber-900 mb-12 text-center">相關消息</h2>
+                <div className="grid md:grid-cols-3 gap-8">
+                  {relatedNews.map((item) => (
                     <Link
-                      key={relatedItem.id}
-                      href={`/sunnyhaus/get-news/${relatedItem.slug}`}
+                      key={item.id}
+                      href={`/sunnyhaus/get-news/${item.slug}`}
                       className="group"
                     >
-                      <article className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-all">
-                        <div className="relative w-full h-48 overflow-hidden bg-gray-200">
+                      <article className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                        <div className="relative h-48 overflow-hidden">
                           <Image
-                            src={relatedItem.thumbnail || '/images/最新消息.jpg'}
-                            alt={relatedItem.title}
+                            src={item.thumbnail || '/images/最新消息.jpg'}
+                            alt={item.title}
                             fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-500"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                         </div>
-                        <div className="p-4">
-                          <h3 className="font-bold text-sunny-dark mb-2 line-clamp-2 group-hover:text-sunny-orange transition-colors">
-                            {relatedItem.title}
+                        <div className="p-6">
+                          <h3 className="font-bold text-amber-900 mb-2 group-hover:text-amber-600 transition-colors line-clamp-2">
+                            {item.title}
                           </h3>
-                          <p className="text-sm text-sunny-gray line-clamp-2">
-                            {relatedItem.excerpt}
+                          <p className="text-sm text-amber-700/70 line-clamp-2">
+                            {item.excerpt}
                           </p>
                         </div>
                       </article>
@@ -389,35 +358,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
             </section>
           )}
 
-          {/* CTA Section */}
-          <section className="py-20 bg-sunny-orange text-white">
-            <div className="container mx-auto px-4 text-center">
-              <h2 className="text-3xl font-bold mb-6">
-                想了解更多關於晴朗家的消息嗎？
-              </h2>
-              <p className="text-lg mb-8 max-w-2xl mx-auto">
-                追蹤我們的社交媒體，掌握最新的優惠和活動資訊！
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <a
-                  href="https://www.facebook.com/SunnyHausBakery"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center h-11 rounded-md px-8 bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors font-medium"
-                >
-                  追蹤 Facebook
-                </a>
-                <a
-                  href="https://www.instagram.com/SunnyHausBakery"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center h-11 rounded-md px-8 bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors font-medium"
-                >
-                  追蹤 Instagram
-                </a>
-              </div>
-            </div>
-          </section>
+          
         </main>
         <Footer />
       </>

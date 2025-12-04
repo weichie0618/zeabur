@@ -132,16 +132,22 @@ export default async function NewsPage({
       <Navbar />
       <main>
         {/* Hero Section */}
-        <section className="bg-gradient-to-r from-sunny-cream to-sunny-white py-20">
-          <div className="container mx-auto px-4">
+        <section 
+          className="relative pt-16 pb-6 md:py-20 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: 'url(https://sunnyhausbakery.com.tw/wp-content/uploads/2025/05/pexels-photo-3218467-3218467-scaled.jpg)'
+          }}
+        >
+          {/* 半透明覆蓋層，確保文字可讀性 */}
+          <div className="absolute inset-0 bg-black/30"></div>
+          <div className="h-20 md:h-40"></div>
+          <div className="container mx-auto px-4 relative z-10">
             <div className="text-center max-w-2xl mx-auto">
-              <p className="text-sm md:text-base font-semibold text-sunny-orange mb-4 uppercase tracking-wider">
-                最新消息
-              </p>
-              <h1 className="text-4xl md:text-5xl font-bold text-sunny-dark mb-6">
-                晴朗家的最新動態
+              
+              <h1 className="text-2xl md:text-5xl font-bold text-white mb-6 drop-shadow-lg">
+              最新消息
               </h1>
-              <p className="text-lg text-sunny-gray">
+              <p className="text-lg text-white drop-shadow-md">
                 掌握晴朗家烘焙的最新消息、活動、優惠和新聞發布
               </p>
             </div>
@@ -228,32 +234,7 @@ export default async function NewsPage({
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-20 bg-sunny-cream">
-          <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold text-sunny-dark mb-6">
-              訂閱我們的最新消息
-            </h2>
-            <p className="text-lg text-sunny-gray mb-8 max-w-2xl mx-auto">
-              不想錯過任何優惠和活動？立即訂閱我們的電子報，第一時間掌握晴朗家的最新動態！
-            </p>
-
-            <form className="max-w-md mx-auto flex gap-2">
-              <input
-                type="email"
-                placeholder="請輸入您的電子郵件"
-                className="flex-1 px-4 py-3 rounded-lg border-2 border-sunny-border focus:border-sunny-orange focus:outline-none"
-                required
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 bg-sunny-orange text-white font-semibold rounded-lg hover:bg-sunny-gold transition-colors"
-              >
-                訂閱
-              </button>
-            </form>
-          </div>
-        </section>
+       
       </main>
       <Footer />
     </>

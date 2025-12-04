@@ -80,12 +80,6 @@
   box-sizing: border-box;
 }
 
-/* ==================== 堆疊上下文修復 ==================== */
-/* 確保根層不建立新的堆疊上下文，Navbar 保持最頂層 */
-html, body {
-  position: relative;
-}
-
 html {
   scroll-behavior: smooth;
   font-size: 16px;
@@ -188,7 +182,7 @@ input, textarea, select {
 
 @media (min-width: 1280px) {
   .container {
-    max-width: 1380px;
+    max-width: 1280px;
   }
 }
 
@@ -444,7 +438,7 @@ img {
 .hero-sticky {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 1;
   height: 100vh;
   overflow: hidden;
 }
@@ -543,156 +537,128 @@ img {
 
 /* ==================== 新聞內容樣式 ==================== */
 .news-content {
-  word-wrap: normal;
-  overflow-wrap: normal;
-  min-height: 600px;
+  font-size: 1rem !important; /* 16px - 基礎字體大小 */
+  line-height: 1.75;
+  color: var(--sunny-dark);
 }
 
-.news-content p,
-.news-content div,
-.news-content span,
-.news-content h1,
-.news-content h2,
-.news-content h3,
-.news-content h4,
-.news-content h5,
-.news-content h6 {
-  white-space: normal;
-  word-break: keep-all;
-  overflow-wrap: break-word;
-  line-height: 1.8;
-}
-
-/* 段落間距 */
-.news-content p {
-  margin-top: 0.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.news-content p:first-child {
-  margin-top: 0;
-}
-
-.news-content p:last-child {
-  margin-bottom: 0;
-}
-
-.news-content p + p {
-  margin-top: 0.25rem;
-}
-
-/* 圖片樣式 */
-.news-content img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin: 1rem auto;
-  border-radius: 8px;
-}
-
-/* WordPress 圖片對齊 */
-.news-content .alignleft {
-  float: left;
-  margin-right: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.news-content .alignright {
-  float: right;
-  margin-left: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.news-content .aligncenter {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* 圖片說明文字 */
-.news-content figcaption,
-.news-content .wp-caption-text {
-  font-size: 0.875rem;
-  color: var(--sunny-gray);
-  text-align: center;
-  margin-top: 0.5rem;
-  font-style: italic;
-}
-
-/* 清除浮動 */
-.news-content::after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-/* 響應式處理 */
-@media (max-width: 768px) {
-  .news-content .alignleft,
-  .news-content .alignright {
-    float: none;
-    margin: 1rem auto;
-    display: block;
-  }
-  
-  .news-content p,
-  .news-content div {
-    word-break: break-word;
-  }
-  
+/* 響應式字體大小 */
+@media (min-width: 768px) {
   .news-content {
-    font-size: 0.875rem;
-    padding: 1rem;
+    font-size: 1.125rem !important; /* 18px - 中等螢幕 */
   }
 }
 
-/* Prose 樣式 */
-.prose {
-  max-width: none;
-  color: var(--text-primary);
+@media (min-width: 1024px) {
+  .news-content {
+    font-size: 1.25rem !important; /* 20px - 大螢幕 */
+  }
 }
 
-.prose h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+@media (min-width: 1280px) {
+  .news-content {
+    font-size: 1.3125rem !important; /* 21px - 超大螢幕 */
+  }
+}
+
+/* 控制內容區域內的元素字體大小 */
+.news-content p {
+  font-size: inherit !important;
+  margin-bottom: 1.25rem;
+  line-height: 1.75;
+}
+
+.news-content h1 {
+  font-size: 2rem !important;
+  margin-top: 2rem;
   margin-bottom: 1rem;
 }
 
-.prose h2 {
-  font-size: 1.3rem;
-  font-weight: 600;
+@media (min-width: 1024px) {
+  .news-content h1 {
+    font-size: 2.5rem !important;
+  }
+}
+
+.news-content h2 {
+  font-size: 1.75rem !important;
+  margin-top: 1.75rem;
   margin-bottom: 0.875rem;
 }
 
-.prose h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
+@media (min-width: 1024px) {
+  .news-content h2 {
+    font-size: 2rem !important;
+  }
+}
+
+.news-content h3 {
+  font-size: 1.5rem !important;
+  margin-top: 1.5rem;
   margin-bottom: 0.75rem;
 }
 
-.prose a {
+@media (min-width: 1024px) {
+  .news-content h3 {
+    font-size: 1.75rem !important;
+  }
+}
+
+.news-content h4 {
+  font-size: 1.25rem !important;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+}
+
+@media (min-width: 1024px) {
+  .news-content h4 {
+    font-size: 1.5rem !important;
+  }
+}
+
+.news-content ul,
+.news-content ol {
+  margin-bottom: 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.news-content li {
+  font-size: inherit !important;
+  margin-bottom: 0.5rem;
+  line-height: 1.75;
+}
+
+.news-content strong,
+.news-content b {
+  font-size: inherit !important;
+  font-weight: 600;
+}
+
+.news-content em,
+.news-content i {
+  font-size: inherit !important;
+}
+
+.news-content a {
   color: var(--sunny-orange);
   text-decoration: underline;
 }
 
-.prose a:hover {
+.news-content a:hover {
   color: var(--sunny-gold);
 }
 
-@media (max-width: 768px) {
-  .prose {
-    font-size: 0.875rem;
-  }
-  
-  .prose h1 {
-    font-size: 1.3rem;
-  }
-  
-  .prose h2 {
-    font-size: 1.1rem;
-  }
-  
-  .prose h3 {
-    font-size: 1rem;
-  }
+.news-content img {
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem 0;
+  border-radius: 0.5rem;
+}
+
+.news-content blockquote {
+  border-left: 4px solid var(--sunny-orange);
+  padding-left: 1rem;
+  margin: 1.5rem 0;
+  font-style: italic;
+  color: var(--sunny-gray);
 }

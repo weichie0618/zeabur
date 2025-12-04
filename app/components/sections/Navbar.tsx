@@ -136,13 +136,17 @@ export function Navbar() {
       onClick={(e) => e.stopPropagation()}
       className={cn(
         "fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-500",
-        isScrolled ? "top-4 w-[95%] max-w-5xl" : "top-6 w-[90%] max-w-6xl"
+        isScrolled 
+          ? "top-4 w-[95%] max-w-5xl xl:max-w-6xl" 
+          : "top-6 w-[90%] max-w-6xl xl:max-w-7xl"
       )}
     >
       <nav
         className={cn(
           "bg-white/90 backdrop-blur-xl rounded-full shadow-2xl border border-amber-100 transition-all",
-          isScrolled ? "px-4 py-2" : "px-8 py-4"
+          isScrolled 
+            ? "px-4 py-2 xl:px-6 xl:py-3" 
+            : "px-8 py-4 xl:px-12 xl:py-5"
         )}
       >
         <div className="flex items-center justify-between">
@@ -154,7 +158,9 @@ export function Navbar() {
             <div
               className={cn(
                 "relative transition-all group-hover:scale-105",
-                isScrolled ? "h-10 w-auto" : "h-12 w-auto"
+                isScrolled 
+                  ? "h-10 w-auto xl:h-12" 
+                  : "h-12 w-auto xl:h-16"
               )}
             >
               <Image
@@ -162,7 +168,7 @@ export function Navbar() {
                 alt="晴朗家烘焙"
                 width={isScrolled ? 120 : 150}
                 height={isScrolled ? 40 : 48}
-                className="h-full w-auto object-contain border-0 outline-none select-none"
+                className="h-full w-auto object-contain border-0 outline-none select-none xl:w-auto"
                 priority
                 unoptimized
               />
@@ -170,7 +176,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1 bg-amber-50/50 rounded-full px-2 py-1">
+          <div className="hidden lg:flex items-center gap-1 bg-amber-50/50 rounded-full px-2 py-1 xl:gap-2 xl:px-3 xl:py-2">
             {navConfig.mainNav.map((item) => {
               const active = isActive(item.href);
               return (
@@ -178,7 +184,7 @@ export function Navbar() {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-1 px-4 py-2 text-sm rounded-full transition-all",
+                      "flex items-center gap-1 px-4 py-2 text-sm rounded-full transition-all xl:px-5 xl:py-2.5 xl:text-base",
                       active
                         ? "text-amber-700 bg-white font-semibold shadow-sm"
                         : "text-amber-800 hover:text-amber-600 hover:bg-white"
@@ -186,7 +192,7 @@ export function Navbar() {
                   >
                     {item.label}
                     {item.submenu && (
-                      <ChevronDown size={12} className="transition-transform group-hover:rotate-180" />
+                      <ChevronDown size={12} className="transition-transform group-hover:rotate-180 xl:w-4 xl:h-4" />
                     )}
                   </Link>
 
@@ -224,7 +230,7 @@ export function Navbar() {
             </button> */}
             <Link
               href="/sunnyhaus/bakery-items"
-              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all"
+              className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all xl:px-6 xl:py-3 xl:text-base"
             >
               線上訂購
             </Link>

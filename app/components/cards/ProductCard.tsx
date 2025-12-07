@@ -107,8 +107,8 @@ export function ProductCard({
               加入購物車
             </Button>
           ) : (
-            <Link href={href} className="block">
-              <Button size="sm" variant="default" className="w-80 ">
+            <Link href={href} className="block w-full">
+              <Button size="sm" variant="default" className="w-full">
                 查看詳情
               </Button>
             </Link>

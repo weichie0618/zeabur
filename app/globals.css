@@ -323,6 +323,16 @@ img {
   background: var(--sunny-gold);
 }
 
+/* 隱藏滾動條但保持滾動功能 */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
 /* ==================== Selection 樣式 ==================== */
 ::selection {
   background-color: var(--sunny-orange);

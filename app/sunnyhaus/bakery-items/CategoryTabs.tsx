@@ -29,11 +29,14 @@ export function CategoryTabs({ initialCategory }: CategoryTabsProps) {
     <>
       {/* Category Tabs */}
       <section className="py-12 bg-white border-b border-sunny-border">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap gap-3 justify-center">
+        <div className="text-center text-sm text-sunny-gray mb-3 md:hidden">
+          👉 左右滑動查看更多
+        </div>
+        <div className="w-full overflow-x-auto scrollbar-hide">
+          <div className="flex flex-nowrap gap-3 px-4 pb-2 justify-center" style={{ minWidth: 'max-content' }}>
             <button
               onClick={() => handleCategoryClick("全部產品")}
-              className={`px-6 py-2 rounded-full font-semibold transition-colors ${
+              className={`px-6 py-2 rounded-full font-semibold transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeCategory === "全部產品"
                   ? "bg-sunny-orange text-white hover:bg-sunny-gold"
                   : "border-2 border-sunny-orange text-sunny-orange hover:bg-sunny-cream"
@@ -45,7 +48,7 @@ export function CategoryTabs({ initialCategory }: CategoryTabsProps) {
               <button
                 key={category}
                 onClick={() => handleCategoryClick(category)}
-                className={`px-6 py-2 rounded-full font-semibold transition-colors ${
+                className={`px-6 py-2 rounded-full font-semibold transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeCategory === category
                     ? "bg-sunny-orange text-white hover:bg-sunny-gold"
                     : "border-2 border-sunny-orange text-sunny-orange hover:bg-sunny-cream"

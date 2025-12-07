@@ -334,7 +334,7 @@ export default async function NewsDetailPage({ params }: PageProps) {
                       className="group"
                     >
                       <article className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="relative h-48 overflow-hidden">
+                        <div className="relative h-48 sm:h-96 md:h-56 lg:h-64 xl:h-72 overflow-hidden">
                           <Image
                             src={item.thumbnail || '/images/最新消息.jpg'}
                             alt={item.title}

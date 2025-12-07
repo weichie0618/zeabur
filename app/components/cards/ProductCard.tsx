@@ -2,7 +2,6 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { Star } from "lucide-react";
 import { Button } from "@/app/components/ui/Button";
 
 interface ProductCardProps {
@@ -92,54 +91,24 @@ export function ProductCard({
         </h3>
 
         {/* 敘述 */}
-        <p className="text-sm text-sunny-gray mb-3 line-clamp-2 flex-grow">
+        <p className="text-sm text-sunny-gray mb-4 line-clamp-3 flex-grow">
           {description}
         </p>
 
-        {/* 評分 */}
-        {rating !== undefined && (
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center">
-              {Array(5)
-                .fill(0)
-                .map((_, i) => (
-                  <Star
-                    key={i}
-                    size={16}
-                    className={cn(
-                      i < Math.floor(rating)
-                        ? "fill-sunny-gold text-sunny-gold"
-                        : "text-gray-300"
-                    )}
-                  />
-                ))}
-            </div>
-            <span className="text-xs text-sunny-light-gray">
-              ({ratingCount || 0})
-            </span>
-          </div>
-        )}
-
-        {/* 價格與按鈕 */}
-        <div className="flex items-center justify-between gap-3 pt-3 border-t border-sunny-border">
-          {price && (
-            <div className="text-lg font-bold text-sunny-orange">
-              NT${price}
-            </div>
-          )}
-
+        {/* 按鈕 */}
+        <div className="pt-3 border-t border-sunny-border flex justify-center">
           {onAddToCart ? (
             <Button
               size="sm"
               variant="default"
-              className="flex-1"
+              className="w-full"
               onClick={onAddToCart}
             >
               加入購物車
             </Button>
           ) : (
-            <Link href={href} className="flex-1">
-              <Button size="sm" variant="default" className="w-full">
+            <Link href={href} className="block">
+              <Button size="sm" variant="default" className="w-80 ">
                 查看詳情
               </Button>
             </Link>

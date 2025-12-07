@@ -1,17 +1,13 @@
 import { Metadata } from "next";
-import Link from "next/link";
-import { products, productsByCategory } from "@/app/data/products";
-import { ProductCard } from "@/app/components/cards/ProductCard";
 import { Navbar } from "@/app/components/sections/Navbar";
 import { Footer } from "@/app/components/layout/Footer";
+import { CategoryTabs } from "./CategoryTabs";
 
 export const metadata: Metadata = {
   title: "產品介紹 | 晴朗家烘焙",
-  description: "探索晴朗家烘焙的精選麵包產品，包括經典、健康、特色和日式系列",
-  keywords: ["麵包", "烘焙", "產品", "麵包系列"],
+  description: "探索晴朗家烘焙的精選麵包產品，包括吐司、沙瓦豆、軟歐、台包、台式創意、法棍、可頌、雜糧和甜點系列",
+  keywords: ["麵包", "烘焙", "產品", "吐司", "可頌", "法棍", "甜點", "麵包系列"],
 };
-
-const categories = Object.keys(productsByCategory);
 
 export default function BakeryItemsPage() {
   return (
@@ -35,60 +31,8 @@ export default function BakeryItemsPage() {
         </div>
       </section>
 
-      {/* Category Filter Section */}
-      <section className="py-12 bg-white border-b border-sunny-border">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link href="/sunnyhaus/bakery-items">
-              <button className="px-6 py-2 rounded-full bg-sunny-orange text-white font-semibold hover:bg-sunny-gold transition-colors">
-                全部產品
-              </button>
-            </Link>
-            {categories.map((category) => (
-              <button
-                key={category}
-                className="px-6 py-2 rounded-full border-2 border-sunny-orange text-sunny-orange hover:bg-sunny-cream transition-colors font-semibold"
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Products Grid */}
-      <section className="py-20 bg-white">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                description={product.description}
-                image={product.image}
-                imageAlt={product.imageAlt}
-                category={product.category}
-                price={product.price}
-                rating={4.5}
-                ratingCount={Math.floor(Math.random() * 300) + 50}
-                slug={product.slug}
-                featured={product.featured}
-              />
-            ))}
-          </div>
-
-          {/* View All CTA */}
-          <div className="text-center">
-            <p className="text-sunny-gray mb-6">
-              還有更多精選麵包等著您探索！
-            </p>
-            <button className="px-8 py-3 bg-sunny-orange text-white font-semibold rounded-lg hover:bg-sunny-gold transition-colors">
-              瀏覽更多產品
-            </button>
-          </div>
-        </div>
-      </section>
+      {/* Category Tabs and Products */}
+      <CategoryTabs />
 
       {/* Features Section */}
       <section className="py-20 bg-sunny-cream">

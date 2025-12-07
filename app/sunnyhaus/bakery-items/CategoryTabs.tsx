@@ -82,15 +82,7 @@ export function CategoryTabs({ initialCategory }: CategoryTabsProps) {
                 ))}
               </div>
 
-              {/* View All CTA */}
-              <div className="text-center">
-                <p className="text-sunny-gray mb-6">
-                  還有更多精選麵包等著您探索！
-                </p>
-                <button className="px-8 py-3 bg-sunny-orange text-white font-semibold rounded-lg hover:bg-sunny-gold transition-colors">
-                  瀏覽更多產品
-                </button>
-              </div>
+              
             </>
           ) : (
             <div className="text-center py-20">

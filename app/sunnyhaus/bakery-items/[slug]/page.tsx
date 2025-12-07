@@ -22,7 +22,10 @@ export function generateStaticParams() {
 export async function generateMetadata(
   { params }: ProductPageProps
 ): Promise<Metadata> {
-  const product = products.find((p) => p.slug === params.slug);
+  const { slug } = await params;
+  // 解碼 URL 編碼的中文 slug
+  const decodedSlug = decodeURIComponent(slug);
+  const product = products.find((p) => p.slug === decodedSlug);
 
   if (!product) {
     return {
@@ -43,8 +46,11 @@ export async function generateMetadata(
   };
 }
 
-export default function ProductDetailPage({ params }: ProductPageProps) {
-  const product = products.find((p) => p.slug === params.slug);
+export default async function ProductDetailPage({ params }: ProductPageProps) {
+  const { slug } = await params;
+  // 解碼 URL 編碼的中文 slug
+  const decodedSlug = decodeURIComponent(slug);
+  const product = products.find((p) => p.slug === decodedSlug);
 
   if (!product) {
     return (

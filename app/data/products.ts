@@ -1,34 +1,10 @@
 import { Product } from "@/types";
 
-// 生成 slug 的輔助函數 - 轉換中文為拼音
+// 生成 slug 的輔助函數 - 直接使用中文名稱（會被 URL 編碼）
 function generateSlug(name: string): string {
-  // 簡單的中文到拼音映射（常見的麵包相關詞彙）
-  const pinyinMap: { [key: string]: string } = {
-    "巧克力奶油芝士小吐司": "chocolate-cream-cheese-toast",
-    "抹茶紅豆小吐司": "matcha-red-bean-toast",
-    "布里歐小吐司": "brioche-toast",
-    "帕瑪森雙起司鮮奶吐司": "parmesan-double-cheese-milk-toast",
-    "地瓜麻糬小吐司": "sweet-potato-mochi-toast",
-    "黑糖鮮奶吐司": "brown-sugar-milk-toast",
-    "核桃葡萄乾小吐司": "walnut-raisin-toast",
-    "蜂蜜奶油小吐司": "honey-butter-toast",
-    "起司花生小吐司": "cheese-peanut-toast",
-    "黑芝麻小吐司": "black-sesame-toast",
-  };
-  
-  // 如果有映射，使用映射值；否則直接使用 ID
-  if (pinyinMap[name]) {
-    return pinyinMap[name];
-  }
-  
-  // 備用方案：將名稱轉為小寫並替換空格
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9\-]/g, "")
-    .replace(/\-\-+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
+  // 直接返回中文產品名稱作為 slug
+  // URL 會自動進行百分比編碼 (e.g., 巧克力奶油芝士小吐司 → %E5%B7%A7%E5%85%8B...)
+  return name;
 }
 
 export const products: Product[] = [

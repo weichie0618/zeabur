@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 export default function HeaderSection() {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [visibleImages, setVisibleImages] = useState<number[]>([]);
+  const [visibleImages, setVisibleImages] = useState<number[]>([3, 4]); // 初始直接顯示前兩張，避免閃爍
   const [clickedImage, setClickedImage] = useState<number | null>(null);
   const [clickedImageSrc, setClickedImageSrc] = useState<string | null>(null);
   const [clickedImageRect, setClickedImageRect] = useState<DOMRect | null>(null);
@@ -52,20 +52,18 @@ export default function HeaderSection() {
   const imageOrder = [
     3, // 晴朗家LOGO-1712x1044-03.jpg (立即顯示)
     4, // LINE_ALBUM_晴朗家烘焙-蘆竹奉化_241223_4.jpg (立即顯示)
-    1, // 未命名設計-1.png (6秒後)
-    2, // 玫瑰玫瑰鹽可頌去背-scaled.png (9秒後)
+    1, // 未命名設計-1.png (1秒後)
+    2, // 玫瑰玫瑰鹽可頌去背-scaled.png (3秒後)
   ];
 
   // 控制圖片顯示時間
   useEffect(() => {
-    // 立即顯示前兩張圖片
-    setVisibleImages([imageOrder[0], imageOrder[1]]);
-
-    // 每3秒顯示下一張圖片
+    // 每3秒顯示下一張圖片（從第3張開始，前兩張已預設顯示）
+    const delays = [1000, 3000]; // 1秒與3秒
     const timers = imageOrder.slice(2).map((_, index) => {
       return setTimeout(() => {
         setVisibleImages((prev) => [...prev, imageOrder[index + 2]]);
-      }, 3000 + (index * 3000));
+      }, delays[index] ?? 3000 + (index * 3000));
     });
 
     return () => {
@@ -137,7 +135,7 @@ export default function HeaderSection() {
                   animationDelay: `${visibleIndex * 0.3}s`,
                   animationDuration: `${6 + visibleIndex * 0.5}s`,
                   zIndex: clickedImage === index ? 100 : 30,
-                  opacity: clickedImage === index ? 0 : 1,
+                  visibility: clickedImage === index ? 'hidden' : 'visible',
                 }}
                 onClick={(e) => {
                   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();

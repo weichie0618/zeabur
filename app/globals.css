@@ -413,9 +413,9 @@ img {
 
 .animate-pop-up-and-float {
   animation: 
-    pop-up 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    pop-up 1s cubic-bezier(0.34, 1.56, 0.64, 1) both,
     float-random 6s ease-in-out 1s infinite;
-  opacity: 0;
+  opacity: 0; /* 初始隱藏，由動畫控制顯示 */
 }
 
 /* 冒出來動畫 - 從下方縮放並淡入 */

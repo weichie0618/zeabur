@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/Button";
 interface HeroAction {
   label: string;
   href: string;
-  variant?: "primary" | "secondary" | "outline";
+  variant?: "default" | "secondary" | "outline";
 }
 
 interface HeroSectionProps {
@@ -125,7 +125,7 @@ export function HeroSection({
                 {actions.map((action, index) => (
                   <Link key={index} href={action.href}>
                     <Button
-                      variant={action.variant || "primary"}
+                      variant={action.variant || "default"}
                       size="lg"
                     >
                       {action.label}
@@ -182,7 +182,7 @@ export function HeroSection({
                 {actions.map((action, index) => (
                   <Link key={index} href={action.href}>
                     <Button
-                      variant={action.variant || "primary"}
+                      variant={action.variant || "default"}
                       size="lg"
                     >
                       {action.label}

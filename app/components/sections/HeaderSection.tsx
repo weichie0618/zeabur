@@ -74,7 +74,7 @@ export default function HeaderSection() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pb-12 md:pb-20">
+    <section className="relative min-h-screen flex items-center justify-center overflow-x-hidden pb-12 md:pb-20">
       {/* Video Background - Desktop Only */}
       <video
         ref={videoRef}
@@ -93,7 +93,7 @@ export default function HeaderSection() {
       {/* Mobile Animated Background */}
       <div className="md:hidden absolute inset-0 w-full h-full overflow-hidden">
         {/* 背景圖層 */}
-        <div className="absolute inset-[-20%] w-[140%] h-[140%]">
+        <div className="absolute inset-0 w-full h-full">
           <Image
             src={mobileImages[0]?.src || "/placeholder.svg"}
             alt="背景"
@@ -181,14 +181,13 @@ export default function HeaderSection() {
         <div
           className="w-[88%] mx-auto bg-white"
           style={{
-            width: '100%',
             height: '32px', // h-8
-            borderRadius: ' 50%', // 極大 border-radius 形成橢圓
+            borderRadius: '50%', // 極大 border-radius 形成橢圓
             boxShadow: '0 8px 24px 0 rgba(208, 154, 87, 0.09)', // 柔和陰影感覺像地板
             opacity: 0.92,
             position: 'absolute',
-            // left: '6%',
-            // right: '6%',
+            left: '50%',
+            transform: 'translateX(-50%)',
             bottom: '-0.5rem', // 上移一點（原本 bottom-20 = 5rem, 稍微再高一點）
             zIndex: 22,
           }}

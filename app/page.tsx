@@ -74,8 +74,8 @@ export default function Home() {
             className="hero-sticky"
             style={{
               // 視差效果：Header 微微縮小和變暗
-              transform: `scale(${1 + scrollProgress * 0.05})`,
-              filter: `brightness(${1 - scrollProgress * 0.2})`,
+              // transform: `scale(${1 + scrollProgress * 0.05})`,
+              // filter: `brightness(${1 - scrollProgress * 0.2})`,
             }}
           >
           <HeaderSection />

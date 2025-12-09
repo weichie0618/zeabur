@@ -55,7 +55,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               {/* 線上訂購按鈕 */}
               <div className="mb-8 hidden lg:flex items-center gap-2">
                 <a
-                  href="https://line.me/ti/p/xxxxxxxxx"
+                  href="https://joinmeet.sunnyhausbakery.com.tw/client/bakery"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-60 text-center  px-5 py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-sm md:text-lg font-medium hover:shadow-lg transition-all"
@@ -67,7 +67,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               {/* 手機版線上訂購按鈕 */}
               <div className="mb-8 lg:hidden">
                 <a
-                  href="https://line.me/ti/p/xxxxxxxxx"
+                  href="https://line.me/R/app/2006231077-9A6bmQNe"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold rounded-lg hover:shadow-lg transition-all text-center"
@@ -81,7 +81,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 <div className="p-3 bg-sunny-cream rounded-lg">
                   <p className="text-sunny-gray mb-1">配送方式</p>
                   <p className="font-semibold text-sunny-dark text-xs">
-                    🚚 宅配 / 自取 / 門市
+                    🚚 宅配 / 自取 
                   </p>
                 </div>
               </div>

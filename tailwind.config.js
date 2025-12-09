@@ -18,6 +18,22 @@ module.exports = {
           light: '#F5F5F5',       // 淺背景
           white: '#FFFFFF',       // 純白
         },
+        // 設計系統顏色（用於極簡風格）
+        background: '#FFFFFF',
+        foreground: '#333333',
+        muted: {
+          DEFAULT: '#F5F5F5',
+          foreground: '#999999',
+        },
+        secondary: {
+          DEFAULT: '#FFF8F0',
+          foreground: '#333333',
+        },
+        border: '#E5E5E5',
+        primary: {
+          DEFAULT: '#F36C21',
+          foreground: '#FFFFFF',
+        },
         // 功能色
         success: '#4CAF50',
         error: '#F44336',
@@ -71,7 +87,7 @@ module.exports = {
         'xl': '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
       },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'fade-in': 'fadeIn 0.3s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
         'slide-down': 'slideDown 0.3s ease-out',
       },

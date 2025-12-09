@@ -110,10 +110,9 @@ interface WordPressCategoryStatsResponse {
 }
 
 const GET_POSTS_QUERY = `
-  query GetPosts($first: Int = 10, $categoryName: String) {
+  query GetPosts($first: Int = 10) {
     posts(first: $first, where: { 
-      status: PUBLISH,
-      categoryName: $categoryName
+      status: PUBLISH
     }) {
       nodes {
         id
@@ -197,24 +196,17 @@ const GET_POST_BY_SLUG_QUERY = `
 `;
 
 /**
- * 取得指定分類的文章列表
+ * 取得文章列表（不篩選分類）
  * @param first 取得文章數量
- * @param categorySlug 分類 slug（預設從環境變數讀取）
  */
-export async function getPosts(first = 20, categorySlug?: string) {
+export async function getPosts(first = 20) {
   try {
-    const category = categorySlug || WORDPRESS_CATEGORY_SLUG;
     const data = await graphqlRequest<WordPressPostsResponse>(
       GET_POSTS_QUERY, 
-      { first, categoryName: category }
+      { first }
     );
     
-    // 再次確認文章確實屬於指定分類（雙重驗證）
-    const filteredPosts = data.posts.nodes.filter((post: WordPressPost) => 
-      post.categories.nodes.some((cat: WordPressCategoryNode) => cat.slug === category)
-    );
-    
-    return filteredPosts || [];
+    return data.posts.nodes || [];
   } catch (error) {
     console.error('Error fetching posts:', error);
     return [];
@@ -222,44 +214,16 @@ export async function getPosts(first = 20, categorySlug?: string) {
 }
 
 /**
- * 根據 slug 取得單篇文章
+ * 根據 slug 取得單篇文章（不篩選分類）
  * @param slug 文章 slug
- * @param categorySlug 分類 slug（預設從環境變數讀取，用於驗證）
- * @param skipCategoryValidation 是否跳過分類驗證（預設 false）
  */
-export async function getPostBySlug(slug: string, categorySlug?: string, skipCategoryValidation = false) {
+export async function getPostBySlug(slug: string) {
   try {
-    const category = categorySlug || WORDPRESS_CATEGORY_SLUG;
     const data = await graphqlRequest<WordPressPostResponse>(GET_POST_BY_SLUG_QUERY, { slug });
     
     if (!data.post) {
       console.warn(`Post not found for slug: ${slug}`);
       return null;
-    }
-    
-    // 如果跳過分類驗證，直接返回文章
-    if (skipCategoryValidation) {
-      return data.post;
-    }
-    
-    // 驗證文章確實屬於指定分類或其子分類
-    const belongsToCategory = data.post.categories.nodes.some(
-      (cat: WordPressCategoryNode) => cat.slug === category || cat.slug.startsWith(`${category}-`)
-    );
-    
-    if (!belongsToCategory) {
-      // 在開發環境下顯示更詳細的信息並仍然返回文章
-      if (process.env.NODE_ENV === 'development') {
-        console.warn(`Post "${slug}" category validation:`);
-        console.warn('- Post categories:', data.post.categories.nodes.map((c: WordPressCategoryNode) => c.slug).join(', '));
-        console.warn('- Expected category:', category);
-        console.warn('- Returning post anyway in development mode');
-        return data.post;
-      }
-      
-      // 生產環境：記錄警告但仍然返回文章（改為寬鬆模式）
-      console.warn(`Post "${slug}" does not strictly belong to category "${category}", but returning anyway`);
-      return data.post;
     }
     
     return data.post;
@@ -435,7 +399,6 @@ function removeFeaturedImageFromContent(content: string, featuredImageUrl: strin
 
 /**
  * 取得指定分類及其子分類的所有文章
- * 例如：取得 yili 及其子分類（yili-franchise, yili-events 等）的所有文章
  * @param first 取得文章數量
  * @param parentCategorySlug 父分類 slug
  */
@@ -444,16 +407,20 @@ export async function getPostsWithSubcategories(
   parentCategorySlug?: string
 ) {
   try {
-    const category = parentCategorySlug || WORDPRESS_CATEGORY_SLUG;
+    if (!parentCategorySlug) {
+      // 如果沒有指定分類，返回所有文章
+      return await getPosts(first);
+    }
+    
     const data = await graphqlRequest<WordPressPostsResponse>(
       GET_POSTS_QUERY, 
-      { first, categoryName: category }
+      { first }
     );
     
     // 篩選屬於該分類或其子分類的文章
     const filteredPosts = data.posts.nodes.filter((post: WordPressPost) => 
       post.categories.nodes.some((cat: WordPressCategoryNode) => 
-        cat.slug === category || cat.slug.startsWith(`${category}-`)
+        cat.slug === parentCategorySlug || cat.slug.startsWith(`${parentCategorySlug}-`)
       )
     );
     
@@ -495,7 +462,7 @@ export async function getCategoryStats(categorySlug?: string) {
 
 /**
  * 取得多個分類的文章（聯合查詢）
- * @param categories 分類 slug 陣列
+ * @param categories 分類 slug 陣列（如果為空則返回所有文章）
  * @param first 每個分類取得的文章數量
  */
 export async function getPostsFromMultipleCategories(
@@ -503,8 +470,23 @@ export async function getPostsFromMultipleCategories(
   first = 20
 ) {
   try {
+    // 如果沒有指定分類，返回所有文章
+    if (categories.length === 0) {
+      return await getPosts(first);
+    }
+    
     const allPosts = await Promise.all(
-      categories.map(category => getPosts(first, category))
+      categories.map(async (category) => {
+        const data = await graphqlRequest<WordPressPostsResponse>(
+          GET_POSTS_QUERY, 
+          { first }
+        );
+        
+        // 篩選屬於該分類的文章
+        return data.posts.nodes.filter((post: WordPressPost) => 
+          post.categories.nodes.some((cat: WordPressCategoryNode) => cat.slug === category)
+        );
+      })
     );
     
     // 合併並按日期排序

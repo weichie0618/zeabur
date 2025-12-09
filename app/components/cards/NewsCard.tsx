@@ -52,17 +52,17 @@ export function NewsCard({
     <Link href={href}>
       <article
         className={cn(
-          "group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-full flex flex-col",
+          "group bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 h-flex xl:h-auto flex-col",
           featured && "md:col-span-2"
         )}
       >
         {/* 圖片容器 */}
-        <div className="relative w-full h-60 md:h-72  xl:h-96 overflow-hidden bg-gray-200">
+        <div className="relative w-full h-60 md:h-72 xl:h-64 overflow-hidden bg-gray-200">
           <Image
             src={image}
             alt={imageAlt}
             fill
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            className="object-contain group-hover:scale-110 transition-transform duration-500"
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
 
@@ -75,16 +75,13 @@ export function NewsCard({
         </div>
 
         {/* 內容容器 */}
-        <div className="flex-1 flex flex-col p-5 md:p-6">
+        <div className="flex-1 flex flex-col p-5 md:p-6 xl:p-5">
           {/* 標題 */}
-          <h3 className="text-lg md:text-xl font-bold text-sunny-dark mb-2 line-clamp-2 group-hover:text-sunny-orange transition-colors">
+          <h3 className="text-lg md:text-xl xl:text-lg font-bold line-clamp-2 h-[3rem] md:h-[3.5rem] xl:h-[3rem] text-sunny-dark mb-2 group-hover:text-sunny-orange transition-colors">
             {title}
           </h3>
 
-          {/* 摘要 */}
-          <p className="text-sm md:text-base text-sunny-gray mb-4 line-clamp-3 flex-grow">
-            {excerpt}
-          </p>
+         
 
           {/* 元數據 */}
           <div className="flex flex-col gap-2 text-xs md:text-sm text-sunny-light-gray pt-4 border-t border-sunny-border">

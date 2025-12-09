@@ -97,9 +97,9 @@ export default function CTASection() {
               加入晴朗家大家庭
             </p>
             <p className="text-lg text-gray-600 mb-8 leading-relaxed">
-              無論是想開設自己的烘焙店，還是尋找高品質的企業採購夥伴，
+              想開設自己的烘焙店嗎？
               <br />
-              晴朗家都歡迎與您合作。
+              晴朗家歡迎您的加入。
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -111,17 +111,6 @@ export default function CTASection() {
                 {/* 光澤效果 */}
                 <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></span>
                 <span className="relative z-10">我要加盟</span>
-                <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </Link>
-
-              {/* 商業合作 - 泡泡按鈕 */}
-              <Link 
-                href="/sunnyhaus/business-cooperation"
-                className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white border-2 border-sunny-orange/30 text-sunny-orange font-semibold text-lg shadow-lg shadow-gray-200/50 hover:shadow-xl hover:shadow-gray-300/50 hover:scale-105 active:scale-100 transition-all duration-300 ease-out hover:bg-gray-50 hover:border-sunny-orange/50 relative overflow-hidden group"
-              >
-                {/* 光澤效果 */}
-                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-sunny-orange/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></span>
-                <span className="relative z-10">商業合作</span>
                 <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-1">→</span>
               </Link>
             </div>

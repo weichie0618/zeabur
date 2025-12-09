@@ -30,11 +30,11 @@ export default function NewsSection() {
       try {
         setIsLoading(true);
         setError(null);
+        // 獲取最新的3則訊息
         const posts = await getPosts(3);
         const transformed = posts
           .map(transformWordPressPost)
-          .filter((article: NewsArticle | null): article is NewsArticle => article !== null)
-          .slice(0, 3);
+          .filter((article: NewsArticle | null): article is NewsArticle => article !== null);
         setNewsData(transformed);
       } catch (err) {
         console.error('Failed to fetch news:', err);

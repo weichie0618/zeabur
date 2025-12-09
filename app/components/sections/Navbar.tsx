@@ -7,8 +7,18 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Menu, X, Phone, ChevronDown, Search } from "lucide-react";
 
+// 導航項目類型定義
+type NavItem = {
+  label: string;
+  href: string;
+  submenu?: Array<{ label: string; href: string }>;
+};
+
 // 導航配置（從 nav.ts 移過來）
-const navConfig = {
+const navConfig: {
+  mainNav: NavItem[];
+  footer: NavItem[];
+} = {
   mainNav: [
     {
       label: "首頁",
@@ -25,30 +35,6 @@ const navConfig = {
     {
       label: "關於我們",
       href: "/sunnyhaus/about-us",
-      submenu: [
-        {
-          label: "品牌故事",
-          href: "/sunnyhaus/about-us",
-        },
-        {
-          label: "門市據點",
-          href: "/sunnyhaus/about-us/storemap",
-        },
-      ],
-    },
-    {
-      label: "商業合作",
-      href: "/sunnyhaus/business-cooperation",
-      submenu: [
-        {
-          label: "代工烘培",
-          href: "/sunnyhaus/business-cooperation/oembaking",
-        },
-        {
-          label: "企業採購",
-          href: "/sunnyhaus/business-cooperation/corporate-procurement",
-        },
-      ],
     },
     {
       label: "加盟表單",
@@ -67,10 +53,6 @@ const navConfig = {
     {
       label: "關於我們",
       href: "/sunnyhaus/about-us",
-    },
-    {
-      label: "商業合作",
-      href: "/sunnyhaus/business-cooperation",
     },
     {
       label: "加盟表單",
@@ -199,7 +181,7 @@ export function Navbar() {
                   {/* Dropdown Menu */}
                   {item.submenu && (
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 w-48 bg-white rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-3 border border-amber-100">
-                      {item.submenu.map((sub) => (
+                      {item.submenu.map((sub: { label: string; href: string }) => (
                         <Link
                           key={sub.href}
                           href={sub.href}
@@ -222,18 +204,15 @@ export function Navbar() {
 
           {/* Right Actions - Desktop */}
           <div className="hidden lg:flex items-center gap-2">
-            {/* <button
-              className="p-2.5 text-amber-700 hover:bg-amber-100 rounded-full transition-colors"
-              aria-label="搜尋"
-            >
-              <Search size={18} />
-            </button> */}
-            <Link
-              href="/sunnyhaus/bakery-items"
+            
+            <a
+              href="https://joinmeet.sunnyhausbakery.com.tw/client/bakery"
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full text-sm font-medium hover:shadow-lg transition-all xl:px-6 xl:py-3 xl:text-base"
             >
               線上訂購
-            </Link>
+            </a>
           </div>
 
           {/* Mobile Menu Button */}
@@ -282,7 +261,7 @@ export function Navbar() {
                       {/* Mobile Submenu */}
                       {isSubmenuOpen && (
                         <div className="ml-4 space-y-1 mt-1">
-                          {item.submenu.map((sub) => (
+                          {item.submenu.map((sub: { label: string; href: string }) => (
                             <Link
                               key={sub.href}
                               href={sub.href}
@@ -319,13 +298,15 @@ export function Navbar() {
             })}
 
             {/* Mobile CTA Button */}
-            <Link
-              href="/sunnyhaus/bakery-items"
+            <a
+              href="https://line.me/R/app/2006231077-9A6bmQNe"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full mt-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium text-center hover:shadow-lg transition-all block"
               onClick={() => setIsOpen(false)}
             >
               線上訂購
-            </Link>
+            </a>
           </div>
         </div>
       )}

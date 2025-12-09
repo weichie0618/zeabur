@@ -4,24 +4,31 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Phone, Mail, MapPin, Clock, Building2, Facebook, Instagram, ArrowRight } from 'lucide-react';
 
+// LINE 圖標組件
+const LineIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M16.1 8.2c.3 0 .5.2.5.5s-.2.5-.5.5h-1.5v.9h1.5c.3 0 .5.2.5.5s-.2.5-.5.5h-2c-.3 0-.5-.2-.5-.5v-4c0-.3.2-.5.5-.5h2c.3 0 .5.2.5.5s-.2.5-.5.5h-1.5V8h1.5zm-3.2 2.5c0 .2-.1.4-.4.5h-.2c-.2 0-.3-.1-.4-.2l-2-2.8v2.5c0 .3-.2.5-.5.5s-.5-.2-.5-.5v-4c0-.2.1-.4.4-.5h.2c.2 0 .3.1.4.2L12 9.2V6.8c0-.3.2-.5.5-.5s.5.2.5.5v3.9zm-4.8 0c0 .3-.2.5-.5.5s-.5-.2-.5-.5v-4c0-.3.2-.5.5-.5s.5.2.5.5v4zm-2 .6h-2c-.3 0-.5-.2-.5-.5v-4c0-.3.2-.5.5-.5s.5.2.5.5v3.5h1.5c.3 0 .5.2.5.5 0 .2-.2.5-.5.5M20 8.6C20 4.1 15.5.5 10 .5S0 4.1 0 8.6c0 4 3.6 7.4 8.4 8 .3.1.8.2.9.5.1.3.1.6 0 .9l-.1.9c0 .3-.2 1 .9.5 1.1-.4 5.8-3.4 7.9-5.8 1.3-1.6 2-3.2 2-5" fill="" />
+  </svg>
+);
+
 const footerLinks = [
   { name: '最新消息', href: '/sunnyhaus/get-news' },
   { name: '產品介紹', href: '/sunnyhaus/bakery-items' },
   { name: '關於我們', href: '/sunnyhaus/about-us' },
-  { name: '商業合作', href: '/sunnyhaus/business-cooperation' },
   { name: '加盟表單', href: '/sunnyhaus/get-join' },
 ];
 
 const socialLinks = [
   { 
     icon: Facebook, 
-    href: 'https://www.facebook.com/SunnyHausBakery/', 
+    href: 'https://reurl.cc/VMWV4b', 
     label: '晴朗家烘焙 Facebook' 
   },
+ 
   { 
-    icon: Instagram, 
-    href: 'https://www.instagram.com/sunnyhausbakery/', 
-    label: '晴朗家烘焙 Instagram' 
+    icon: LineIcon, 
+    href: 'https://line.me/R/ti/p/@199qdltl', 
+    label: '晴朗家烘焙 LINE' 
   },
 ];
 

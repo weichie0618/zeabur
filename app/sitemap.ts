@@ -33,34 +33,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'yearly',
       priority: 0.8,
     },
-    // 門市據點
-    {
-      url: `${baseUrl}/sunnyhaus/about-us/storemap`,
-      lastModified: currentDate,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    // 商業合作
-    {
-      url: `${baseUrl}/sunnyhaus/business-cooperation`,
-      lastModified: currentDate,
-      changeFrequency: 'yearly',
-      priority: 0.7,
-    },
-    // 代工烘培
-    {
-      url: `${baseUrl}/sunnyhaus/business-cooperation/oembaking`,
-      lastModified: currentDate,
-      changeFrequency: 'yearly',
-      priority: 0.6,
-    },
-    // 企業採購
-    {
-      url: `${baseUrl}/sunnyhaus/business-cooperation/corporate-procurement`,
-      lastModified: currentDate,
-      changeFrequency: 'yearly',
-      priority: 0.6,
-    },
     // 加盟表單
     {
       url: `${baseUrl}/sunnyhaus/get-join`,

@@ -1,11 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { products, productsByCategory } from "@/app/data/products";
+import { useState, useMemo } from "react";
+import { products, productsByCategory, productCategories } from "@/app/data/products";
 import { ProductCard } from "@/app/components/cards/ProductCard";
-
-// 產品類別列表
-const productCategories = Object.keys(productsByCategory);
 
 interface CategoryTabsProps {
   initialCategory?: string;
@@ -20,10 +17,19 @@ export function CategoryTabs({ initialCategory }: CategoryTabsProps) {
     setActiveCategory(category);
   };
 
-  const displayedProducts =
-    activeCategory === "全部產品"
-      ? products
-      : productsByCategory[activeCategory as keyof typeof productsByCategory] || [];
+  // 按照分類順序排列全部產品
+  const displayedProducts = useMemo(() => {
+    if (activeCategory === "全部產品") {
+      // 按照 productCategories 的順序來組織產品
+      const sortedProducts: typeof products = [];
+      for (const category of productCategories) {
+        const categoryProducts = productsByCategory[category as keyof typeof productsByCategory] || [];
+        sortedProducts.push(...categoryProducts);
+      }
+      return sortedProducts;
+    }
+    return productsByCategory[activeCategory as keyof typeof productsByCategory] || [];
+  }, [activeCategory]);
 
   return (
     <>

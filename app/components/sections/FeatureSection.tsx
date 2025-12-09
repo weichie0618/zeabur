@@ -11,6 +11,23 @@ import { ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 const featuredProducts = [
   {
     id: 1,
+    name: '聖誕限定',
+    images: [
+      'https://sunnyhausbakery.com.tw/wp-content/uploads/2025/12/官網Banner-1800X760px.jpg',
+      'https://sunnyhausbakery.com.tw/wp-content/uploads/2025/12/晴朗家2025聖誕-蛋糕.jpg',
+      'https://sunnyhausbakery.com.tw/wp-content/uploads/2025/12/晴朗家2025聖誕-麵包.jpg',
+      'https://sunnyhausbakery.com.tw/wp-content/uploads/2025/12/晴朗家2025聖誕-雪人.jpg',
+    ],
+    tagline: "christmas limited",
+    title: '聖誕限定',
+    description: '溫馨的聖誕節，為您帶來最特別的節慶美味。精選聖誕蛋糕、麵包與可愛雪人造型點心，讓這個節日充滿甜蜜與歡樂。',
+    gradient: 'from-red-100 via-pink-50 to-rose-50',
+    cardGradient: 'from-red-200 to-pink-100',
+    accentColor: 'bg-red-100',
+    textAccent: 'text-red-800',
+  },
+  {
+    id: 2,
     name: '牛奶棒系列',
     images: [
       'https://sunnyhausbakery.com.tw/wp-content/uploads/2025/12/巧克力牛奶棒.jpg',
@@ -26,7 +43,7 @@ const featuredProducts = [
     textAccent: 'text-amber-800',
   },
   {
-    id: 2,
+    id: 3,
     name: '小吐司系列',
     images: [
       'https://sunnyhausbakery.com.tw/wp-content/uploads/2024/12/圖片1.jpg',

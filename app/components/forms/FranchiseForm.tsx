@@ -262,10 +262,9 @@ export function FranchiseForm({
       {/* 提交按鈕 */}
       <Button
         type="submit"
-        variant="primary"
+        variant="default"
         size="lg"
-        fullWidth
-        loading={loading}
+        className="w-full"
         disabled={loading || !agreedTerms}
       >
         {loading ? "提交中..." : "提交加盟申請"}

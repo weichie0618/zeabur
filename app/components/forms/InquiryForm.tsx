@@ -244,10 +244,9 @@ export function InquiryForm({
       {/* 提交按鈕 */}
       <Button
         type="submit"
-        variant="primary"
+        variant="default"
         size="lg"
-        fullWidth
-        loading={loading}
+        className="w-full"
         disabled={loading}
       >
         {loading ? "提交中..." : "提交詢價"}

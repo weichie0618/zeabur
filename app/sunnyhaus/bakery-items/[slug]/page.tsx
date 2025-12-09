@@ -6,9 +6,9 @@ import { Footer } from "@/app/components/layout/Footer";
 import { ProductDetails } from "./ProductDetails";
 
 interface ProductPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // 生成靜態參數

@@ -210,10 +210,9 @@ export function ContactForm({
       {/* 提交按鈕 */}
       <Button
         type="submit"
-        variant="primary"
+        variant="default"
         size="lg"
-        fullWidth
-        loading={loading}
+        className="w-full"
         disabled={loading}
       >
         {loading ? "發送中..." : "發送訊息"}

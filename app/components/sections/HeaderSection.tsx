@@ -5,11 +5,17 @@ import Image from 'next/image';
 import { Button } from '@/app/components/ui/Button';
 import { Play, Volume2, VolumeX, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function HeaderSection() {
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [visibleImages, setVisibleImages] = useState<number[]>([]);
+  const [clickedImage, setClickedImage] = useState<number | null>(null);
+  const [clickedImageSrc, setClickedImageSrc] = useState<string | null>(null);
+  const [clickedImageRect, setClickedImageRect] = useState<DOMRect | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const router = useRouter();
 
   const toggleMute = () => {
     if (videoRef.current) {
@@ -37,10 +43,6 @@ export default function HeaderSection() {
       isTransparent: false, // JPG 圖片
     },
     {
-      src: "https://sunnyhausbakery.com.tw/wp-content/uploads/2024/12/2024-10-25.jpg",
-      isTransparent: false, // JPG 圖片（重複使用以達到6張）
-    },
-    {
       src: "https://sunnyhausbakery.com.tw/wp-content/uploads/2024/12/LINE_ALBUM_晴朗家烘焙-蘆竹奉化_241223_4.jpg",
       isTransparent: false, // JPG 圖片
     },
@@ -49,11 +51,9 @@ export default function HeaderSection() {
   // 定義圖片顯示順序
   const imageOrder = [
     3, // 晴朗家LOGO-1712x1044-03.jpg (立即顯示)
-    5, // LINE_ALBUM_晴朗家烘焙-蘆竹奉化_241223_4.jpg (立即顯示)
-    0, // 2024-10-25.jpg (3秒後)
+    4, // LINE_ALBUM_晴朗家烘焙-蘆竹奉化_241223_4.jpg (立即顯示)
     1, // 未命名設計-1.png (6秒後)
     2, // 玫瑰玫瑰鹽可頌去背-scaled.png (9秒後)
-    4, // 2024-10-25.jpg (12秒後)
   ];
 
   // 控制圖片顯示時間
@@ -103,7 +103,7 @@ export default function HeaderSection() {
           />
         </div>
         {/* 浮動圖片 */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 z-20">
           {mobileImages.map((image, index) => {
             // 只顯示 visibleImages 中包含的圖片
             if (!visibleImages.includes(index)) {
@@ -128,7 +128,7 @@ export default function HeaderSection() {
             return (
               <div
                 key={`float-${index}`}
-                className={`absolute ${pos.size} ${isTransparent ? '' : 'rounded-xl overflow-hidden shadow-2xl'} animate-pop-up-and-float`}
+                className={`absolute ${pos.size} ${isTransparent ? '' : 'rounded-xl overflow-hidden shadow-2xl'} animate-pop-up-and-float cursor-pointer transition-all duration-300 ease-out`}
                 style={{
                   top: pos.top,
                   left: pos.left,
@@ -136,6 +136,23 @@ export default function HeaderSection() {
                   bottom: pos.top,
                   animationDelay: `${visibleIndex * 0.3}s`,
                   animationDuration: `${6 + visibleIndex * 0.5}s`,
+                  zIndex: clickedImage === index ? 100 : 30,
+                  opacity: clickedImage === index ? 0 : 1,
+                }}
+                onClick={(e) => {
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setClickedImageRect(rect);
+                  setClickedImageSrc(src);
+                  setClickedImage(index);
+                  // 延遲一幀後開始動畫，確保初始狀態已渲染
+                  requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                      setIsAnimating(true);
+                    });
+                  });
+                  setTimeout(() => {
+                    router.push('/sunnyhaus/bakery-items');
+                  }, 900);
                 }}
               >
                 <Image
@@ -149,13 +166,45 @@ export default function HeaderSection() {
             );
           })}
         </div>
+
+        {/* 轉場動畫層 - 點擊圖片放大到全屏並變淡消失 */}
+        {clickedImage !== null && clickedImageSrc && clickedImageRect && (
+          <div
+            className="fixed inset-0 z-[200] pointer-events-none md:hidden"
+            style={{
+              backgroundColor: isAnimating ? 'rgba(0, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0)',
+              transition: 'background-color 0.8s cubic-bezier(0.32, 0.72, 0, 1)',
+            }}
+          >
+            <div
+              className="absolute overflow-hidden"
+              style={{
+                left: isAnimating ? 0 : clickedImageRect.left,
+                top: isAnimating ? 0 : clickedImageRect.top,
+                width: isAnimating ? '100vw' : clickedImageRect.width,
+                height: isAnimating ? '100vh' : clickedImageRect.height,
+                borderRadius: isAnimating ? 0 : '0.75rem',
+                opacity: isAnimating ? 0 : 1,
+                transition: 'all 0.8s cubic-bezier(0.32, 0.72, 0, 1)',
+              }}
+            >
+              <Image
+                src={clickedImageSrc}
+                alt="轉場圖片"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Desktop Overlay */}
       <div className="hidden md:block absolute inset-0 bg-gradient-to-t from-sunny-dark/40 via-sunny-dark/20 to-transparent" />
 
       {/* Mobile Overlay */}
-      <div className="md:hidden absolute inset-0 bg-black/10 z-[5]" />
+      <div className="md:hidden absolute inset-0 bg-black/10 z-[15]" />
 
       {/* Floating Decorations - Desktop Only */}
       <div className="hidden md:block absolute top-20 left-10 text-6xl opacity-20 animate-float">🥐</div>
@@ -167,8 +216,8 @@ export default function HeaderSection() {
       </div>
 
       {/* Mobile Logo */}
-      <div className="md:hidden absolute inset-0 z-20 flex items-center justify-center pt-10">
-        <div className='w-full h-auto z-20 justify-center  absolute bottom-5 '>
+      <div className="md:hidden absolute inset-0 z-20 flex items-center justify-center pt-10 pointer-events-none">
+        <div className='w-full h-auto z-20 justify-center  absolute bottom-5 pointer-events-auto'>
         <Image
           src="https://sunnyhausbakery.com.tw/wp-content/uploads/2024/10/晴朗家-png.png"
           alt="晴朗家烘焙"
